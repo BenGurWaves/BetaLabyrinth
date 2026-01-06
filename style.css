@@ -1,3 +1,4 @@
+/* Labyrinth Chat v0.5.55 - Luxurious Mobile-First Design */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -27,6 +28,7 @@
     --msg-bg: rgba(255, 255, 255, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.03);
     --input-bg: rgba(255, 255, 255, 0.02);
+    --realm-bg: none;
 }
 [data-theme="light"] {
     --color-black: #f8f5f2;
@@ -51,6 +53,7 @@
     --msg-bg: rgba(0, 0, 0, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.08);
     --input-bg: rgba(0, 0, 0, 0.02);
+    --realm-bg: none;
 }
 * {
     margin: 0;
@@ -69,6 +72,42 @@ html, body {
     font-weight: 350;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+/* Realm Icon Container */
+.realm-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--color-gray-dark);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.realm-icon-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+.realm-icon-container .emoji-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+/* Main Chat with Realm Background */
+.main-chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background-image: var(--realm-bg);
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 /* Cursor */
 .cursor {
@@ -237,6 +276,45 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dot.active {
     display: block;
 }
+/* Notification Dropdown */
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 320px;
+    max-height: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    backdrop-filter: blur(40px);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    padding: 8px 0;
+}
+.notification-dropdown.active {
+    display: flex;
+}
+.notification-dropdown-item {
+    padding: 16px 20px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition-fast);
+    min-height: 60px;
+}
+.notification-dropdown-item:last-child {
+    border-bottom: none;
+}
+.notification-dropdown-item:hover {
+    background: var(--color-gray-dark);
+}
+.notification-dropdown-item.unread {
+    background: var(--color-gold-transparent);
+}
 .header-user-btn {
     display: flex;
     align-items: center;
@@ -261,6 +339,13 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     object-fit: cover;
     border: 1px solid var(--border-color);
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .header-user-avatar.online::after {
     content: '';
@@ -558,6 +643,13 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .dm-info {
     flex: 1;
@@ -611,14 +703,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     white-space: nowrap;
     z-index: 1000;
 }
-/* Main chat */
-.main-chat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-}
+/* Upload preview */
 .upload-preview {
     background: var(--input-bg);
     border-bottom: 1px solid var(--border-color);
@@ -756,6 +841,13 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border: 1px solid var(--border-color);
     cursor: pointer;
     transition: border-color var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .message-avatar:hover {
     border-color: var(--color-gold);
@@ -1116,11 +1208,11 @@ audio {
 .welcome-text p {
     margin-bottom: 20px;
 }
-/* Modals */
+/* Enhanced Modals with Blur & Scroll */
 .modal-back {
     position: fixed;
     inset: 0;
-    background: rgba(5, 5, 5, 0.95);
+    background: rgba(5, 5, 5, 0.85);
     display: none;
     align-items: center;
     justify-content: center;
@@ -1130,7 +1222,7 @@ audio {
     overflow-y: auto;
 }
 [data-theme="light"] .modal-back {
-    background: rgba(248, 245, 242, 0.95);
+    background: rgba(248, 245, 242, 0.85);
 }
 .modal-content {
     background: var(--bg-secondary);
@@ -1140,7 +1232,7 @@ audio {
     max-width: 500px;
     border: 1px solid var(--border-color);
     backdrop-filter: blur(20px);
-    max-height: 80vh;
+    max-height: 90vh;
     overflow-y: auto;
     position: relative;
 }
@@ -1162,10 +1254,10 @@ audio {
     background: transparent;
     border: none;
     color: var(--text-secondary);
-    font-size: 24px;
+    font-size: 28px;
     cursor: pointer;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1176,6 +1268,93 @@ audio {
 .modal-close-btn:hover {
     color: var(--color-gold);
     background: var(--color-gray-dark);
+}
+/* Realm Picker Grid */
+.realms-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 4px;
+}
+@media (min-width: 1200px) {
+    .realms-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+.realm-grid-item {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--input-bg);
+    position: relative;
+}
+.realm-grid-item:hover {
+    border-color: var(--color-gold);
+    transform: translateY(-2px);
+}
+.realm-grid-item.active {
+    border-color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+.realm-grid-item.featured {
+    border-color: var(--color-gold-transparent);
+    background: var(--color-gold-transparent);
+    box-shadow: 0 0 20px rgba(202, 168, 122, 0.1);
+}
+.featured-badge {
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    background: var(--color-gold);
+    color: var(--color-black);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.realm-grid-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: var(--color-gray-dark);
+}
+.realm-grid-info {
+    flex: 1;
+}
+.realm-grid-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+.realm-grid-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+.realm-grid-members {
+    font-size: 11px;
+    color: var(--color-gray);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 .realm-list {
     margin: 20px 0;
@@ -1350,6 +1529,37 @@ audio {
     opacity: 0.5;
     pointer-events: none;
 }
+/* Search Modal Full Elegant */
+#searchModal .modal-content {
+    max-width: 800px;
+    padding: 32px;
+}
+.search-modal-header {
+    margin-bottom: 32px;
+}
+.search-input-large {
+    width: 100%;
+    padding: 20px 24px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-family: 'Inter', sans-serif;
+    transition: all var(--transition-fast);
+    outline: none;
+}
+.search-input-large:focus {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 2px var(--color-gold-transparent);
+}
+.search-results-full {
+    max-height: 50vh;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
 /* Login */
 .login-card {
     background: var(--bg-secondary);
@@ -1482,6 +1692,10 @@ audio {
     background-position: center;
     background-repeat: no-repeat;
     transition: border-color var(--transition-fast);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .avatar-large:hover {
     border-color: var(--color-gold-light);
@@ -1766,6 +1980,13 @@ input:checked + .toggle-slider:before {
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .search-result-info {
     flex: 1;
@@ -1811,6 +2032,13 @@ input:checked + .toggle-slider:before {
     display: block;
     cursor: pointer;
     transition: transform var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
 }
 .quick-profile-avatar:hover {
     transform: scale(1.05);
@@ -1887,30 +2115,33 @@ input:checked + .toggle-slider:before {
 .quick-profile.active, .reply-action.active, .emoji-picker.active {
     transform: translateY(0);
 }
+/* Message Menu - Enhanced for Visibility */
 .message-context-menu {
     position: fixed;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 8px 0;
-    z-index: 2000;
-    backdrop-filter: blur(20px);
-    min-width: 180px;
+    z-index: 5000;
+    backdrop-filter: blur(40px);
+    min-width: 200px;
     display: none;
     flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    max-height: 70vh;
+    overflow-y: auto;
 }
 .message-context-menu.active {
     display: flex;
 }
 .context-menu-item {
-    padding: 12px 20px;
+    padding: 16px 24px;
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
     transition: background var(--transition-fast);
-    font-size: 14px;
+    font-size: 15px;
     color: var(--text-primary);
     border: none;
     background: none;
@@ -1918,7 +2149,7 @@ input:checked + .toggle-slider:before {
     width: 100%;
     font-family: 'Inter', sans-serif;
     font-weight: 350;
-    min-height: 44px;
+    min-height: 52px;
 }
 .context-menu-item:hover {
     background: var(--color-gray-dark);
@@ -1939,8 +2170,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gold);
 }
 .context-menu-icon {
-    font-size: 16px;
-    width: 20px;
+    font-size: 18px;
+    width: 24px;
     text-align: center;
 }
 .emoji-picker {
@@ -2159,9 +2390,10 @@ input:checked + .toggle-slider:before {
     border-color: var(--danger);
     color: var(--danger);
 }
-/* Confirmation modal */
+/* Confirmation Modal - High Z-Index */
 .confirmation-modal {
     text-align: center;
+    z-index: 6000;
 }
 .confirmation-icon {
     font-size: 48px;
@@ -2184,6 +2416,70 @@ input:checked + .toggle-slider:before {
 }
 .confirmation-actions .btn-secondary {
     flex: 1;
+}
+/* Realm Settings Layout */
+.realm-settings-modal .modal-content {
+    max-width: 600px;
+}
+.realm-settings-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+.realm-settings-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.realm-settings-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    color: var(--color-gold);
+    margin-bottom: 16px;
+}
+.realm-settings-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+.realm-settings-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+.realm-settings-btn-large {
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.realm-settings-btn-gold {
+    background: transparent;
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+}
+.realm-settings-btn-gold:hover {
+    background: var(--color-gold);
+    color: var(--color-black);
+}
+.realm-settings-btn-red {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+.realm-settings-btn-red:hover {
+    background: var(--danger);
+    color: var(--color-white);
 }
 /* Loading overlay */
 #loadingOverlay {
@@ -2718,6 +3014,13 @@ input:checked + .toggle-slider:before {
     .top-bar {
         padding: 0 16px;
     }
+    .realms-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .realm-grid-item {
+        padding: 16px;
+    }
     .realm-title {
         font-size: 16px;
     }
@@ -2820,6 +3123,14 @@ input:checked + .toggle-slider:before {
         min-height: 56px;
         font-size: 16px;
     }
+    .search-input-large {
+        padding: 16px 20px;
+        font-size: 16px;
+    }
+    .notification-dropdown {
+        width: 280px;
+        right: -20px;
+    }
 }
 @media (max-width: 480px) {
     :root {
@@ -2876,6 +3187,10 @@ input:checked + .toggle-slider:before {
     .quick-profile-avatar {
         width: 80px;
         height: 80px;
+    }
+    .realm-settings-btn-large {
+        padding: 14px 20px;
+        font-size: 14px;
     }
 }
 @media (max-height: 500px) and (orientation: landscape) {

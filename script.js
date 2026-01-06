@@ -145,7 +145,7 @@ async function fetchAndUpdateProfile(immediate = false) {
         console.log('Fetching latest profile from Supabase...');        
         const { data: profile, error } = await state.supabase
             .from('profiles')
-            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference')
+            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts')
             .eq('id', state.currentUser.id)
             .single();            
         if (error) {
@@ -160,12 +160,19 @@ async function fetchAndUpdateProfile(immediate = false) {
             state.userSettings.show_realms = profile.show_realms !== false;
             state.userSettings.stealth_mode = profile.stealth_mode === true;
             state.userSettings.theme_preference = profile.theme_preference || 'dark';
+            state.userSettings.in_app_notifications = profile.in_app_notifications !== false;
+            state.userSettings.push_notifications = profile.push_notifications === true;
+            state.userSettings.email_notifications = profile.email_notifications === true;
+            state.userSettings.send_with_enter = profile.send_with_enter !== false;
+            state.userSettings.open_links_in_app = profile.open_links_in_app === true;
+            state.userSettings.send_read_receipts = profile.send_read_receipts !== false;
         }
         updateHeaderUserButton();
         updateProfileModal();        
         console.log('Profile updated from Supabase');
         if (immediate) {
             applyUserSettings();
+            updateSettingsModal();
         }        
     } catch (error) {
         console.log('Error in fetchAndUpdateProfile:', error);
@@ -235,6 +242,9 @@ async function loadUserProfile() {
                 in_app_notifications: true,
                 push_notifications: false,
                 email_notifications: false,
+                send_with_enter: true,
+                open_links_in_app: false,
+                send_read_receipts: true,
                 bio: '',
                 social_links: {},
                 show_realms: true
@@ -263,6 +273,9 @@ async function loadUserProfile() {
                 in_app_notifications: true,
                 push_notifications: false,
                 email_notifications: false,
+                send_with_enter: true,
+                open_links_in_app: false,
+                send_read_receipts: true,
                 bio: '',
                 social_links: {},
                 show_realms: true
@@ -279,6 +292,9 @@ async function loadUserProfile() {
             in_app_notifications: profile.in_app_notifications !== false,
             push_notifications: profile.push_notifications === true,
             email_notifications: profile.email_notifications === true,
+            send_with_enter: profile.send_with_enter !== false,
+            open_links_in_app: profile.open_links_in_app === true,
+            send_read_receipts: profile.send_read_receipts !== false,
             bio: profile.bio || '',
             social_links: profile.social_links || {},
             show_realms: profile.show_realms !== false
@@ -298,6 +314,9 @@ async function loadUserProfile() {
             in_app_notifications: true,
             push_notifications: false,
             email_notifications: false,
+            send_with_enter: true,
+            open_links_in_app: false,
+            send_read_receipts: true,
             bio: '',
             social_links: {},
             show_realms: true
@@ -332,7 +351,9 @@ function applyUserSettings() {
         console.log('Applying user settings:', {
             theme: state.userSettings.theme_preference,
             stealth: state.userSettings.stealth_mode,
-            show_realms: state.userSettings.show_realms
+            show_realms: state.userSettings.show_realms,
+            send_with_enter: state.userSettings.send_with_enter,
+            open_links_in_app: state.userSettings.open_links_in_app
         });
         
         if (state.userSettings.theme_preference === 'system') {
@@ -785,7 +806,7 @@ function renderChannels() {
                     deleteBtn.style.opacity = '0';
                 });
             }           
-            channelList.appendChild(item);
+ channelList.appendChild(item);
         });        
     } catch (error) {
         console.log('Error rendering channels:', error);
@@ -914,6 +935,7 @@ async function loadMessages() {
                 console.log('Loaded', messages.length, 'messages');
                 loadPinnedMessage();
                 setupMessageSubscription();
+                updateReadReceipts();
             })
             .catch(error => {
                 console.log('Error loading messages:', error);               
@@ -927,6 +949,26 @@ async function loadMessages() {
             });
     } catch (error) {
         console.log('Error in loadMessages:', error);
+    }
+}
+
+async function updateReadReceipts() {
+    try {
+        if (!state.currentChannel || !state.supabase || !state.userSettings?.send_read_receipts) return;
+        if (state.currentRealm?.slug !== 'direct-messages') return;
+        
+        const { error } = await state.supabase
+            .from('messages')
+            .update({ read_by: [...new Set([...(state.messages[0]?.read_by || []), state.currentUser.id])] })
+            .eq('channel_id', state.currentChannel.id)
+            .neq('user_id', state.currentUser.id)
+            .is('read_by', null);
+            
+        if (error) {
+            console.log('Error updating read receipts:', error);
+        }
+    } catch (error) {
+        console.log('Error in updateReadReceipts:', error);
     }
 }
 
@@ -1156,7 +1198,11 @@ function formatMessageContent(content) {
                 mediaHtml = `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
             }
         } else {
-            mediaHtml = `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
+            if (state.userSettings?.open_links_in_app) {
+                mediaHtml = `<a href="${cleanUrl}" onclick="openEnhancedMedia('${cleanUrl}'); return false;" style="cursor: pointer;">${cleanUrl}</a>`;
+            } else {
+                mediaHtml = `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>`;
+            }
         }        
         return mediaHtml + trailingChar;
     });
@@ -1596,6 +1642,9 @@ function setupMessageSubscription() {
                             }, 100);
                         }
                     }
+                    if (state.userSettings?.in_app_notifications && !document.hasFocus()) {
+                        showToast('New Message', `From ${message.profiles?.username || 'User'}`, 'info');
+                    }
                 } 
                 else if (payload.eventType === 'UPDATE') {
                     const messageIndex = state.messages.findIndex(m => m.id === payload.new.id);
@@ -1875,11 +1924,17 @@ function updateSettingsModal() {
         const pushNotifications = document.getElementById('settingsPushNotifications');
         const emailNotifications = document.getElementById('settingsEmailNotifications');
         const stealthMode = document.getElementById('settingsAppearOffline');
+        const readReceipts = document.getElementById('settingsReadReceipts');
+        const sendWithEnter = document.getElementById('settingsSendWithEnter');
+        const openLinksInApp = document.getElementById('settingsOpenLinksInApp');
         
         if (inAppNotifications) inAppNotifications.checked = state.userSettings.in_app_notifications !== false;
         if (pushNotifications) pushNotifications.checked = state.userSettings.push_notifications === true;
         if (emailNotifications) emailNotifications.checked = state.userSettings.email_notifications === true;
         if (stealthMode) stealthMode.checked = state.userSettings.stealth_mode === true;
+        if (readReceipts) readReceipts.checked = state.userSettings.send_read_receipts !== false;
+        if (sendWithEnter) sendWithEnter.checked = state.userSettings.send_with_enter !== false;
+        if (openLinksInApp) openLinksInApp.checked = state.userSettings.open_links_in_app === true;
         
         const themeOptions = document.querySelectorAll('.theme-option');
         themeOptions.forEach(option => {
@@ -1907,7 +1962,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.4...');
+        console.log('Initializing Supabase v0.5.55...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2032,7 +2087,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.4...');
+        console.log('Initializing app v0.5.55...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2072,7 +2127,7 @@ async function initializeApp() {
         }
         hideLoader();
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.4', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.5.55', 'success');
         }, 500);
         
         setTimeout(checkWelcomeMessages, 1000);
@@ -2237,9 +2292,11 @@ function setupEventListeners() {
             updateSendButtonState();
         });        
         messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+            if (state.userSettings?.send_with_enter) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
             }
         });
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
@@ -2252,9 +2309,36 @@ function setupEventListeners() {
         document.getElementById('userModalCloseBtn').addEventListener('click', function() {
             document.getElementById('userModal').style.display = 'none';
         });
-        document.getElementById('notificationBell').addEventListener('click', function() {
-            showToast('Notifications', 'Notifications coming soon', 'info');
+        
+        document.getElementById('notificationBell').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const dropdown = document.getElementById('notificationsDropdown');
+            dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
         });
+        
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#notificationBell') && !e.target.closest('#notificationsDropdown')) {
+                document.getElementById('notificationsDropdown').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('globalSearchBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'flex';
+            document.getElementById('globalSearchInput').focus();
+        });
+        
+        document.getElementById('globalSearchCloseBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'none';
+        });
+        
+        document.getElementById('globalSearchModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'none';
+        });
+        
+        document.getElementById('globalSearchInput').addEventListener('input', function() {
+            performGlobalSearch(this.value);
+        });
+        
         document.querySelectorAll('.modal-tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 const tabId = this.dataset.tab;                
@@ -2275,24 +2359,66 @@ function setupEventListeners() {
         document.getElementById('profileAvatar').addEventListener('click', function() {
             document.getElementById('avatarUploadInput').click();
         });
-        const stealthModeToggle = document.getElementById('settingsAppearOffline');
         
-        if (stealthModeToggle) {
-            stealthModeToggle.addEventListener('change', async function() {
-                const { error } = await state.supabase
-                    .from('profiles')
-                    .update({ stealth_mode: this.checked })
-                    .eq('id', state.currentUser.id);                    
-                if (error) {
-                    console.log('Error saving stealth mode:', error);
-                    this.checked = !this.checked;
-                    showToast('Error', 'Failed to update setting', 'error');
-                    return;
-                }
-                await fetchAndUpdateProfile(true);
-                showToast('Settings Updated', 'Stealth mode updated', 'success');
-            });
-        }
+        const settingsToggles = [
+            'settingsInAppNotifications',
+            'settingsPushNotifications',
+            'settingsEmailNotifications',
+            'settingsAppearOffline',
+            'settingsReadReceipts',
+            'settingsSendWithEnter',
+            'settingsOpenLinksInApp'
+        ];
+        
+        settingsToggles.forEach(toggleId => {
+            const toggle = document.getElementById(toggleId);
+            if (toggle) {
+                toggle.addEventListener('change', async function() {
+                    if (toggleId === 'settingsPushNotifications') {
+                        showToast('Coming Soon', 'Push notifications will be available in a future update', 'info');
+                        this.checked = false;
+                        return;
+                    }
+                    if (toggleId === 'settingsEmailNotifications') {
+                        showToast('Coming Soon', 'Email notifications will be available in a future update', 'info');
+                        this.checked = false;
+                        return;
+                    }
+                    
+                    const fieldMap = {
+                        'settingsInAppNotifications': 'in_app_notifications',
+                        'settingsPushNotifications': 'push_notifications',
+                        'settingsEmailNotifications': 'email_notifications',
+                        'settingsAppearOffline': 'stealth_mode',
+                        'settingsReadReceipts': 'send_read_receipts',
+                        'settingsSendWithEnter': 'send_with_enter',
+                        'settingsOpenLinksInApp': 'open_links_in_app'
+                    };
+                    
+                    const field = fieldMap[toggleId];
+                    const value = this.type === 'checkbox' ? this.checked : this.value;
+                    
+                    const { error } = await state.supabase
+                        .from('profiles')
+                        .update({ [field]: value })
+                        .eq('id', state.currentUser.id);
+                        
+                    if (error) {
+                        console.log(`Error saving ${field}:`, error);
+                        this.checked = !this.checked;
+                        showToast('Error', 'Failed to update setting', 'error');
+                        return;
+                    }
+                    
+                    state.userSettings[field] = value;
+                    showToast('Settings Updated', 'Setting saved successfully', 'success');
+                    
+                    if (toggleId === 'settingsSendWithEnter') {
+                        applyUserSettings();
+                    }
+                });
+            }
+        });
         
         document.querySelectorAll('.theme-option').forEach(option => {
             option.addEventListener('click', async function() {
@@ -2333,6 +2459,7 @@ function setupEventListeners() {
                 showToast('Settings Updated', 'Show realms setting updated', 'success');
             });
         }
+        
         document.querySelectorAll('.toggle-switch.disabled').forEach(toggle => {
             toggle.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -2340,6 +2467,7 @@ function setupEventListeners() {
                 showToast('Feature Coming', 'Settings will be available in a future update', 'info');
             });
         });
+        
         document.getElementById('quickProfileCloseBtn').addEventListener('click', function() {
             document.getElementById('quickProfileModal').style.display = 'none';
             state.selectedUserForProfile = null;
@@ -2430,12 +2558,50 @@ function setupEventListeners() {
         });
         
         document.getElementById('forceRefreshBtn').addEventListener('click', function() {
-            localStorage.clear();
-            window.location.reload();
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '↻';
+            document.getElementById('confirmationTitle').textContent = 'Force Refresh';
+            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');
+            
+            const handleConfirm = () => {
+                localStorage.clear();
+                window.location.reload(true);
+            };
+            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
         });        
         document.getElementById('modalForceRefreshBtn').addEventListener('click', function() {
-            localStorage.clear();
-            window.location.reload();
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '↻';
+            document.getElementById('confirmationTitle').textContent = 'Force Refresh';
+            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');
+            
+            const handleConfirm = () => {
+                localStorage.clear();
+                window.location.reload(true);
+            };
+            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
         });
         document.getElementById('profileLogoutBtn').addEventListener('click', function() {
             state.supabase.auth.signOut()
@@ -2547,6 +2713,10 @@ function setupEventListeners() {
                 document.getElementById('realmSettingsModal').style.display = 'none';
                 document.getElementById('realmAnnouncementModal').style.display = 'none';
                 document.getElementById('avatarFullscreenModal').style.display = 'none';
+                document.getElementById('globalSearchModal').style.display = 'none';
+                document.getElementById('notificationsModal').style.display = 'none';
+                document.getElementById('publicProfileModal').style.display = 'none';
+                document.getElementById('notificationsDropdown').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -2619,6 +2789,100 @@ function setupEventListeners() {
             document.getElementById('realmAnnouncementModal').style.display = 'none';
         });
         
+        document.getElementById('realmSettingsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsModal').style.display = 'none';
+        });
+        
+        document.getElementById('cancelRealmSettingsBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsModal').style.display = 'none';
+        });
+        
+        document.getElementById('saveRealmSettingsBtn').addEventListener('click', saveRealmSettings);
+        
+        document.getElementById('realmSettingsChooseEmojiBtn').addEventListener('click', function() {
+            showRealmIconEmojiPicker();
+        });
+        
+        document.getElementById('realmSettingsIconUploadBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsIconUpload').click();
+        });
+        
+        document.getElementById('realmSettingsBackgroundUploadBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsBackgroundUpload').click();
+        });
+        
+        document.getElementById('realmSettingsIconUpload').addEventListener('change', handleRealmIconUpload);
+        document.getElementById('realmSettingsBackgroundUpload').addEventListener('change', handleRealmBackgroundUpload);
+        
+        document.getElementById('realmSettingsPublic').addEventListener('change', function() {
+            const privateSection = document.getElementById('privateRealmSection');
+            if (this.checked) {
+                privateSection.style.display = 'none';
+            } else {
+                privateSection.style.display = 'block';
+            }
+        });
+        
+        document.getElementById('realmSettingsInviteBtn').addEventListener('click', function() {
+            showInviteUsersModal();
+        });
+        
+        document.getElementById('realmAddCoAdminBtn').addEventListener('click', function() {
+            addCoAdmin();
+        });
+        
+        document.getElementById('realmCoAdminSearch').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                addCoAdmin();
+            }
+        });
+        
+        document.getElementById('realmSettingsCreateChannelBtn').addEventListener('click', function() {
+            document.getElementById('createChannelModal').style.display = 'flex';
+        });
+        
+        document.getElementById('realmSettingsLeaveBtn').addEventListener('click', function() {
+            if (!state.currentRealm) return;
+            leaveRealm(state.currentRealm.id);
+        });
+        
+        document.getElementById('realmSettingsDeleteBtn').addEventListener('click', function() {
+            if (!state.currentRealm) return;
+            deleteRealm();
+        });
+        
+        document.getElementById('markAllReadBtn').addEventListener('click', function() {
+            markAllNotificationsRead();
+        });
+        
+        document.getElementById('viewAllNotificationsBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'flex';
+            loadAllNotifications();
+        });
+        
+        document.getElementById('notificationsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'none';
+        });
+        
+        document.getElementById('notificationsCloseBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'none';
+        });
+        
+        document.getElementById('publicProfileModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('publicProfileModal').style.display = 'none';
+        });
+        
+        document.getElementById('publicProfileContactBtn').addEventListener('click', function() {
+            if (state.selectedUserForProfile) {
+                createOrOpenDM(state.selectedUserForProfile);
+                document.getElementById('publicProfileModal').style.display = 'none';
+            }
+        });
+        
+        document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
+            document.getElementById('publicProfileModal').style.display = 'none';
+        });
+        
     } catch (error) {
         console.log('Error setting up event listeners:', error);
     }
@@ -2626,7 +2890,7 @@ function setupEventListeners() {
 
 async function showRealmSettingsModal() {
     try {
-        if (!state.currentRealm) return;
+        if (!state.currentRealm || !state.supabase) return;
         
         const isCreator = state.currentRealm.created_by === state.currentUser.id;
         const nonCreatorSettings = document.getElementById('nonCreatorSettings');
@@ -2640,7 +2904,7 @@ async function showRealmSettingsModal() {
             
             const { data: realm, error } = await state.supabase
                 .from('realms')
-                .select('name, description, is_public, announcement_message')
+                .select('name, description, is_public, announcement_message, icon_url, background_url')
                 .eq('id', state.currentRealm.id)
                 .single();
                 
@@ -2655,6 +2919,22 @@ async function showRealmSettingsModal() {
             document.getElementById('realmSettingsAnnouncement').value = realm.announcement_message || '';
             document.getElementById('realmSettingsPublic').checked = realm.is_public === true;
             
+            const iconPreview = document.getElementById('realmSettingsIconPreview');
+            if (realm.icon_url) {
+                iconPreview.style.backgroundImage = `url(${realm.icon_url})`;
+                iconPreview.textContent = '';
+            } else {
+                iconPreview.style.backgroundImage = 'none';
+                iconPreview.textContent = '🏰';
+            }
+            
+            if (realm.is_public) {
+                document.getElementById('privateRealmSection').style.display = 'none';
+            } else {
+                document.getElementById('privateRealmSection').style.display = 'block';
+            }
+            
+            await loadCoAdmins();
             await loadChannelsForDragAndDrop();
         } else {
             nonCreatorSettings.style.display = 'block';
@@ -2665,6 +2945,135 @@ async function showRealmSettingsModal() {
     } catch (error) {
         console.log('Error showing realm settings modal:', error);
         showToast('Error', 'Failed to load realm settings', 'error');
+    }
+}
+
+async function loadCoAdmins() {
+    try {
+        if (!state.currentRealm || !state.supabase) return;
+        
+        const { data: coAdmins, error } = await state.supabase
+            .from('realm_roles')
+            .select(`
+                profiles (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
+            .eq('realm_id', state.currentRealm.id)
+            .eq('role', 'admin');
+            
+        if (error) {
+            console.log('Error loading co-admins:', error);
+            return;
+        }
+        
+        const coAdminsList = document.getElementById('realmCoAdminsList');
+        coAdminsList.innerHTML = '';
+        
+        if (coAdmins.length === 0) {
+            coAdminsList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 10px; font-style: italic;">No co-admins</div>';
+            return;
+        }
+        
+        coAdmins.forEach(item => {
+            const admin = item.profiles;
+            if (!admin) return;
+            
+            const adminElement = document.createElement('div');
+            adminElement.className = 'co-admin-item';
+            adminElement.innerHTML = `
+                <img src="${admin.avatar_url ? admin.avatar_url + '?t=' + Date.now() : ''}" alt="${admin.username}" onerror="this.style.display='none';">
+                <span>${escapeHtml(admin.username)}</span>
+                <button class="remove-co-admin-btn" data-user-id="${admin.id}">Remove</button>
+            `;
+            
+            coAdminsList.appendChild(adminElement);
+            
+            adminElement.querySelector('.remove-co-admin-btn').addEventListener('click', async function() {
+                await removeCoAdmin(admin.id);
+            });
+        });
+    } catch (error) {
+        console.log('Error loading co-admins:', error);
+    }
+}
+
+async function addCoAdmin() {
+    try {
+        const searchInput = document.getElementById('realmCoAdminSearch');
+        const username = searchInput.value.trim();
+        
+        if (!username || !state.currentRealm || !state.supabase) return;
+        
+        const { data: user, error } = await state.supabase
+            .from('profiles')
+            .select('id, username')
+            .eq('username', username)
+            .single();
+            
+        if (error || !user) {
+            showToast('Error', 'User not found', 'error');
+            return;
+        }
+        
+        if (user.id === state.currentUser.id) {
+            showToast('Error', 'You are already the creator', 'error');
+            return;
+        }
+        
+        const { error: insertError } = await state.supabase
+            .from('realm_roles')
+            .insert({
+                realm_id: state.currentRealm.id,
+                user_id: user.id,
+                role: 'admin'
+            })
+            .select()
+            .single();
+            
+        if (insertError) {
+            if (insertError.code === '23505') {
+                showToast('Info', 'User is already a co-admin', 'info');
+            } else {
+                console.log('Error adding co-admin:', insertError);
+                showToast('Error', 'Failed to add co-admin', 'error');
+            }
+            return;
+        }
+        
+        showToast('Success', 'Co-admin added successfully', 'success');
+        searchInput.value = '';
+        loadCoAdmins();
+    } catch (error) {
+        console.log('Error adding co-admin:', error);
+        showToast('Error', 'Failed to add co-admin', 'error');
+    }
+}
+
+async function removeCoAdmin(userId) {
+    try {
+        if (!state.currentRealm || !state.supabase) return;
+        
+        const { error } = await state.supabase
+            .from('realm_roles')
+            .delete()
+            .eq('realm_id', state.currentRealm.id)
+            .eq('user_id', userId)
+            .eq('role', 'admin');
+            
+        if (error) {
+            console.log('Error removing co-admin:', error);
+            showToast('Error', 'Failed to remove co-admin', 'error');
+            return;
+        }
+        
+        showToast('Success', 'Co-admin removed', 'success');
+        loadCoAdmins();
+    } catch (error) {
+        console.log('Error removing co-admin:', error);
+        showToast('Error', 'Failed to remove co-admin', 'error');
     }
 }
 
@@ -2840,6 +3249,509 @@ async function saveRealmSettings() {
     } catch (error) {
         console.log('Error saving realm settings:', error);
         showToast('Error', 'Failed to save realm settings', 'error');
+    }
+}
+
+function showRealmIconEmojiPicker() {
+    try {
+        const emojiPicker = document.createElement('div');
+        emojiPicker.className = 'emoji-picker-popup';
+        emojiPicker.style.position = 'absolute';
+        emojiPicker.style.background = 'var(--bg-secondary)';
+        emojiPicker.style.border = '1px solid var(--border-color)';
+        emojiPicker.style.borderRadius = '8px';
+        emojiPicker.style.padding = '12px';
+        emojiPicker.style.zIndex = '1000';
+        emojiPicker.style.maxHeight = '200px';
+        emojiPicker.style.overflowY = 'auto';
+        
+        const emojis = ['🏰', '🏯', '🗼', '🏛️', '🏟️', '🎪', '🕌', '🕍', '⛪', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼', '🗽', '🌄', '🌅', '🌆', '🌇', '🌉', '🎠', '🎡', '🎢', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🚚', '🚛', '🚜', '🚲', '🛴', '🛵', '🚏', '🛣️', '🛤️', '⛽', '🚨', '🚥', '🚦', '🚧', '🛑', '⚓', '⛵', '🚤', '🛳️', '⛴️', '🛶', '🚁', '🛩️', '✈️', '🛫', '🛬', '💺', '🚀', '🛰️', '🛸', '🛎️', '🧳', '⌛', '⏳', '⌚', '⏰', '⏱️', '⏲️', '🕰️', '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘', '🌙', '🌚', '🌛', '🌜', '🌡️', '☀️', '🌝', '🌞', '⭐', '🌟', '🌠', '🌌', '☁️', '⛅', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌀', '🌈', '🌂', '☂️', '☔', '⛱️', '⚡', '❄️', '☃️', '⛄', '☄️', '🔥', '💧', '🌊'];
+        
+        emojiPicker.innerHTML = emojis.map(emoji => `
+            <button class="emoji-btn" style="font-size: 24px; padding: 4px; margin: 2px; background: none; border: none; cursor: pointer;">${emoji}</button>
+        `).join('');
+        
+        document.body.appendChild(emojiPicker);
+        
+        const btn = document.getElementById('realmSettingsChooseEmojiBtn');
+        const rect = btn.getBoundingClientRect();
+        emojiPicker.style.left = `${rect.left}px`;
+        emojiPicker.style.top = `${rect.bottom + 5}px`;
+        
+        emojiPicker.querySelectorAll('.emoji-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const emoji = this.textContent;
+                await updateRealmIconEmoji(emoji);
+                document.body.removeChild(emojiPicker);
+            });
+        });
+        
+        document.addEventListener('click', function closePicker(e) {
+            if (!emojiPicker.contains(e.target) && e.target !== btn) {
+                document.body.removeChild(emojiPicker);
+                document.removeEventListener('click', closePicker);
+            }
+        });
+    } catch (error) {
+        console.log('Error showing realm icon emoji picker:', error);
+    }
+}
+
+async function updateRealmIconEmoji(emoji) {
+    try {
+        if (!state.currentRealm || !state.supabase) return;
+        
+        const iconPreview = document.getElementById('realmSettingsIconPreview');
+        iconPreview.textContent = emoji;
+        iconPreview.style.backgroundImage = 'none';
+        
+        const { error } = await state.supabase
+            .from('realms')
+            .update({ icon_url: null })
+            .eq('id', state.currentRealm.id);
+            
+        if (error) {
+            console.log('Error updating realm icon:', error);
+            showToast('Error', 'Failed to update realm icon', 'error');
+        }
+    } catch (error) {
+        console.log('Error updating realm icon emoji:', error);
+        showToast('Error', 'Failed to update realm icon', 'error');
+    }
+}
+
+async function handleRealmIconUpload(event) {
+    try {
+        const file = event.target.files[0];
+        if (!file || !state.currentRealm || !state.supabase) return;
+        
+        if (!file.type.startsWith('image/')) {
+            showToast('Error', 'Please select an image file', 'error');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('Error', 'Image must be less than 5MB', 'error');
+            return;
+        }
+        
+        const filePath = `realm-icons/${state.currentRealm.id}/icon.png`;
+        
+        const { error: uploadError } = await state.supabase.storage
+            .from('avatars')
+            .upload(filePath, file, {
+                upsert: true,
+                contentType: file.type
+            });
+            
+        if (uploadError) {
+            console.log('Error uploading realm icon:', uploadError);
+            showToast('Error', 'Failed to upload realm icon', 'error');
+            return;
+        }
+        
+        const { data: { publicUrl } } = state.supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+            
+        const { error: updateError } = await state.supabase
+            .from('realms')
+            .update({ icon_url: publicUrl })
+            .eq('id', state.currentRealm.id);
+            
+        if (updateError) {
+            console.log('Error updating realm icon URL:', updateError);
+            showToast('Error', 'Failed to update realm icon', 'error');
+            return;
+        }
+        
+        const iconPreview = document.getElementById('realmSettingsIconPreview');
+        iconPreview.style.backgroundImage = `url(${publicUrl})`;
+        iconPreview.textContent = '';
+        
+        showToast('Success', 'Realm icon updated', 'success');
+        event.target.value = '';
+    } catch (error) {
+        console.log('Error handling realm icon upload:', error);
+        showToast('Error', 'Failed to upload realm icon', 'error');
+    }
+}
+
+async function handleRealmBackgroundUpload(event) {
+    try {
+        const file = event.target.files[0];
+        if (!file || !state.currentRealm || !state.supabase) return;
+        
+        if (!file.type.startsWith('image/')) {
+            showToast('Error', 'Please select an image file', 'error');
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('Error', 'Image must be less than 10MB', 'error');
+            return;
+        }
+        
+        const filePath = `realm-backgrounds/${state.currentRealm.id}/background.png`;
+        
+        const { error: uploadError } = await state.supabase.storage
+            .from('avatars')
+            .upload(filePath, file, {
+                upsert: true,
+                contentType: file.type
+            });
+            
+        if (uploadError) {
+            console.log('Error uploading realm background:', uploadError);
+            showToast('Error', 'Failed to upload realm background', 'error');
+            return;
+        }
+        
+        const { data: { publicUrl } } = state.supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+            
+        const { error: updateError } = await state.supabase
+            .from('realms')
+            .update({ background_url: publicUrl })
+            .eq('id', state.currentRealm.id);
+            
+        if (updateError) {
+            console.log('Error updating realm background URL:', updateError);
+            showToast('Error', 'Failed to update realm background', 'error');
+            return;
+        }
+        
+        showToast('Success', 'Realm background updated', 'success');
+        event.target.value = '';
+    } catch (error) {
+        console.log('Error handling realm background upload:', error);
+        showToast('Error', 'Failed to upload realm background', 'error');
+    }
+}
+
+function showInviteUsersModal() {
+    showToast('Coming Soon', 'User invitation system coming in a future update', 'info');
+}
+
+async function deleteRealm() {
+    try {
+        if (!state.currentRealm || !state.supabase || state.currentRealm.created_by !== state.currentUser.id) return;
+        
+        document.getElementById('confirmationModal').style.display = 'flex';
+        document.getElementById('confirmationIcon').textContent = '🗑️';
+        document.getElementById('confirmationTitle').textContent = 'Delete Realm';
+        document.getElementById('confirmationMessage').textContent = 'This will permanently delete the realm and all its contents. This action cannot be undone. Are you sure?';
+        
+        const confirmBtn = document.getElementById('confirmationConfirm');
+        const cancelBtn = document.getElementById('confirmationCancel');
+        
+        const handleConfirm = async () => {
+            try {
+                const { error } = await state.supabase
+                    .from('realms')
+                    .update({ 
+                        is_public: false,
+                        deleted_at: new Date().toISOString()
+                    })
+                    .eq('id', state.currentRealm.id);
+                    
+                if (error) throw error;
+                
+                const { error: deleteError } = await state.supabase
+                    .from('user_realms')
+                    .delete()
+                    .eq('realm_id', state.currentRealm.id);
+                    
+                if (deleteError) {
+                    console.log('Error removing users from realm:', deleteError);
+                }
+                
+                showToast('Success', 'Realm deleted', 'success');
+                document.getElementById('confirmationModal').style.display = 'none';
+                document.getElementById('realmSettingsModal').style.display = 'none';
+                
+                state.joinedRealms = await loadJoinedRealmsFast();
+                renderRealmDropdown();
+                
+                if (state.joinedRealms.length > 0) {
+                    switchRealm(state.joinedRealms[0].id);
+                } else {
+                    state.currentRealm = null;
+                    state.currentChannel = null;
+                    document.getElementById('currentRealmName').textContent = 'No Realm';
+                    document.getElementById('channelList').innerHTML = `
+                        <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
+                            Select a realm to view channels
+                        </div>
+                    `;
+                    document.getElementById('messagesContainer').innerHTML = `
+                        <div class="empty-state" id="emptyState">
+                            Select a realm and channel to view messages
+                        </div>
+                    `;
+                    document.getElementById('messageInput').placeholder = 'Select a channel to start messaging...';
+                    document.getElementById('messageInput').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
+                }
+            } catch (error) {
+                console.log('Error deleting realm:', error);
+                showToast('Error', 'Failed to delete realm', 'error');
+                document.getElementById('confirmationModal').style.display = 'none';
+            }
+            
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+        
+        const handleCancel = () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+        
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+    } catch (error) {
+        console.log('Error in deleteRealm:', error);
+        showToast('Error', 'Failed to delete realm', 'error');
+    }
+}
+
+async function performGlobalSearch(query) {
+    try {
+        if (!query.trim() || !state.supabase) {
+            document.getElementById('globalSearchResults').innerHTML = '';
+            return;
+        }
+        
+        const includePrivate = document.getElementById('globalSearchPrivateToggle').checked;
+        
+        let channels = [];
+        if (includePrivate) {
+            const { data: dmChannels } = await state.supabase
+                .from('channels')
+                .select('id')
+                .eq('realm_id', state.joinedRealms.find(r => r.slug === 'direct-messages')?.id)
+                .eq('is_public', false);
+                
+            channels = dmChannels?.map(c => c.id) || [];
+        }
+        
+        const { data: messages, error } = await state.supabase
+            .from('messages')
+            .select(`
+                *,
+                profiles (
+                    username,
+                    avatar_url
+                ),
+                channels (
+                    name,
+                    realms (
+                        name
+                    )
+                )
+            `)
+            .ilike('content', `%${query}%`)
+            .order('created_at', { ascending: false })
+            .limit(50);
+            
+        if (error) {
+            console.log('Error performing global search:', error);
+            return;
+        }
+        
+        const resultsContainer = document.getElementById('globalSearchResults');
+        resultsContainer.innerHTML = '';
+        
+        if (messages.length === 0) {
+            resultsContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
+                    No messages found
+                </div>
+            `;
+            return;
+        }
+        
+        messages.forEach(message => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'search-result';
+            resultItem.innerHTML = `
+                <div class="search-result-header">
+                    <img src="${message.profiles?.avatar_url ? message.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${message.profiles?.username}" onerror="this.style.display='none';">
+                    <div>
+                        <div class="search-result-name">${escapeHtml(message.profiles?.username || 'User')}</div>
+                        <div class="search-result-context">${escapeHtml(message.channels?.realms?.name || '')} / ${escapeHtml(message.channels?.name || '')}</div>
+                    </div>
+                </div>
+                <div class="search-result-content">${escapeHtml(message.content.length > 200 ? message.content.substring(0, 200) + '...' : message.content)}</div>
+                <div class="search-result-time">${new Date(message.created_at).toLocaleString()}</div>
+            `;
+            
+            resultItem.addEventListener('click', async () => {
+                const realm = state.joinedRealms.find(r => r.name === message.channels?.realms?.name);
+                if (realm) {
+                    await switchRealm(realm.id);
+                    setTimeout(() => {
+                        selectChannel(message.channel_id);
+                        setTimeout(() => {
+                            scrollToMessage(message.id);
+                        }, 500);
+                    }, 500);
+                }
+                document.getElementById('globalSearchModal').style.display = 'none';
+            });
+            
+            resultsContainer.appendChild(resultItem);
+        });
+    } catch (error) {
+        console.log('Error performing global search:', error);
+    }
+}
+
+async function loadAllNotifications() {
+    try {
+        if (!state.supabase) return;
+        
+        const { data: notifications, error } = await state.supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', state.currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+            
+        if (error) {
+            console.log('Error loading notifications:', error);
+            return;
+        }
+        
+        const container = document.getElementById('notificationsListFull');
+        container.innerHTML = '';
+        
+        if (notifications.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
+                    No notifications
+                </div>
+            `;
+            return;
+        }
+        
+        notifications.forEach(notification => {
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification-item';
+            notificationElement.innerHTML = `
+                <div class="notification-content">${escapeHtml(notification.content)}</div>
+                <div class="notification-time">${new Date(notification.created_at).toLocaleString()}</div>
+            `;
+            container.appendChild(notificationElement);
+        });
+    } catch (error) {
+        console.log('Error loading all notifications:', error);
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        if (!state.supabase) return;
+        
+        const { error } = await state.supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('user_id', state.currentUser.id)
+            .eq('read', false);
+            
+        if (error) {
+            console.log('Error marking notifications as read:', error);
+            return;
+        }
+        
+        document.getElementById('notificationDot').style.display = 'none';
+        showToast('Success', 'All notifications marked as read', 'success');
+    } catch (error) {
+        console.log('Error marking notifications as read:', error);
+    }
+}
+
+async function showUserProfile(userId, profileData = null) {
+    try {
+        if (!state.supabase) return;
+        
+        let profile;
+        if (profileData) {
+            profile = { id: userId, ...profileData };
+        } else {
+            const { data: fetchedProfile, error } = await state.supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+                
+            if (error) {
+                console.log('Error fetching user profile:', error);
+                showToast('Error', 'Failed to load user profile', 'error');
+                return;
+            }
+            profile = fetchedProfile;
+        }
+        
+        document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
+        document.getElementById('publicProfileAvatar').onclick = function() {
+            if (profile.avatar_url) {
+                openAvatarFullscreen(profile.avatar_url);
+            }
+        };
+        
+        document.getElementById('publicProfileName').textContent = profile.username || 'User';
+        
+        const isStealth = profile.stealth_mode === true;
+        const status = isStealth ? 'offline' : (profile.status || 'offline');
+        document.getElementById('publicProfileStatusText').textContent = status === 'online' ? 'Online' : 'Offline';
+        document.getElementById('publicProfileStatusDot').className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        
+        document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
+        
+        const socialLinks = profile.social_links || {};
+        const socialContainer = document.getElementById('publicProfileSocialLinks');
+        socialContainer.innerHTML = '';
+        
+        if (socialLinks.twitter) {
+            socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
+        }
+        if (socialLinks.instagram) {
+            socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
+        }
+        if (socialLinks.website) {
+            socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
+        }
+        if (socialLinks.other) {
+            socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
+        }
+        
+        document.getElementById('publicProfileSocialSection').style.display = socialContainer.innerHTML ? 'block' : 'none';
+        
+        const realmsData = await loadOtherUserRealms(profile.id);
+        const realmsContainer = document.getElementById('publicProfileRealms');
+        
+        if (realmsData.show_realms === false) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else if (realmsData.realms.length === 0) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else {
+            realmsContainer.innerHTML = realmsData.realms.map(realm => 
+                `<div class="realm-chip">${escapeHtml(realm.name)}</div>`
+            ).join('');
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        }
+        
+        state.selectedUserForProfile = profile.id;
+        document.getElementById('publicProfileModal').style.display = 'flex';
+    } catch (error) {
+        console.log('Error showing user profile:', error);
+        showToast('Error', 'Failed to load user profile', 'error');
     }
 }
 
@@ -3363,17 +4275,6 @@ function openUserProfile(userId) {
     }
 }
 
-async function showUserProfile(userId, profileData = null) {
-    try {
-        if (!state.supabase) return;
-        const profileToShow = profileData ? { id: userId, ...profileData } : null;
-        displayUserProfile(profileToShow || userId);        
-    } catch (error) {
-        console.log('Error showing user profile:', error);
-        showToast('Error', 'Failed to load user profile', 'error');
-    }
-}
-
 async function displayUserProfile(profileOrUserId) {
     try {
         let profile;
@@ -3493,7 +4394,7 @@ async function displayUserProfile(profileOrUserId) {
         
         if (realmsContainer) {
             realmsContainer.innerHTML = '<div style="color: var(--text-secondary); font-style: italic;">Loading realms...</div>';            
-            const realmsData = await loadOtherUserRealms(profile.id);           
+ const realmsData = await loadOtherUserRealms(profile.id);           
             if (realmsData.show_realms === false) {
                 realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
             } else if (realmsData.realms.length === 0) {
@@ -4056,10 +4957,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.4...');
-    document.title = 'Labyrinth Chat v0.5.4';
-    document.querySelector('.version').textContent = 'v0.5.4';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.4 • Protected Realms';
+    console.log('Initializing Labyrinth Chat v0.5.55...');
+    document.title = 'Labyrinth Chat v0.5.55';
+    document.querySelector('.version').textContent = 'v0.5.55';
+    document.querySelector('.login-subtitle').textContent = 'v0.5.55 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

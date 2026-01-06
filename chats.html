@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.4</title>
+<title>Labyrinth Chat v0.5.55</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -77,6 +77,22 @@
                 <textarea id="realmSettingsDescription" class="form-input bio-textarea" placeholder="Describe your realm..." rows="3"></textarea>
             </div>
             <div class="form-group">
+                <label class="form-label">Realm Icon</label>
+                <div class="realm-icon-section">
+                    <div class="realm-icon-preview" id="realmSettingsIconPreview"></div>
+                    <div class="realm-icon-buttons">
+                        <button id="realmSettingsChooseEmojiBtn" class="btn-secondary">Choose Emoji</button>
+                        <button id="realmSettingsIconUploadBtn" class="btn-secondary">Upload Image</button>
+                        <input type="file" id="realmSettingsIconUpload" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Realm Background</label>
+                <button id="realmSettingsBackgroundUploadBtn" class="btn-secondary" style="width: 100%;">Upload Background</button>
+                <input type="file" id="realmSettingsBackgroundUpload" accept="image/*" style="display: none;">
+            </div>
+            <div class="form-group">
                 <label class="form-label">Announcement Message</label>
                 <textarea id="realmSettingsAnnouncement" class="form-input bio-textarea" placeholder="Important announcements for all users..." rows="4"></textarea>
                 <div style="color: var(--color-gray); font-size: 12px; margin-top: 4px;">Shown to all users when they enter the realm</div>
@@ -88,12 +104,32 @@
                     <span class="toggle-slider"></span>
                 </label>
             </div>
+            <div id="privateRealmSection" style="display: none; margin-top: 20px;">
+                <button id="realmSettingsInviteBtn" class="btn-primary" style="width: 100%;">Invite Users</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Co-Admins</label>
+                <div class="co-admin-section">
+                    <div class="co-admin-search">
+                        <input type="text" id="realmCoAdminSearch" class="form-input" placeholder="Search users to add as co-admin" />
+                        <button id="realmAddCoAdminBtn" class="btn-secondary">Add Co-admin</button>
+                    </div>
+                    <div class="co-admin-list" id="realmCoAdminsList"></div>
+                </div>
+            </div>
             <div class="form-group">
                 <label class="form-label">Channel Order</label>
                 <div class="channel-drag-list" id="channelDragList"></div>
                 <div style="color: var(--color-gray); font-size: 12px; margin-top: 8px;">Drag channels to reorder</div>
             </div>
-            <div style="color: var(--color-gray); font-size: 13px; margin-top: 24px; font-style: italic; text-align: center;">More settings coming soon</div>
+            <button id="realmSettingsCreateChannelBtn" class="btn-secondary" style="width: 100%; margin-top: 16px;">
+                <span>+</span>
+                <span>Create New Channel</span>
+            </button>
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                <button id="realmSettingsLeaveBtn" class="btn-secondary" style="width: 100%; margin-bottom: 8px;">Leave Realm</button>
+                <button id="realmSettingsDeleteBtn" class="btn-delete" style="width: 100%;">Delete Realm</button>
+            </div>
             <div class="action-row" style="margin-top: 32px;">
                 <button id="cancelRealmSettingsBtn" class="btn-secondary">Cancel</button>
                 <button id="saveRealmSettingsBtn" class="btn-primary">Save Settings</button>
@@ -110,7 +146,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.5.4 • Protected Realms</div>
+                <div class="login-subtitle">v0.5.55 • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -133,13 +169,24 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.4</span>
+            <span class="version">v0.5.55</span>
         </div>
         <div class="top-bar-right">
+            <button class="search-btn" id="globalSearchBtn" title="Search">
+                <span>🔍</span>
+            </button>
             <button class="notification-bell" id="notificationBell" title="Notifications">
                 🔔
                 <div class="notification-dot" id="notificationDot"></div>
             </button>
+            <div class="notifications-dropdown" id="notificationsDropdown" style="display: none;">
+                <div class="notifications-header">
+                    <h3>Notifications</h3>
+                    <button id="markAllReadBtn">Mark all read</button>
+                </div>
+                <div class="notifications-list" id="notificationsList"></div>
+                <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
+            </div>
             <button class="header-user-btn" id="headerUserBtn">
                 <div class="header-user-avatar" id="headerUserAvatar">U</div>
                 <div>
@@ -300,48 +347,147 @@
         <div class="modal-tab-content" id="settingsTab">
             <h2 class="modal-title">Settings</h2>
             <div class="modal-subtitle">Customize your Labyrinth experience</div>
-            <div class="toggle-switch disabled">
-                <span class="toggle-label">Enable In-app Notifications</span>
-                <label class="toggle">
-                    <input type="checkbox" id="settingsInAppNotifications" checked disabled>
-                    <span class="toggle-slider"></span>
-                </label>
+            
+            <div class="settings-category">
+                <h3 class="settings-category-title">Notifications</h3>
+                <div class="toggle-switch">
+                    <span class="toggle-label">Enable In-app Notifications</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingsInAppNotifications" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-switch">
+                    <span class="toggle-label">Enable Push Notifications</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingsPushNotifications">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-switch disabled" title="Coming soon">
+                    <span class="toggle-label">Subscribe to Email Notifications</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingsEmailNotifications" disabled>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
-            <div class="toggle-switch disabled">
-                <span class="toggle-label">Enable Push Notifications</span>
-                <label class="toggle">
-                    <input type="checkbox" id="settingsPushNotifications" disabled>
-                    <span class="toggle-slider"></span>
-                </label>
+            
+            <div class="settings-category">
+                <h3 class="settings-category-title">Privacy</h3>
+                <div class="toggle-switch">
+                    <span class="toggle-label">Appear offline (Stealth Mode)</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingsAppearOffline">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-switch">
+                    <span class="toggle-label">Read Receipts</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingsReadReceipts" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
-            <div class="toggle-switch disabled">
-                <span class="toggle-label">Subscribe to Email Notifications</span>
+            
+            <hr class="settings-separator">
+            
+            <div class="toggle-switch">
+                <span class="toggle-label">Send Message With Enter</span>
                 <label class="toggle">
-                    <input type="checkbox" id="settingsEmailNotifications" disabled>
+                    <input type="checkbox" id="settingsSendWithEnter" checked>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
             <div class="toggle-switch">
-                <span class="toggle-label">Appear offline (Stealth Mode)</span>
+                <span class="toggle-label">Open Links In App</span>
                 <label class="toggle">
-                    <input type="checkbox" id="settingsAppearOffline">
+                    <input type="checkbox" id="settingsOpenLinksInApp">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
+            
             <div class="form-group">
                 <label class="form-label">Theme Preference</label>
                 <div class="theme-selector">
-                    <div class="theme-option active" data-theme="dark">Dark</div>
-                    <div class="theme-option" data-theme="light">Light</div>
-                    <div class="theme-option" data-theme="system">System</div>
+                    <button class="theme-option active" data-theme="dark">Dark</button>
+                    <button class="theme-option" data-theme="light">Light</button>
+                    <button class="theme-option" data-theme="system">System</button>
                 </div>
             </div>
+            
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                 <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%; margin-bottom: 16px;">
                     <span>↻</span>
                     <span>Force Refresh</span>
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="globalSearchModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="globalSearchModalCloseBtn">×</button>
+        <h2 class="modal-title">Search</h2>
+        <div class="modal-subtitle">Search across all messages</div>
+        <div class="form-group">
+            <input type="text" id="globalSearchInput" class="form-input" placeholder="Type your search..." />
+        </div>
+        <div class="toggle-switch">
+            <label class="toggle">
+                <input type="checkbox" id="globalSearchPrivateToggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Include private messages</span>
+        </div>
+        <div id="globalSearchResults" class="search-results"></div>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="globalSearchCloseBtn" class="btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="notificationsModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
+        <h2 class="modal-title">Notifications</h2>
+        <div class="modal-subtitle">Your recent notifications</div>
+        <div id="notificationsListFull" class="notifications-list-full"></div>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="notificationsCloseBtn" class="btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="publicProfileModal" style="display: none;">
+    <div class="modal-content scrollable-modal">
+        <button class="modal-close-btn" id="publicProfileModalCloseBtn">×</button>
+        <div class="public-profile-header">
+            <div class="public-profile-avatar-container" id="publicProfileAvatarContainer">
+                <img class="public-profile-avatar" id="publicProfileAvatar" alt="User avatar" />
+            </div>
+            <div class="public-profile-name" id="publicProfileName">Loading...</div>
+            <div class="public-profile-status">
+                <div class="public-profile-status-dot" id="publicProfileStatusDot"></div>
+                <span id="publicProfileStatusText">Loading...</span>
+            </div>
+        </div>
+        <div class="public-profile-content">
+            <div class="public-profile-section">
+                <h3>Bio</h3>
+                <div class="public-profile-bio" id="publicProfileBio">No bio provided</div>
+            </div>
+            <div class="public-profile-section" id="publicProfileSocialSection" style="display: none;">
+                <h3>Social Links</h3>
+                <div class="public-profile-social-links" id="publicProfileSocialLinks"></div>
+            </div>
+            <div class="public-profile-section" id="publicProfileRealmsSection" style="display: none;">
+                <h3>Realms</h3>
+                <div class="public-profile-realms" id="publicProfileRealms"></div>
+            </div>
+        </div>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="publicProfileContactBtn" class="btn-primary">Contact</button>
+            <button id="publicProfileCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>

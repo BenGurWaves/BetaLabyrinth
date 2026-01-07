@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.55</title>
+<title>Labyrinth Chat v0.5.56 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -146,7 +146,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.5.55 • Fully Functional</div>
+                <div class="login-subtitle">v0.5.56 Beta • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -169,7 +169,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.55</span>
+            <span class="version">v0.5.56 Beta</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -188,7 +188,7 @@
                 <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
             </div>
             <button class="header-user-btn" id="headerUserBtn">
-                <div class="header-user-avatar" id="headerUserAvatar">U</div>
+                <div class="header-user-avatar" id="headerUserAvatar" style="border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: var(--color-gray-dark); color: white; width: 36px; height: 36px;">U</div>
                 <div>
                     <div class="header-user-name" id="headerUserName">Loading...</div>
                     <div class="header-user-status online" id="headerUserStatus">Online</div>
@@ -441,7 +441,9 @@
             </label>
             <span class="toggle-label">Include private messages</span>
         </div>
-        <div id="globalSearchResults" class="search-results"></div>
+        <div id="globalSearchResults" class="search-results" style="max-height: 400px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
+            <div class="search-result-list"></div>
+        </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="globalSearchCloseBtn" class="btn-secondary">Close</button>
         </div>
@@ -462,8 +464,8 @@
     <div class="modal-content scrollable-modal">
         <button class="modal-close-btn" id="publicProfileModalCloseBtn">×</button>
         <div class="public-profile-header">
-            <div class="public-profile-avatar-container" id="publicProfileAvatarContainer">
-                <img class="public-profile-avatar" id="publicProfileAvatar" alt="User avatar" />
+            <div class="public-profile-avatar-container" id="publicProfileAvatarContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <img class="quick-profile-avatar" id="publicProfileAvatar" alt="User avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; max-width: 120px; max-height: 120px;">
             </div>
             <div class="public-profile-name" id="publicProfileName">Loading...</div>
             <div class="public-profile-status">
@@ -471,7 +473,7 @@
                 <span id="publicProfileStatusText">Loading...</span>
             </div>
         </div>
-        <div class="public-profile-content">
+        <div class="public-profile-content" style="overflow-y: auto; max-height: 60vh;">
             <div class="public-profile-section">
                 <h3>Bio</h3>
                 <div class="public-profile-bio" id="publicProfileBio">No bio provided</div>
@@ -493,7 +495,7 @@
 </div>
 <div class="quick-profile-modal" id="quickProfileModal">
     <div class="quick-profile-content">
-        <img class="quick-profile-avatar" id="quickProfileAvatar" alt="User avatar">
+        <img class="quick-profile-avatar" id="quickProfileAvatar" alt="User avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; max-width: 120px; max-height: 120px;">
         <div class="quick-profile-name" id="quickProfileName">Loading...</div>
         <div class="quick-profile-status">
             <div class="quick-profile-status-dot" id="quickProfileStatusDot"></div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.56 Beta</title>
+<title>Labyrinth Chat v0.5.5601 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,6 +19,29 @@
 <div class="grain-overlay"></div>
 <div class="cursor"></div>
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- Loading Spinner Global -->
+<style>
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(212, 175, 55, 0.2);
+    border-radius: 50%;
+    border-top-color: var(--color-gold);
+    animation: spin 1s ease-in-out infinite;
+    margin: 0 auto;
+}
+.loading-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+
 <div class="media-fullscreen-modal" id="mediaFullscreenModal">
     <div class="media-fullscreen-content">
         <button class="media-fullscreen-close" id="mediaFullscreenClose">×</button>
@@ -63,8 +86,33 @@
         <div class="modal-subtitle">Configure <span id="realmSettingsRealmName"></span></div>
         <div id="nonCreatorSettings" style="display: none;">
             <div class="non-creator-settings">
-                <div class="non-creator-icon">⚙️</div>
-                <div class="non-creator-message">Notification Settings coming soon</div>
+                <div class="realm-notification-settings">
+                    <div class="realm-notification-header">
+                        <div class="realm-notification-icon" id="realmNotificationIcon">🏰</div>
+                        <div class="realm-notification-info">
+                            <div class="realm-notification-name" id="realmNotificationName">Realm Name</div>
+                            <div class="realm-notification-desc" id="realmNotificationDesc">Realm description</div>
+                        </div>
+                    </div>
+                    <div class="realm-notification-options">
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="all" checked>
+                            <span class="notification-label">All Messages</span>
+                            <span class="notification-desc">Notify on every message</span>
+                        </label>
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="mention">
+                            <span class="notification-label">Mentions Only</span>
+                            <span class="notification-desc">Only notify when mentioned</span>
+                        </label>
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="mute">
+                            <span class="notification-label">Muted</span>
+                            <span class="notification-desc">No notifications</span>
+                        </label>
+                    </div>
+                    <button id="realmNotificationLeaveBtn" class="btn-secondary" style="width: 100%; margin-top: 24px;">Leave Realm</button>
+                </div>
             </div>
         </div>
         <div id="creatorSettings" style="display: none;">
@@ -114,7 +162,12 @@
                         <input type="text" id="realmCoAdminSearch" class="form-input" placeholder="Search users to add as co-admin" />
                         <button id="realmAddCoAdminBtn" class="btn-secondary">Add Co-admin</button>
                     </div>
-                    <div class="co-admin-list" id="realmCoAdminsList"></div>
+                    <div class="co-admin-list" id="realmCoAdminsList">
+                        <!-- Co-Admin Items will be added here -->
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="form-group">
@@ -141,35 +194,11 @@
     <div class="loading-spinner"></div>
     <div style="color: var(--text-secondary); font-size: 14px;">Entering the Labyrinth...</div>
 </div>
-<div class="modal-back" id="loginOverlay" role="dialog" aria-modal="true">
-    <div class="login-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
-            <div>
-                <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.5.56 Beta • Fully Functional</div>
-            </div>
-        </div>
-        <div class="form-group">
-            <input id="loginEmail" class="form-input" placeholder="Email" autocomplete="email" />
-        </div>
-        <div class="form-group">
-            <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" />
-        </div>
-        <div class="action-row">
-            <div style="flex:1">
-                <button id="signInBtn" class="btn-primary">Sign in</button>
-            </div>
-            <div style="flex:1">
-                <button id="signUpBtn" class="btn-secondary">Create account</button>
-            </div>
-        </div>
-    </div>
-</div>
 <div id="app" style="display: none;">
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.56 Beta</span>
+            <span class="version">v0.5.5601 Beta</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -184,7 +213,16 @@
                     <h3>Notifications</h3>
                     <button id="markAllReadBtn">Mark all read</button>
                 </div>
-                <div class="notifications-list" id="notificationsList"></div>
+                <div class="notifications-list" id="notificationsList">
+                    <div class="notification-item">
+                        <div class="notification-avatar" style="background-image: url('');"></div>
+                        <div class="notification-content">
+                            <div class="notification-title"><strong>Notification Title</strong></div>
+                            <div class="notification-message">Notification message text here</div>
+                            <div class="notification-date">Just now</div>
+                        </div>
+                    </div>
+                </div>
                 <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
             </div>
             <button class="header-user-btn" id="headerUserBtn">
@@ -208,7 +246,11 @@
                     <button class="realm-dropdown-btn" id="realmDropdownBtn">▼</button>
                     <button class="realm-settings-btn" id="realmSettingsBtn">⚙️</button>
                 </div>
-                <div class="realm-dropdown" id="realmDropdown"></div>
+                <div class="realm-dropdown" id="realmDropdown">
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
             </div>
             <div class="sidebar-section">
                 <div class="section-header" id="channelsHeader">
@@ -217,14 +259,21 @@
                 </div>
                 <div class="category-content" id="channelsContent">
                     <div class="channel-list" id="channelList">
-                        <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
-                            Select a realm to view channels
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
                         </div>
                     </div>
                     <div id="addChannelContainer" style="display: none;">
                         <button class="channel-item" id="addChannelBtn" style="color: var(--color-gold-light); justify-content: center;">
                             <span>+</span>
                             <span>Create Channel</span>
+                        </button>
+                    </div>
+                    <!-- DM Realm + Button -->
+                    <div id="dmAddConversationContainer" style="display: none;">
+                        <button class="channel-item" id="dmAddConversationBtn" style="color: var(--color-gold-light); justify-content: center;">
+                            <span>+</span>
+                            <span>New Conversation</span>
                         </button>
                     </div>
                 </div>
@@ -242,8 +291,11 @@
                 <div class="empty-state" id="emptyState">
                     Select a channel to view messages
                 </div>
+                <div class="loading-placeholder" id="messagesLoading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                </div>
             </div>
-            <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-indicator" id="typingIndicator" style="display: none;">
                 <span id="typingText"></span>
                 <div class="typing-dots">
                     <span></span>
@@ -257,7 +309,14 @@
             </button>
             <div class="input-area">
                 <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
-                <div class="input-buttons"></div>
+                <div class="input-buttons">
+                    <button class="input-btn" id="attachmentBtn" title="Attach file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="input-btn" id="emojiBtn" title="Insert emoji">
+                        <i class="fas fa-smile"></i>
+                    </button>
+                </div>
                 <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
                 <button class="send-btn" id="sendBtn" disabled>↑</button>
             </div>
@@ -334,7 +393,11 @@
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
-                <div class="realms-list" id="profileRealmsList"></div>
+                <div class="realms-list" id="profileRealmsList">
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
             </div>
             <div class="profile-actions">
                 <button class="btn-secondary" id="profileLogoutBtn">Log Out</button>
@@ -418,7 +481,11 @@
             </div>
             
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%; margin-bottom: 16px;">
+                <button class="btn-secondary" id="installAppBtn" style="width: 100%; margin-bottom: 16px;">
+                    <span>📱</span>
+                    <span>Download App</span>
+                </button>
+                <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%;">
                     <span>↻</span>
                     <span>Force Refresh</span>
                 </button>
@@ -442,7 +509,19 @@
             <span class="toggle-label">Include private messages</span>
         </div>
         <div id="globalSearchResults" class="search-results" style="max-height: 400px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
-            <div class="search-result-list"></div>
+            <div class="search-result-list">
+                <div class="search-result-item">
+                    <div class="search-result-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                    <div class="search-result-content">
+                        <div class="search-result-header">
+                            <span class="search-result-user">Username</span>
+                            <span class="search-result-channel">#channel</span>
+                            <span class="search-result-time">12:34</span>
+                        </div>
+                        <div class="search-result-text">Message preview text here...</div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="globalSearchCloseBtn" class="btn-secondary">Close</button>
@@ -454,7 +533,16 @@
         <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
         <h2 class="modal-title">Notifications</h2>
         <div class="modal-subtitle">Your recent notifications</div>
-        <div id="notificationsListFull" class="notifications-list-full"></div>
+        <div id="notificationsListFull" class="notifications-list-full">
+            <div class="notification-item-full">
+                <div class="notification-avatar-full" style="width: 48px; height: 48px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                <div class="notification-content-full">
+                    <div class="notification-title-full"><strong>Notification Title Bold</strong></div>
+                    <div class="notification-message-full">Notification message text here that describes what happened in detail</div>
+                    <div class="notification-date-full" style="font-size: 12px; color: var(--color-gray);">2 hours ago</div>
+                </div>
+            </div>
+        </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="notificationsCloseBtn" class="btn-secondary">Close</button>
         </div>
@@ -465,12 +553,14 @@
         <button class="modal-close-btn" id="publicProfileModalCloseBtn">×</button>
         <div class="public-profile-header">
             <div class="public-profile-avatar-container" id="publicProfileAvatarContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
-                <img class="quick-profile-avatar" id="publicProfileAvatar" alt="User avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; max-width: 120px; max-height: 120px;">
+                <div class="public-profile-avatar-large" id="publicProfileAvatarLarge" style="width: 140px; height: 140px; border-radius: 50%; background-color: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; overflow: hidden;">
+                    <!-- Avatar will be inserted here -->
+                </div>
             </div>
-            <div class="public-profile-name" id="publicProfileName">Loading...</div>
-            <div class="public-profile-status">
-                <div class="public-profile-status-dot" id="publicProfileStatusDot"></div>
-                <span id="publicProfileStatusText">Loading...</span>
+            <div class="public-profile-name" id="publicProfileName" style="text-align: center; font-size: 24px; margin-bottom: 8px;">Loading...</div>
+            <div class="public-profile-status" style="text-align: center; margin-bottom: 24px;">
+                <div class="public-profile-status-dot" id="publicProfileStatusDot" style="background-color: var(--color-green);"></div>
+                <span id="publicProfileStatusText" style="color: var(--color-green); font-size: 14px;">Online</span>
             </div>
         </div>
         <div class="public-profile-content" style="overflow-y: auto; max-height: 60vh;">
@@ -480,11 +570,15 @@
             </div>
             <div class="public-profile-section" id="publicProfileSocialSection" style="display: none;">
                 <h3>Social Links</h3>
-                <div class="public-profile-social-links" id="publicProfileSocialLinks"></div>
+                <div class="public-profile-social-links" id="publicProfileSocialLinks">
+                    <!-- Social links will be added here -->
+                </div>
             </div>
-            <div class="public-profile-section" id="publicProfileRealmsSection" style="display: none;">
+            <div class="public-profile-section" id="publicProfileRealmsSection" style="display: none; border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 20px;">
                 <h3>Realms</h3>
-                <div class="public-profile-realms" id="publicProfileRealms"></div>
+                <div class="public-profile-realms" id="publicProfileRealms">
+                    <!-- Realms will be added here -->
+                </div>
             </div>
         </div>
         <div class="action-row" style="margin-top: 32px;">
@@ -553,7 +647,11 @@
                 <span>Create New Realm</span>
             </button>
         </div>
-        <div class="realm-list" id="allRealmsList"></div>
+        <div class="realm-list" id="allRealmsList">
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="closeAllRealmsBtn" class="btn-secondary">Close</button>
         </div>
@@ -669,6 +767,66 @@
         </div>
     </div>
 </div>
+<!-- Message Context Menu -->
+<div class="context-menu" id="messageContextMenu" style="display: none;">
+    <div class="context-menu-item" data-action="react">
+        <span>😀</span>
+        <span>React</span>
+    </div>
+    <div class="context-menu-item" data-action="viewProfile">
+        <span>👤</span>
+        <span>View Profile</span>
+    </div>
+    <div class="context-menu-item" data-action="pin" style="display: none;">
+        <span>📌</span>
+        <span>Pin Message</span>
+    </div>
+    <div class="context-menu-item" data-action="unpin" style="display: none;">
+        <span>📌</span>
+        <span>Unpin Message</span>
+    </div>
+    <div class="context-menu-item" data-action="edit" style="display: none;">
+        <span>✏️</span>
+        <span>Edit</span>
+    </div>
+    <div class="context-menu-item" data-action="delete" style="display: none;">
+        <span>🗑️</span>
+        <span>Delete</span>
+    </div>
+    <div class="context-menu-item" data-action="report">
+        <span>⚠️</span>
+        <span>Report</span>
+    </div>
+</div>
+<!-- Mention Helper Modal -->
+<div class="modal-back mention-helper-modal" id="mentionHelperModal" style="display: none;">
+    <div class="modal-content">
+        <h3 class="modal-title">Select a User to Mention</h3>
+        <div class="modal-subtitle">Search users to mention</div>
+        <div class="mention-search-results" id="mentionSearchResults"></div>
+        <div class="action-row" style="margin-top: 16px;">
+            <button id="closeMentionHelperBtn" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- Attachment Preview Template (hidden) -->
+<template id="attachmentPreviewTemplate">
+    <div class="message-attachment">
+        <div class="attachment-preview">
+            <img class="attachment-image" src="" alt="Attachment" style="display: none;">
+            <video class="attachment-video" controls style="display: none;"></video>
+            <audio class="attachment-audio" controls style="display: none;"></audio>
+            <div class="attachment-generic" style="display: none;">
+                <div class="attachment-icon">📎</div>
+                <div class="attachment-info">
+                    <div class="attachment-name"></div>
+                    <div class="attachment-size"></div>
+                </div>
+                <a class="attachment-download" href="" download>Download</a>
+            </div>
+        </div>
+    </div>
+</template>
 <script src="script.js" defer></script>
 </body>
 </html>

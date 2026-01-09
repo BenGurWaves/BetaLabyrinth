@@ -8,14 +8,26 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/IMG_0223.jpg",
+      "src": "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Labyrinth192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/IMG_0223.jpg",
-      "sizes": "1488 × 1271",
+      "src": "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Labyrinth512x512.png",
+      "sizes": "512x512",
       "type": "image/png"
     },
+    {
+      "src": "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Labyrinth192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Labyrinth512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

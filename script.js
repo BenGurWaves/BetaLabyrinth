@@ -41,7 +41,13 @@ let state = {
     welcomeModalShown: new Set(),
     announcementModalShown: new Set(),
     channelDeleteStep: 1,
-    systemThemeListener: null
+    systemThemeListener: null,
+    isOnline: true,
+    typingUsers: {},
+    presenceSubscription: null,
+    typingTimeout: null,
+    isTyping: false,
+    mentionSearchActive: false
 };
 
 function hideLoader() {
@@ -1066,18 +1072,39 @@ async function pinMessage(messageId) {
     try {
         if (!state.currentChannel || !state.supabase) return;
         
-        const { error } = await state.supabase
-            .from('channels')
-            .update({ pinned_message_id: messageId })
-            .eq('id', state.currentChannel.id);
+        // Check if already pinned
+        if (state.currentChannel.pinned_message_id === messageId) {
+            // Unpin
+            const { error } = await state.supabase
+                .from('channels')
+                .update({ pinned_message_id: null })
+                .eq('id', state.currentChannel.id);
+                
+            if (error) {
+                console.log('Error unpinning message:', error);
+                showToast('Error', 'Failed to unpin message', 'error');
+                return;
+            }
             
-        if (error) {
-            console.log('Error pinning message:', error);
-            showToast('Error', 'Failed to pin message', 'error');
-            return;
+            showToast('Success', 'Message unpinned', 'success');
+            state.currentChannel.pinned_message_id = null;
+        } else {
+            // Pin new message
+            const { error } = await state.supabase
+                .from('channels')
+                .update({ pinned_message_id: messageId })
+                .eq('id', state.currentChannel.id);
+                
+            if (error) {
+                console.log('Error pinning message:', error);
+                showToast('Error', 'Failed to pin message', 'error');
+                return;
+            }
+            
+            showToast('Success', 'Message pinned', 'success');
+            state.currentChannel.pinned_message_id = messageId;
         }
         
-        showToast('Success', 'Message pinned', 'success');
         loadPinnedMessage();
     } catch (error) {
         console.log('Error pinning message:', error);
@@ -1112,10 +1139,25 @@ function extractRumbleId(url) {
 function formatMessageContent(content) {
     if (!content) return '';
     let escapedContent = escapeHtml(content);
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    // Highlight mentions
+    escapedContent = escapedContent.replace(/@(\w+)/g, '<span class="mention" data-username="$1">@$1</span>');
+    // Highlight channel mentions
+    escapedContent = escapedContent.replace(/#(\w+)/g, '<span class="channel-mention" data-channelname="$1">#$1</span>');
+    // Highlight realm mentions
+    escapedContent = escapedContent.replace(/\$(\w+)/g, '<span class="realm-mention" data-realmname="$1">$$$1</span>');
+    
+    // Improved URL regex to detect www. and http(s)://
+    const urlRegex = /((?:https?:\/\/|www\.)[^\s]+)/gi;
     return escapedContent.replace(urlRegex, function(url) {
-        const cleanUrl = url.replace(/[.,!?;:]$/, '');
+        // Clean URL and handle trailing punctuation
+        let cleanUrl = url.replace(/[.,!?;:]$/, '');
         const trailingChar = url.slice(cleanUrl.length);
+        
+        // Ensure www. URLs have protocol
+        if (cleanUrl.startsWith('www.')) {
+            cleanUrl = 'https://' + cleanUrl;
+        }
+        
         const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(cleanUrl);
         const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(cleanUrl);
         const isAudio = /\.(mp3|wav|ogg)(\?.*)?$/i.test(cleanUrl);
@@ -1273,7 +1315,12 @@ function setupMessageContextMenu(msgElement, message) {
         ];
         
         if (canPin && state.currentRealm?.slug !== 'direct-messages') {
-            menuItems.push({ icon: '📌', text: 'Pin Message', className: 'pin' });
+            const isPinned = state.currentChannel?.pinned_message_id === message.id;
+            menuItems.push({ 
+                icon: '📌', 
+                text: isPinned ? 'Unpin Message' : 'Pin Message', 
+                className: 'pin' 
+            });
         }
         
         if (isOwnMessage) {
@@ -1723,7 +1770,7 @@ function setupMessageSubscription() {
     }
 }
 
-function sendMessage() {
+async function sendMessage() {
     try {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();        
@@ -1753,23 +1800,56 @@ function sendMessage() {
             const container = document.getElementById('messagesContainer');
             if (container) container.scrollTop = container.scrollHeight;
         }, 100);
-        state.supabase
+        const { data: newMessage, error } = await state.supabase
             .from('messages')
             .insert([{
                 content: message,
                 channel_id: state.currentChannel.id,
                 user_id: state.currentUser.id
             }])
-            .then(({ error }) => {
-                if (error) {
-                    console.log('Error sending message:', error);
-                    showToast('Error', 'Failed to send message', 'error');
-                }
-            });            
+            .select()
+            .single();
+            
+        if (error) {
+            console.log('Error sending message:', error);
+            showToast('Error', 'Failed to send message', 'error');
+            return;
+        }
+        
+        // Extract mentions and create notifications
+        const mentions = extractMentions(message);
+        for (const username of mentions) {
+            const { data: user } = await state.supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', username)
+                .single();
+            if (user) {
+                await state.supabase
+                    .from('notifications')
+                    .insert({
+                        user_id: user.id,
+                        title: 'Mention',
+                        content: `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`,
+                        type: 'mention'
+                    });
+            }
+        }
+            
     } catch (error) {
         console.log('Error in sendMessage:', error);
         showToast('Error', 'Failed to send message', 'error');
     }
+}
+
+function extractMentions(text) {
+    const mentionRegex = /@(\w+)/g;
+    const mentions = [];
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+        mentions.push(match[1]);
+    }
+    return [...new Set(mentions)]; // Remove duplicates
 }
 
 function updateUserUI() {
@@ -1988,8 +2068,8 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.56 Beta...');
-        state.loaderTimeout = setTimeout(hideLoader, 3000);
+        console.log('Initializing Supabase v0.5.5601 Beta...');
+        state.loaderTimeout = setTimeout(hideLoader, 5000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
                 persistSession: true,
@@ -2107,7 +2187,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.56 Beta...');
+        console.log('Initializing app v0.5.5601 Beta...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2158,7 +2238,7 @@ async function initializeApp() {
         }
         hideLoader();
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.56 Beta', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.5.5601 Beta', 'success');
         }, 500);
         
         setTimeout(checkWelcomeMessages, 1000);
@@ -2271,6 +2351,92 @@ async function loadInitialData() {
     }
 }
 
+function updateOnlineStatus(online) {
+    state.isOnline = online;
+    const offlineOverlay = document.getElementById('offlineOverlay');
+    if (!offlineOverlay) return;
+    if (!online) {
+        offlineOverlay.style.display = 'flex';
+        showToast('Connection Lost', 'You are offline. Reconnecting...', 'warning');
+    } else {
+        offlineOverlay.style.display = 'none';
+        showToast('Connection Restored', 'You are back online', 'success');
+    }
+}
+
+function setupTypingIndicator() {
+    if (!state.currentChannel || !state.supabase) return;
+    
+    // Clear existing subscription
+    if (state.presenceSubscription) {
+        state.supabase.removeChannel(state.presenceSubscription);
+    }
+    
+    state.presenceSubscription = state.supabase.channel(`typing:${state.currentChannel.id}`)
+        .on('presence', { event: 'sync' }, () => {
+            const newState = state.presenceSubscription.presenceState();
+            state.typingUsers = {};
+            
+            Object.values(newState).forEach(presences => {
+                presences.forEach(presence => {
+                    if (presence.user_id !== state.currentUser.id && presence.typing) {
+                        state.typingUsers[presence.user_id] = presence;
+                    }
+                });
+            });
+            
+            updateTypingIndicatorUI();
+        })
+        .subscribe();
+}
+
+function updateTypingIndicatorUI() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (!typingIndicator) return;
+    
+    const typingUserIds = Object.keys(state.typingUsers);
+    if (typingUserIds.length === 0) {
+        typingIndicator.style.display = 'none';
+        return;
+    }
+    
+    if (typingUserIds.length === 1) {
+        const user = state.typingUsers[typingUserIds[0]];
+        typingIndicator.textContent = `${user.username || 'Someone'} is typing...`;
+    } else if (typingUserIds.length === 2) {
+        const users = Object.values(state.typingUsers);
+        typingIndicator.textContent = `${users[0].username} and ${users[1].username} are typing...`;
+    } else {
+        typingIndicator.textContent = `${typingUserIds.length} people are typing...`;
+    }
+    
+    typingIndicator.style.display = 'block';
+}
+
+function handleTyping() {
+    if (!state.presenceSubscription || !state.currentChannel) return;
+    
+    clearTimeout(state.typingTimeout);
+    
+    if (!state.isTyping) {
+        state.isTyping = true;
+        state.presenceSubscription.track({
+            user_id: state.currentUser.id,
+            username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
+            typing: true
+        }, true);
+    }
+    
+    state.typingTimeout = setTimeout(() => {
+        state.isTyping = false;
+        state.presenceSubscription.track({
+            user_id: state.currentUser.id,
+            username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
+            typing: false
+        }, true);
+    }, 1000);
+}
+
 function setupEventListeners() {
     try {
         document.getElementById('mobileMenuBtn').addEventListener('click', function(e) {
@@ -2332,6 +2498,7 @@ function setupEventListeners() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
             updateSendButtonState();
+            handleTyping();
         });        
         messageInput.addEventListener('keydown', function(e) {
             if (state.userSettings?.send_with_enter) {
@@ -2339,6 +2506,22 @@ function setupEventListeners() {
                     e.preventDefault();
                     sendMessage();
                 }
+            }
+            // Handle @ mention trigger
+            if (e.key === '@') {
+                e.preventDefault();
+                state.mentionSearchActive = true;
+                showStartConversationModal(true);
+            }
+            // Handle # channel mention trigger
+            if (e.key === '#') {
+                e.preventDefault();
+                showChannelSearchModal();
+            }
+            // Handle $ realm mention trigger
+            if (e.key === '$') {
+                e.preventDefault();
+                showRealmSearchModal();
             }
         });
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
@@ -2416,8 +2599,7 @@ function setupEventListeners() {
             if (toggle) {
                 toggle.addEventListener('change', async function() {
                     if (toggleId === 'settingsPushNotifications') {
-                        showToast('Coming Soon', 'Push notifications will be available in a future update', 'info');
-                        this.checked = false;
+                        await subscribeToPushNotifications();
                         return;
                     }
                     if (toggleId === 'settingsEmailNotifications') {
@@ -2732,6 +2914,7 @@ function setupEventListeners() {
                     if (this.id === 'startConversationModal') {
                         document.getElementById('userSearchInput').value = '';
                         document.getElementById('userSearchResults').style.display = 'none';
+                        state.mentionSearchActive = false;
                     }
                 }
             });
@@ -2802,12 +2985,14 @@ function setupEventListeners() {
             document.getElementById('startConversationModal').style.display = 'none';
             document.getElementById('userSearchInput').value = '';
             document.getElementById('userSearchResults').style.display = 'none';
+            state.mentionSearchActive = false;
         });
         
         document.getElementById('startConversationModalCloseBtn').addEventListener('click', function() {
             document.getElementById('startConversationModal').style.display = 'none';
             document.getElementById('userSearchInput').value = '';
             document.getElementById('userSearchResults').style.display = 'none';
+            state.mentionSearchActive = false;
         });
         
         document.getElementById('enhancedMediaClose').addEventListener('click', function() {
@@ -2924,9 +3109,122 @@ function setupEventListeners() {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
         
+        // Mention click handling
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('mention')) {
+                const username = e.target.dataset.username;
+                openUserProfileByUsername(username);
+            }
+            if (e.target.classList.contains('channel-mention')) {
+                const channelName = e.target.dataset.channelname;
+                switchToChannelByName(channelName);
+            }
+            if (e.target.classList.contains('realm-mention')) {
+                const realmName = e.target.dataset.realmname;
+                switchToRealmByName(realmName);
+            }
+        });
+        
+        // Online/offline event listeners
+        window.addEventListener('online', () => updateOnlineStatus(true));
+        window.addEventListener('offline', () => updateOnlineStatus(false));
+        setInterval(() => updateOnlineStatus(navigator.onLine), 60000);
+        
+        // Install PWA button
+        document.getElementById('installPWAButton').addEventListener('click', function() {
+            if (state.deferredPrompt) {
+                state.deferredPrompt.prompt();
+                state.deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                        this.style.display = 'none';
+                    }
+                    state.deferredPrompt = null;
+                });
+            }
+        });
+        
     } catch (error) {
         console.log('Error setting up event listeners:', error);
     }
+}
+
+async function openUserProfileByUsername(username) {
+    try {
+        if (!state.supabase || !username) return;
+        
+        const { data: user, error } = await state.supabase
+            .from('profiles')
+            .select('*')
+            .eq('username', username)
+            .single();
+            
+        if (error || !user) {
+            showToast('Error', 'User not found', 'error');
+            return;
+        }
+        
+        showUserProfile(user.id);
+    } catch (error) {
+        console.log('Error opening user profile by username:', error);
+    }
+}
+
+async function switchToChannelByName(channelName) {
+    try {
+        if (!state.supabase || !channelName) return;
+        
+        const { data: channel, error } = await state.supabase
+            .from('channels')
+            .select('*, realms(id, name)')
+            .ilike('name', channelName)
+            .in('realm_id', state.joinedRealms.map(r => r.id))
+            .single();
+            
+        if (error || !channel) {
+            showToast('Error', 'Channel not found or you don\'t have access', 'error');
+            return;
+        }
+        
+        // Switch to the realm first
+        const realm = state.joinedRealms.find(r => r.id === channel.realm_id);
+        if (realm) {
+            await switchRealm(realm.id);
+            setTimeout(() => {
+                selectChannel(channel.id);
+            }, 500);
+        }
+    } catch (error) {
+        console.log('Error switching to channel by name:', error);
+    }
+}
+
+async function switchToRealmByName(realmName) {
+    try {
+        if (!state.supabase || !realmName) return;
+        
+        const realm = state.joinedRealms.find(r => 
+            r.name.toLowerCase().includes(realmName.toLowerCase()) || 
+            r.slug.toLowerCase().includes(realmName.toLowerCase())
+        );
+        
+        if (!realm) {
+            showToast('Error', 'Realm not found or you are not a member', 'error');
+            return;
+        }
+        
+        await switchRealm(realm.id);
+    } catch (error) {
+        console.log('Error switching to realm by name:', error);
+    }
+}
+
+function showChannelSearchModal() {
+    showToast('Coming Soon', 'Channel search will be available in a future update', 'info');
+}
+
+function showRealmSearchModal() {
+    showToast('Coming Soon', 'Realm search will be available in a future update', 'info');
 }
 
 async function showRealmSettingsModal() {
@@ -3027,7 +3325,7 @@ async function loadCoAdmins() {
             const adminElement = document.createElement('div');
             adminElement.className = 'co-admin-item';
             adminElement.innerHTML = `
-                <img src="${admin.avatar_url ? admin.avatar_url + '?t=' + Date.now() : ''}" alt="${admin.username}" onerror="this.style.display='none';">
+                <img src="${admin.avatar_url ? admin.avatar_url + '?t=' + Date.now() : ''}" alt="${admin.username}" onerror="this.style.display='none';" style="width: 30px; height: 30px; border-radius: 50%; margin-right: 8px;">
                 <span>${escapeHtml(admin.username)}</span>
                 <button class="remove-co-admin-btn" data-user-id="${admin.id}">Remove</button>
             `;
@@ -3091,6 +3389,7 @@ async function addCoAdmin() {
             .from('notifications')
             .insert({
                 user_id: user.id,
+                title: 'Co-Admin Added',
                 content: `You have been added as a co-admin to the realm "${state.currentRealm.name}"`,
                 type: 'admin_added'
             });
@@ -3350,6 +3649,7 @@ function showRealmIconEmojiPicker() {
         emojiPicker.style.zIndex = '1000';
         emojiPicker.style.maxHeight = '200px';
         emojiPicker.style.overflowY = 'auto';
+        emojiPicker.style.WebkitOverflowScrolling = 'touch';
         
         const emojis = ['🏰', '🏯', '🗼', '🏛️', '🏟️', '🎪', '🕌', '🕍', '⛪', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼', '🗽', '🌄', '🌅', '🌆', '🌇', '🌉', '🎠', '🎡', '🎢', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🚚', '🚛', '🚜', '🚲', '🛴', '🛵', '🚏', '🛣️', '🛤️', '⛽', '🚨', '🚥', '🚦', '🚧', '🛑', '⚓', '⛵', '🚤', '🛳️', '⛴️', '🛶', '🚁', '🛩️', '✈️', '🛫', '🛬', '💺', '🚀', '🛰️', '🛸', '🛎️', '🧳', '⌛', '⏳', '⌚', '⏰', '⏱️', '⏲️', '🕰️', '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘', '🌙', '🌚', '🌛', '🌜', '🌡️', '☀️', '🌝', '🌞', '⭐', '🌟', '🌠', '🌌', '☁️', '⛅', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌀', '🌈', '🌂', '☂️', '☔', '⛱️', '⚡', '❄️', '☃️', '⛄', '☄️', '🔥', '💧', '🌊'];
         
@@ -3694,7 +3994,7 @@ async function performGlobalSearch(query) {
                 resultItem.className = 'search-result';
                 resultItem.innerHTML = `
                     <div class="search-result-header">
-                        <img src="${profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : ''}" alt="${profile.username}" onerror="this.style.display='none';">
+                        <img src="${profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : ''}" alt="${profile.username}" onerror="this.style.display='none';" class="search-result-avatar">
                         <div>
                             <div class="search-result-name">${escapeHtml(profile.username)}</div>
                             <div class="search-result-context">User Profile</div>
@@ -3791,7 +4091,7 @@ async function performGlobalSearch(query) {
                 resultItem.className = 'search-result';
                 resultItem.innerHTML = `
                     <div class="search-result-header">
-                        <img src="${message.profiles?.avatar_url ? message.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${message.profiles?.username}" onerror="this.style.display='none';">
+                        <img src="${message.profiles?.avatar_url ? message.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${message.profiles?.username}" onerror="this.style.display='none';" class="search-result-avatar">
                         <div>
                             <div class="search-result-name">${escapeHtml(message.profiles?.username || 'User')}</div>
                             <div class="search-result-context">${escapeHtml(message.channels?.realms?.name || '')} / ${escapeHtml(message.channels?.name || '')}</div>
@@ -3857,6 +4157,7 @@ async function loadAllNotifications() {
             const notificationElement = document.createElement('div');
             notificationElement.className = 'notification-item';
             notificationElement.innerHTML = `
+                <div class="notification-title">${notification.type || 'Notification'}</div>
                 <div class="notification-content">${escapeHtml(notification.content)}</div>
                 <div class="notification-time">${new Date(notification.created_at).toLocaleString()}</div>
             `;
@@ -3912,6 +4213,25 @@ async function showUserProfile(userId, profileData = null) {
         }
         
         document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
+        document.getElementById('publicProfileAvatar').onerror = function() {
+            this.style.display = 'none';
+            const initials = (profile.username || 'U').charAt(0).toUpperCase();
+            const fallback = document.createElement('div');
+            fallback.style.width = '80px';
+            fallback.style.height = '80px';
+            fallback.style.borderRadius = '50%';
+            fallback.style.background = 'var(--color-gold-transparent)';
+            fallback.style.color = 'var(--color-gold)';
+            fallback.style.display = 'flex';
+            fallback.style.alignItems = 'center';
+            fallback.style.justifyContent = 'center';
+            fallback.style.fontSize = '24px';
+            fallback.style.fontWeight = '500';
+            fallback.style.margin = '0 auto 16px';
+            fallback.textContent = initials;
+            this.parentNode.insertBefore(fallback, this);
+        };
+        
         document.getElementById('publicProfileAvatar').onclick = function() {
             if (profile.avatar_url) {
                 openAvatarFullscreen(profile.avatar_url);
@@ -3971,6 +4291,9 @@ async function showUserProfile(userId, profileData = null) {
         
         state.selectedUserForProfile = profile.id;
         document.getElementById('publicProfileModal').style.display = 'flex';
+        // Center the modal
+        document.getElementById('publicProfileModal').style.alignItems = 'center';
+        document.getElementById('publicProfileModal').style.justifyContent = 'center';
     } catch (error) {
         console.log('Error showing user profile:', error);
         showToast('Error', 'Failed to load user profile', 'error');
@@ -4128,6 +4451,27 @@ async function joinRealm(realmId) {
 async function leaveRealm(realmId) {
     try {
         if (!state.currentUser || !state.supabase) return;
+        
+        // Check if user is the sole admin
+        if (state.currentRealm.created_by === state.currentUser.id) {
+            const { data: admins, error: adminsError } = await state.supabase
+                .from('realm_roles')
+                .select('user_id')
+                .eq('realm_id', realmId)
+                .eq('role', 'admin');
+                
+            if (adminsError) {
+                console.log('Error checking admin count:', adminsError);
+                showToast('Error', 'Failed to check admin status', 'error');
+                return;
+            }
+            
+            if (admins.length === 1 && admins[0].user_id === state.currentUser.id) {
+                showToast('Error', 'You are the only admin of this realm. Please assign another admin before leaving.', 'error');
+                return;
+            }
+        }
+        
         const isCurrentRealm = state.currentRealm && state.currentRealm.id === realmId;
         document.getElementById('confirmationModal').style.display = 'flex';
         document.getElementById('confirmationIcon').textContent = '🚪';
@@ -4355,18 +4699,26 @@ async function saveSocialLinks() {
 function initializePWA() {
     try {
         console.log('Initializing PWA with modern 2025 practices...');
-        let deferredPrompt = null;
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('beforeinstallprompt event fired');
             e.preventDefault();
-            deferredPrompt = e;
-            console.log('PWA install prompt available - relying on native browser install');
+            state.deferredPrompt = e;
+            console.log('PWA install prompt available - showing install button');
+            // Show custom install button
+            document.getElementById('installPWAButton').style.display = 'flex';
         });
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed successfully');
-            deferredPrompt = null;
+            state.deferredPrompt = null;
             console.log('PWA installed successfully via native browser install');
+            document.getElementById('installPWAButton').style.display = 'none';
         });
+        // Check for iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            // Show iOS install tooltip
+            document.getElementById('iosInstallTooltip').style.display = 'block';
+        }
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/sw.js')
                 .then((registration) => {
@@ -4390,6 +4742,42 @@ function initializePWA() {
         }        
     } catch (error) {
         console.log('Error initializing PWA (non-critical):', error);
+    }
+}
+
+async function subscribeToPushNotifications() {
+    try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            showToast('Error', 'Push notifications not supported', 'error');
+            return;
+        }
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            showToast('Error', 'Permission denied for push notifications', 'error');
+            return;
+        }
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: 'BDizcBGIv3G_5PqGAFYr19qiEX2o0kZaKlFUDXQMX5xrgvCk0PNFf14WDPZezmmewMguw07DHkHs4FSdCT07I-A'
+        });
+        // Save subscription object to jsonb column
+        const { error } = await state.supabase
+            .from('profiles')
+            .update({ 
+                push_notifications: true,
+                push_subscription: subscription 
+            })
+            .eq('id', state.currentUser.id);
+        if (error) {
+            console.log('Error saving push subscription:', error);
+            showToast('Error', 'Failed to save push subscription', 'error');
+            return;
+        }
+        showToast('Success', 'Push notifications enabled', 'success');
+    } catch (error) {
+        console.log('Error subscribing to push notifications:', error);
+        showToast('Error', 'Failed to enable push notifications', 'error');
     }
 }
 
@@ -4736,6 +5124,42 @@ async function createOrOpenDM(otherUserId) {
             return;
         }
         
+        // Create DM channel row
+        const { data: existingDMs, error: dmError } = await state.supabase
+            .from('dm_channels')
+            .select('*')
+            .or(`user1_id.eq.${state.currentUser.id},user2_id.eq.${state.currentUser.id}`)
+            .or(`user1_id.eq.${otherUserId},user2_id.eq.${otherUserId}`)
+            .single();
+            
+        if (dmError && dmError.code !== 'PGRST116') {
+            console.log('Error checking DM channels:', dmError);
+        }
+        
+        let dmChannelId;
+        if (existingDMs) {
+            dmChannelId = existingDMs.id;
+        } else {
+            // Create new DM channel
+            const { data: newDMChannel, error: createDMError } = await state.supabase
+                .from('dm_channels')
+                .insert([{
+                    user1_id: state.currentUser.id,
+                    user2_id: otherUserId,
+                    created_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+                
+            if (createDMError) {
+                console.log('Error creating DM channel:', createDMError);
+                showToast('Error', 'Failed to create conversation', 'error');
+                return;
+            }
+            dmChannelId = newDMChannel.id;
+        }
+        
+        // Create or find regular channel for the conversation
         const { data: existingChannels, error: searchError } = await state.supabase
             .from('channels')
             .select('*')
@@ -4894,6 +5318,10 @@ function showEmojiPicker() {
             emojiPicker.appendChild(btn);
         });
         
+        // Add Safari scroll fix
+        emojiPicker.style.overflowY = 'auto';
+        emojiPicker.style.WebkitOverflowScrolling = 'touch';
+        
         document.getElementById('emojiPickerModal').style.display = 'flex';       
     } catch (error) {
         console.log('Error showing emoji picker:', error);
@@ -4954,8 +5382,9 @@ async function addReaction(emoji) {
     }
 }
 
-function showStartConversationModal() {
+function showStartConversationModal(forMention = false) {
     try {
+        state.mentionSearchActive = forMention;
         document.getElementById('startConversationModal').style.display = 'flex';
         document.getElementById('userSearchInput').value = '';
         document.getElementById('userSearchResults').style.display = 'none';
@@ -5009,10 +5438,18 @@ async function searchUsers(searchTerm) {
             `;
             
             resultItem.addEventListener('click', async () => {
-                await createOrOpenDM(user.id);
-                document.getElementById('startConversationModal').style.display = 'none';
-                document.getElementById('userSearchInput').value = '';
-                resultsContainer.style.display = 'none';
+                if (state.mentionSearchActive) {
+                    insertMention(user.username);
+                    document.getElementById('startConversationModal').style.display = 'none';
+                    document.getElementById('userSearchInput').value = '';
+                    resultsContainer.style.display = 'none';
+                    state.mentionSearchActive = false;
+                } else {
+                    await createOrOpenDM(user.id);
+                    document.getElementById('startConversationModal').style.display = 'none';
+                    document.getElementById('userSearchInput').value = '';
+                    resultsContainer.style.display = 'none';
+                }
             });
             
             resultsContainer.appendChild(resultItem);
@@ -5022,6 +5459,17 @@ async function searchUsers(searchTerm) {
     } catch (error) {
         console.log('Error searching users:', error);
     }
+}
+
+function insertMention(username) {
+    const messageInput = document.getElementById('messageInput');
+    const cursorPos = messageInput.selectionStart;
+    const textBefore = messageInput.value.substring(0, cursorPos);
+    const textAfter = messageInput.value.substring(cursorPos);
+    messageInput.value = textBefore + '@' + username + ' ' + textAfter;
+    messageInput.focus();
+    messageInput.selectionStart = cursorPos + username.length + 2;
+    messageInput.selectionEnd = cursorPos + username.length + 2;
 }
 
 async function createChannel() {
@@ -5198,12 +5646,20 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.56 Beta...');
-    document.title = 'Labyrinth Chat v0.5.56 Beta';
-    document.querySelector('.version').textContent = 'v0.5.56 Beta';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.56 Beta • Fully Functional';
-    state.loaderTimeout = setTimeout(hideLoader, 3000);
-    initializeSupabase();
+    console.log('Initializing Labyrinth Chat v0.5.5601 Beta...');
+    document.title = 'Labyrinth Chat v0.5.5601 Beta';
+    document.querySelector('.version').textContent = 'v0.5.5601 Beta';
+    document.querySelector('.login-subtitle').textContent = 'v0.5.5601 Beta • Fully Functional';
+    state.loaderTimeout = setTimeout(hideLoader, 5000);
+    
+    // Check if we're on chats.html without a session
+    if (window.location.pathname.includes('chats.html')) {
+        initializeSupabase();
+    } else {
+        // Redirect to signin.html if not authenticated
+        window.location.href = 'signin.html';
+    }
+    
     setTimeout(setupCustomCursor, 100);
 });
 window.openMediaFullscreen = openMediaFullscreen;

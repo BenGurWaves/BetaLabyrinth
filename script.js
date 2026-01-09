@@ -5649,7 +5649,6 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Labyrinth Chat v0.5.5601 Beta...');
     document.title = 'Labyrinth Chat v0.5.5601 Beta';
     document.querySelector('.version').textContent = 'v0.5.5601 Beta';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.5601 Beta • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 5000);
     
     // Check if we're on chats.html without a session

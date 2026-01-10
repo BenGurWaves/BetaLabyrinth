@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-<title>Labyrinth Chat v0.5.5602 BETA</title>
+<title>Labyrinth Chat v0.5.5602 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="style.css">
+<style>
+.version { opacity: 0.6; }
+</style>
 </head>
 <body>
 <div class="grain-overlay"></div>
@@ -94,19 +97,22 @@
                             <div class="realm-notification-desc" id="realmNotificationDesc">Realm description</div>
                         </div>
                     </div>
-                    <div class="realm-notification-buttons" style="display: flex; flex-direction: column; gap: 8px; margin: 20px 0;">
-                        <button class="notification-button active" data-value="all">
-                            <div class="notification-button-title">All Messages</div>
-                            <div class="notification-button-desc">Notify on every message</div>
-                        </button>
-                        <button class="notification-button" data-value="mention">
-                            <div class="notification-button-title">Mentions Only</div>
-                            <div class="notification-button-desc">Only notify when mentioned</div>
-                        </button>
-                        <button class="notification-button" data-value="mute">
-                            <div class="notification-button-title">Muted</div>
-                            <div class="notification-button-desc">No notifications</div>
-                        </button>
+                    <div class="realm-notification-options">
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="all" checked>
+                            <span class="notification-label">All Messages</span>
+                            <span class="notification-desc">Notify on every message</span>
+                        </label>
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="mention">
+                            <span class="notification-label">Mentions Only</span>
+                            <span class="notification-desc">Only notify when mentioned</span>
+                        </label>
+                        <label class="notification-option">
+                            <input type="radio" name="realmNotifications" value="mute">
+                            <span class="notification-label">Muted</span>
+                            <span class="notification-desc">No notifications</span>
+                        </label>
                     </div>
                     <button id="realmNotificationLeaveBtn" class="btn-secondary" style="width: 100%; margin-top: 24px;">Leave Realm</button>
                 </div>
@@ -195,7 +201,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version" style="opacity: 0.7;">v0.5.5602 BETA</span>
+            <span class="version">v0.5.5602 Beta</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -215,8 +221,8 @@
                         <div class="notification-avatar" style="background-image: url('');"></div>
                         <div class="notification-content">
                             <div class="notification-title"><strong>Notification Title</strong></div>
-                            <div class="notification-message"><i>Notification message text here</i></div>
-                            <div class="notification-date" style="font-size: 12px; opacity: 0.7;">Just now</div>
+                            <div class="notification-message">Notification message text here</div>
+                            <div class="notification-date">Just now</div>
                         </div>
                     </div>
                 </div>
@@ -534,31 +540,39 @@
         <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
         <h2 class="modal-title">Notifications</h2>
         <div class="modal-subtitle">Your recent notifications</div>
-        <div id="notificationsListFull" class="notifications-list-full">
-            <div class="notification-item-full">
-                <div class="notification-avatar-full" style="width: 48px; height: 48px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
-                <div class="notification-content-full">
-                    <div class="notification-title-full"><strong>Notification Title Bold</strong></div>
-                    <div class="notification-message-full">Notification message text here that describes what happened in detail</div>
-                    <div class="notification-date-full" style="font-size: 12px; color: var(--color-gray);">2 hours ago</div>
+        
+        <div class="notifications-list-container" id="notificationsListContainer">
+            <div id="notificationsListFull" class="notifications-list-full">
+                <div class="notification-item-full">
+                    <div class="notification-avatar-full" style="width: 48px; height: 48px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
+                    <div class="notification-content-full">
+                        <div class="notification-title-full"><strong>Notification Title Bold</strong></div>
+                        <div class="notification-message-full">Notification message text here that describes what happened in detail</div>
+                        <div class="notification-date-full" style="font-size: 12px; color: var(--color-gray);">2 hours ago</div>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        <div class="notification-detail-container" id="notificationDetailContainer" style="display: none;">
+            <div class="notification-detail-header">
+                <button class="notification-detail-back" id="notificationDetailBack">
+                    <span>←</span>
+                    <span>Back</span>
+                </button>
+                <button class="modal-close-btn notification-detail-close" id="notificationDetailClose">×</button>
+            </div>
+            <div class="notification-detail-content">
+                <h2 class="notification-detail-title" id="notificationDetailTitle">Notification Title</h2>
+                <div class="notification-detail-body" id="notificationDetailBody">
+                    Detailed notification message here...
+                </div>
+                <div class="notification-detail-time" id="notificationDetailTime">2 hours ago</div>
+            </div>
+        </div>
+        
         <div class="action-row" style="margin-top: 32px;">
             <button id="notificationsCloseBtn" class="btn-secondary">Close</button>
-        </div>
-    </div>
-</div>
-<div class="modal-back" id="notificationDetailModal" style="display: none;">
-    <div class="modal-content">
-        <div class="notification-detail-header">
-            <button class="notification-detail-back" id="notificationDetailBackBtn">←</button>
-            <div class="notification-detail-title"><strong id="notificationDetailTitle">Notification Title</strong></div>
-            <button class="modal-close-btn" id="notificationDetailCloseBtn">×</button>
-        </div>
-        <div class="notification-detail-body">
-            <div class="notification-detail-message" id="notificationDetailMessage"></div>
-            <div class="notification-detail-time" style="font-size: 12px; color: var(--color-gray); margin-top: 20px;" id="notificationDetailTime"></div>
         </div>
     </div>
 </div>
@@ -598,22 +612,6 @@
         <div class="action-row" style="margin-top: 32px;">
             <button id="publicProfileContactBtn" class="btn-primary">Contact</button>
             <button id="publicProfileCloseBtn" class="btn-secondary">Close</button>
-        </div>
-    </div>
-</div>
-<div class="modal-back" id="publicRealmPreviewModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="publicRealmPreviewCloseBtn">×</button>
-        <div class="public-realm-preview-header">
-            <div class="public-realm-icon-circle" id="publicRealmIconCircle" style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; margin: 0 auto 16px; background-color: var(--color-gray-dark);"></div>
-            <div class="public-realm-name" id="publicRealmName" style="text-align: center; font-weight: bold; font-size: 20px; margin-bottom: 8px;"></div>
-            <div class="public-realm-creator" id="publicRealmCreator" style="text-align: center; font-size: 12px; color: var(--color-gray); margin-bottom: 16px; display: none;"></div>
-            <div class="public-realm-description" id="publicRealmDescription" style="text-align: center; margin: 20px 0; padding: 0 20px;"></div>
-        </div>
-        <div class="action-row" style="margin-top: 32px;">
-            <button id="publicRealmOpenBtn" class="btn-primary">Open Realm</button>
-            <button id="publicRealmJoinBtn" class="btn-primary" style="display: none;">Join Realm</button>
-            <button id="publicRealmPreviewCloseBtn2" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>
@@ -807,10 +805,6 @@
         <span>👤</span>
         <span>View Profile</span>
     </div>
-    <div class="context-menu-item" data-action="share">
-        <span>🔗</span>
-        <span>Share Message</span>
-    </div>
     <div class="context-menu-item" data-action="pin" style="display: none;">
         <span>📌</span>
         <span>Pin Message</span>
@@ -827,6 +821,10 @@
         <span>🗑️</span>
         <span>Delete</span>
     </div>
+    <div class="context-menu-item" data-action="share">
+        <span>↗️</span>
+        <span>Share Message</span>
+    </div>
     <div class="context-menu-item" data-action="report">
         <span>⚠️</span>
         <span>Report</span>
@@ -836,32 +834,56 @@
 <div class="modal-back mention-helper-modal" id="mentionHelperModal" style="display: none;">
     <div class="modal-content">
         <h3 class="modal-title">Search for a user to mention</h3>
-        <div class="modal-subtitle">Type @ followed by username</div>
+        <div class="modal-subtitle">Search users to mention</div>
         <div class="mention-search-results" id="mentionSearchResults"></div>
         <div class="action-row" style="margin-top: 16px;">
             <button id="closeMentionHelperBtn" class="btn-secondary">Cancel</button>
         </div>
     </div>
 </div>
-<!-- Channel Helper Modal -->
-<div class="modal-back mention-helper-modal" id="channelHelperModal" style="display: none;">
+<!-- Channel Link Modal -->
+<div class="modal-back channel-link-modal" id="channelLinkModal" style="display: none;">
     <div class="modal-content">
         <h3 class="modal-title">Search for a channel to link</h3>
-        <div class="modal-subtitle">Type # followed by channel name</div>
-        <div class="mention-search-results" id="channelSearchResults"></div>
+        <div class="modal-subtitle">Search channels to link</div>
+        <div class="channel-link-search-results" id="channelLinkSearchResults"></div>
         <div class="action-row" style="margin-top: 16px;">
-            <button id="closeChannelHelperBtn" class="btn-secondary">Cancel</button>
+            <button id="closeChannelLinkBtn" class="btn-secondary">Cancel</button>
         </div>
     </div>
 </div>
-<!-- Realm Helper Modal -->
-<div class="modal-back mention-helper-modal" id="realmHelperModal" style="display: none;">
+<!-- Realm Link Modal -->
+<div class="modal-back realm-link-modal" id="realmLinkModal" style="display: none;">
     <div class="modal-content">
         <h3 class="modal-title">Search for a realm to link</h3>
-        <div class="modal-subtitle">Type $ followed by realm name</div>
-        <div class="mention-search-results" id="realmSearchResults"></div>
+        <div class="modal-subtitle">Search realms to link</div>
+        <div class="realm-link-search-results" id="realmLinkSearchResults"></div>
         <div class="action-row" style="margin-top: 16px;">
-            <button id="closeRealmHelperBtn" class="btn-secondary">Cancel</button>
+            <button id="closeRealmLinkBtn" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- Public Realm Modal -->
+<div class="modal-back public-realm-modal" id="publicRealmModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="publicRealmModalCloseBtn">×</button>
+        <div class="public-realm-header">
+            <div class="public-realm-icon" id="publicRealmIcon" style="width: 80px; height: 80px; border-radius: 50%; font-size: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; background: var(--color-gray-dark);">
+                🏰
+            </div>
+            <div class="public-realm-name" id="publicRealmName" style="font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 8px;">
+                Realm Name
+            </div>
+            <div class="public-realm-creator" id="publicRealmCreator" style="font-size: 14px; color: var(--color-gray); text-align: center; margin-bottom: 16px;">
+                Created by Username
+            </div>
+            <div class="public-realm-description" id="publicRealmDescription" style="text-align: center; padding: 16px; background: var(--color-gray-dark); border-radius: 8px; margin-bottom: 24px;">
+                Realm description goes here...
+            </div>
+        </div>
+        <div class="action-row">
+            <button id="publicRealmJoinBtn" class="btn-primary">Join Realm</button>
+            <button id="publicRealmCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>

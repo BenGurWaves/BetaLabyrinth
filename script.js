@@ -48,9 +48,12 @@ let state = {
     typingTimeout: null,
     isTyping: false,
     mentionSearchActive: false,
-    // v0.5.5602 Beta additions
-    lastActivityDate: null,
-    currentHash: window.location.hash
+    notifications: [],
+    notificationsUnread: 0,
+    streak: 0,
+    messageCount: 0,
+    realmNotifications: {},
+    currentUrlHash: ''
 };
 
 function hideLoader() {
@@ -154,7 +157,7 @@ async function fetchAndUpdateProfile(immediate = false) {
         console.log('Fetching latest profile from Supabase...');        
         const { data: profile, error } = await state.supabase
             .from('profiles')
-            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, streak_count, message_count, last_activity_date')
+            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, streak, message_count')
             .eq('id', state.currentUser.id)
             .single();            
         if (error) {
@@ -175,9 +178,8 @@ async function fetchAndUpdateProfile(immediate = false) {
             state.userSettings.send_with_enter = profile.send_with_enter !== false;
             state.userSettings.open_links_in_app = profile.open_links_in_app === true;
             state.userSettings.send_read_receipts = profile.send_read_receipts !== false;
-            state.userSettings.streak_count = profile.streak_count || 0;
+            state.userSettings.streak = profile.streak || 0;
             state.userSettings.message_count = profile.message_count || 0;
-            state.userSettings.last_activity_date = profile.last_activity_date;
         }
         updateHeaderUserButton();
         updateProfileModal();        
@@ -260,9 +262,8 @@ async function loadUserProfile() {
                 bio: '',
                 social_links: {},
                 show_realms: true,
-                streak_count: 0,
-                message_count: 0,
-                last_activity_date: null
+                streak: 0,
+                message_count: 0
             };
         }        
         console.log('Loading user profile from Supabase...');        
@@ -294,9 +295,8 @@ async function loadUserProfile() {
                 bio: '',
                 social_links: {},
                 show_realms: true,
-                streak_count: 0,
-                message_count: 0,
-                last_activity_date: null
+                streak: 0,
+                message_count: 0
             };
         }
         const defaultProfile = {
@@ -316,9 +316,8 @@ async function loadUserProfile() {
             bio: profile.bio || '',
             social_links: profile.social_links || {},
             show_realms: profile.show_realms !== false,
-            streak_count: profile.streak_count || 0,
-            message_count: profile.message_count || 0,
-            last_activity_date: profile.last_activity_date
+            streak: profile.streak || 0,
+            message_count: profile.message_count || 0
         };        
         console.log('User profile loaded from Supabase');
         return defaultProfile;
@@ -341,9 +340,8 @@ async function loadUserProfile() {
             bio: '',
             social_links: {},
             show_realms: true,
-            streak_count: 0,
-            message_count: 0,
-            last_activity_date: null
+            streak: 0,
+            message_count: 0
         };
     }
 }
@@ -488,7 +486,7 @@ async function ensureProtectedRealmsJoined() {
                     joined_at: new Date().toISOString()
                 }, {
                     onConflict: 'user_id,realm_id',
-                    ignoreDuplicates: false
+                    ignoreDuplicates: true
                 });               
             if (joinError && !joinError.message.includes('duplicate key')) {
                 console.log(`Error joining realm ${realm.slug}:`, joinError);
@@ -571,8 +569,8 @@ async function switchRealm(realmId) {
         
         setTimeout(() => checkRealmAnnouncement(realm), 500);
         
-        // v0.5.5602 Beta: Update URL hash
-        updateUrlHash();
+        // Update URL
+        updateURLForRealmChannel();
     } catch (error) {
         console.log('Error in switchRealm:', error);
         showToast('Error', 'Failed to switch realm', 'error');
@@ -983,9 +981,6 @@ async function loadMessages() {
                 setupMessageSubscription();
                 updateReadReceipts();
                 setupTypingIndicators();
-                
-                // v0.5.5602 Beta: Check for hash message ID to scroll to
-                checkHashForMessageScroll();
             })
             .catch(error => {
                 console.log('Error loading messages:', error);               
@@ -999,137 +994,6 @@ async function loadMessages() {
             });
     } catch (error) {
         console.log('Error in loadMessages:', error);
-    }
-}
-
-// v0.5.5602 Beta: Function to update URL hash
-function updateUrlHash() {
-    try {
-        if (!state.currentRealm || !state.currentChannel) return;
-        
-        const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-        const channelSlug = state.currentChannel.slug || state.currentChannel.id;
-        
-        // Remove any existing message ID from hash
-        const hash = `#${realmSlug}/${channelSlug}`;
-        
-        if (window.location.hash !== hash) {
-            window.location.hash = hash;
-            state.currentHash = hash;
-        }
-    } catch (error) {
-        console.log('Error updating URL hash:', error);
-    }
-}
-
-// v0.5.5602 Beta: Function to parse URL hash on load
-function parseUrlHash() {
-    try {
-        const hash = window.location.hash.substring(1); // Remove #
-        if (!hash) return;
-        
-        const parts = hash.split('/');
-        if (parts.length < 2) return;
-        
-        const [realmSlug, channelSlug, messageId] = parts;
-        
-        // Find realm by slug or ID
-        let targetRealm = state.joinedRealms.find(r => r.slug === realmSlug || r.id === realmSlug);
-        if (!targetRealm) {
-            console.log('Realm not found in hash:', realmSlug);
-            return;
-        }
-        
-        // Switch to realm
-        setTimeout(async () => {
-            await switchRealm(targetRealm.id);
-            
-            // Wait for channels to load
-            setTimeout(() => {
-                // Find channel by slug or ID
-                let targetChannel = state.channels.find(c => 
-                    (c.slug && c.slug === channelSlug) || c.id === channelSlug
-                );
-                
-                if (targetChannel) {
-                    selectChannel(targetChannel.id);
-                    
-                    // If message ID is provided, store it for later scrolling
-                    if (messageId) {
-                        state.scrollToMessageId = messageId;
-                    }
-                }
-            }, 500);
-        }, 100);
-    } catch (error) {
-        console.log('Error parsing URL hash:', error);
-    }
-}
-
-// v0.5.5602 Beta: Check for hash message ID and scroll to it
-function checkHashForMessageScroll() {
-    try {
-        if (!state.scrollToMessageId) return;
-        
-        const messageId = state.scrollToMessageId;
-        const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
-        
-        if (msgElement) {
-            setTimeout(() => {
-                msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                msgElement.classList.add('selected');
-                setTimeout(() => msgElement.classList.remove('selected'), 2000);
-                
-                // Clear the stored message ID
-                state.scrollToMessageId = null;
-            }, 500);
-        } else {
-            // Message might not be loaded yet, try again in a bit
-            setTimeout(checkHashForMessageScroll, 1000);
-        }
-    } catch (error) {
-        console.log('Error checking hash for message scroll:', error);
-    }
-}
-
-// v0.5.5602 Beta: Generate shareable message URL
-function generateMessageShareUrl(messageId) {
-    try {
-        if (!state.currentRealm || !state.currentChannel || !messageId) return '';
-        
-        const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-        const channelSlug = state.currentChannel.slug || state.currentChannel.id;
-        
-        return `${window.location.origin}${window.location.pathname}#${realmSlug}/${channelSlug}/${messageId}`;
-    } catch (error) {
-        console.log('Error generating share URL:', error);
-        return '';
-    }
-}
-
-// v0.5.5602 Beta: Copy URL to clipboard
-function copyToClipboard(text) {
-    try {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast('Copied!', 'URL copied to clipboard', 'success');
-        }).catch(err => {
-            console.log('Failed to copy:', err);
-            showToast('Error', 'Failed to copy URL', 'error');
-        });
-    } catch (error) {
-        console.log('Error copying to clipboard:', error);
-        // Fallback for older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-            document.execCommand('copy');
-            showToast('Copied!', 'URL copied to clipboard', 'success');
-        } catch (err) {
-            showToast('Error', 'Failed to copy URL', 'error');
-        }
-        document.body.removeChild(textArea);
     }
 }
 
@@ -1159,7 +1023,7 @@ async function loadPinnedMessage() {
         
         const pinnedMessageId = state.currentChannel.pinned_message_id;
         if (!pinnedMessageId) {
-            document.getElementById('pinnedMessageContainer').style.display = 'none';
+            document.getElementById('pinnedMessageContainer')?.style.display = 'none';
             state.pinnedMessage = null;
             return;
         }
@@ -1177,7 +1041,7 @@ async function loadPinnedMessage() {
             .single();
             
         if (error || !message) {
-            document.getElementById('pinnedMessageContainer').style.display = 'none';
+            document.getElementById('pinnedMessageContainer')?.style.display = 'none';
             state.pinnedMessage = null;
             return;
         }
@@ -1186,7 +1050,7 @@ async function loadPinnedMessage() {
         displayPinnedMessage(message);
     } catch (error) {
         console.log('Error loading pinned message:', error);
-        document.getElementById('pinnedMessageContainer').style.display = 'none';
+        document.getElementById('pinnedMessageContainer')?.style.display = 'none';
     }
 }
 
@@ -1498,11 +1362,9 @@ function setupMessageContextMenu(msgElement, message) {
         const menuItems = [
             { icon: '😊', text: 'React', className: 'react' },
             { icon: '👤', text: 'View Profile', className: 'view-profile' },
-            { icon: '⚠️', text: 'Report', className: 'report' }
+            { icon: '⚠️', text: 'Report', className: 'report' },
+            { icon: '🔗', text: 'Share Message', className: 'share' }
         ];
-        
-        // v0.5.5602 Beta: Add share message option
-        menuItems.push({ icon: '🔗', text: 'Share Message', className: 'share' });
         
         if (canPin && state.currentRealm?.slug !== 'direct-messages') {
             if (isPinned) {
@@ -1579,7 +1441,7 @@ function setupMessageContextMenu(msgElement, message) {
         };
         
         msgElement.addEventListener('click', (e) => {
-            if (e.target.closest('.reaction') || e.target.closest('.message-edit-input')) return;
+            if (e.target.closest('.reaction') || e.target.closest('.message-edit-input') || e.target.closest('.mention') || e.target.closest('.channel-mention') || e.target.closest('.realm-mention')) return;
             if (window.innerWidth <= 768 || e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1617,10 +1479,9 @@ function setupMessageContextMenu(msgElement, message) {
             removeMenu();
         });
         
-        // v0.5.5602 Beta: Share message handler
         contextMenu.querySelector('.share').addEventListener('click', (e) => {
             e.stopPropagation();
-            shareMessage(message);
+            shareMessageLink(message);
             removeMenu();
         });
         
@@ -1668,69 +1529,6 @@ function setupMessageContextMenu(msgElement, message) {
         
     } catch (error) {
         console.log('Error setting up context menu:', error);
-    }
-}
-
-// v0.5.5602 Beta: Share message function
-function shareMessage(message) {
-    try {
-        const shareUrl = generateMessageShareUrl(message.id);
-        if (!shareUrl) {
-            showToast('Error', 'Cannot generate share URL', 'error');
-            return;
-        }
-        
-        // Create share modal
-        const shareModal = document.createElement('div');
-        shareModal.className = 'modal-back';
-        shareModal.style.display = 'flex';
-        shareModal.style.zIndex = '1000';
-        shareModal.innerHTML = `
-            <div class="modal" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3>Share Message</h3>
-                    <button class="modal-close-btn">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Copy this link to share this message:</p>
-                    <div class="share-url-container">
-                        <input type="text" readonly value="${shareUrl}" id="shareUrlInput" class="share-url-input">
-                        <button id="copyShareUrlBtn" class="btn-primary">Copy</button>
-                    </div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button id="closeShareModalBtn" class="btn-secondary">Close</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(shareModal);
-        
-        // Close button handlers
-        shareModal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            document.body.removeChild(shareModal);
-        });
-        
-        shareModal.querySelector('#closeShareModalBtn').addEventListener('click', () => {
-            document.body.removeChild(shareModal);
-        });
-        
-        shareModal.addEventListener('click', (e) => {
-            if (e.target === shareModal) {
-                document.body.removeChild(shareModal);
-            }
-        });
-        
-        // Copy button handler
-        shareModal.querySelector('#copyShareUrlBtn').addEventListener('click', () => {
-            const input = shareModal.querySelector('#shareUrlInput');
-            input.select();
-            copyToClipboard(input.value);
-        });
-        
-    } catch (error) {
-        console.log('Error sharing message:', error);
-        showToast('Error', 'Failed to share message', 'error');
     }
 }
 
@@ -1872,7 +1670,7 @@ function appendMessage(message) {
         msgElement.className = `msg ${isMe ? 'me' : ''}`;
         msgElement.dataset.messageId = message.id;
         const time = new Date(message.created_at);
-        const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = formatTimeAMPM(time);
         const editedTag = message.edited_at ? '<span class="message-edited">(edited)</span>' : '';
         const formattedContent = formatMessageContent(message.content);        
         msgElement.innerHTML = `
@@ -1894,10 +1692,46 @@ function appendMessage(message) {
         setupMessageContextMenu(msgElement, message);
         setTimeout(() => {
             msgElement.style.opacity = '1';
-        }, 10);        
+        }, 10);
+        
+        // Setup mention click handlers
+        msgElement.querySelectorAll('.mention').forEach(mention => {
+            mention.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const username = mention.dataset.username;
+                showUserByUsername(username);
+            });
+        });
+        
+        msgElement.querySelectorAll('.channel-mention').forEach(mention => {
+            mention.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const channelName = mention.dataset.channel;
+                showChannelMentionModal(channelName);
+            });
+        });
+        
+        msgElement.querySelectorAll('.realm-mention').forEach(mention => {
+            mention.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const realmSlug = mention.dataset.realm;
+                showRealmMentionModal(realmSlug);
+            });
+        });
+        
     } catch (error) {
         console.log('Error appending message:', error);
     }
+}
+
+function formatTimeAMPM(date) {
+    let hours = date.getHours();
+    let minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    return hours + ':' + minutes + ' ' + ampm;
 }
 
 function renderReactions(reactions) {
@@ -2096,7 +1930,9 @@ function setupMessageSubscription() {
                                     messageText.innerHTML = formatMessageContent(payload.new.content);
                                 }
                                 if (payload.new.edited_at && !messageTime.innerHTML.includes('(edited)')) {
-                                    messageTime.innerHTML = messageTime.innerHTML.replace(/\s*$/, '') + ' <span class="message-edited">(edited)</span>';
+                                    const time = new Date(payload.new.edited_at);
+                                    const timeStr = formatTimeAMPM(time);
+                                    messageTime.innerHTML = timeStr + ' <span class="message-edited">(edited)</span>';
                                 }
                                 if (payload.new.reactions) {
                                     if (reactionsContainer) {
@@ -2133,64 +1969,6 @@ function setupMessageSubscription() {
             .subscribe();          
     } catch (error) {
         console.log('Error setting up message subscription:', error);
-    }
-}
-
-// v0.5.5602 Beta: Update streak and message count
-async function updateStreakAndMessageCount() {
-    try {
-        if (!state.currentUser || !state.supabase) return;
-        
-        const today = new Date().toISOString().split('T')[0];
-        const lastActivityDate = state.userSettings?.last_activity_date;
-        
-        let streakCount = state.userSettings?.streak_count || 0;
-        let messageCount = state.userSettings?.message_count || 0;
-        
-        // Check if we already updated today
-        if (lastActivityDate !== today) {
-            // Check if yesterday was consecutive
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-            
-            if (lastActivityDate === yesterdayStr) {
-                streakCount++;
-            } else if (lastActivityDate && lastActivityDate !== today) {
-                streakCount = 1; // Reset streak if missed a day
-            } else {
-                streakCount = Math.max(streakCount, 1); // First activity or same day
-            }
-            
-            messageCount++;
-            
-            // Update in database
-            const { error } = await state.supabase
-                .from('profiles')
-                .update({
-                    streak_count: streakCount,
-                    message_count: messageCount,
-                    last_activity_date: today
-                })
-                .eq('id', state.currentUser.id);
-                
-            if (error) {
-                console.log('Error updating streak and message count:', error);
-                return;
-            }
-            
-            // Update local state
-            if (state.userSettings) {
-                state.userSettings.streak_count = streakCount;
-                state.userSettings.message_count = messageCount;
-                state.userSettings.last_activity_date = today;
-            }
-            
-            // Update UI
-            updateProfileModal();
-        }
-    } catch (error) {
-        console.log('Error in updateStreakAndMessageCount:', error);
     }
 }
 
@@ -2237,14 +2015,11 @@ async function sendMessage() {
                 .single();
             if (user) {
                 notificationPromises.push(
-                    state.supabase
-                        .from('notifications')
-                        .insert({
-                            user_id: user.id,
-                            title: 'You were mentioned',
-                            message: `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`,
-                            type: 'mention'
-                        })
+                    createNotification(user.id, 'mention', `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`, `You were mentioned by ${state.userSettings.username} in #${state.currentChannel.name}`, {
+                        realm_id: state.currentRealm?.id,
+                        channel_id: state.currentChannel.id,
+                        message_id: null
+                    })
                 );
             }
         }
@@ -2264,7 +2039,7 @@ async function sendMessage() {
             return;
         }
         
-        // v0.5.5602 Beta: Update streak and message count
+        // Update streak and message count
         await updateStreakAndMessageCount();
         
         // Create notifications
@@ -2274,6 +2049,113 @@ async function sendMessage() {
         console.log('Error in sendMessage:', error);
         showToast('Error', 'Failed to send message', 'error');
     }
+}
+
+async function updateStreakAndMessageCount() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const today = new Date().toISOString().split('T')[0];
+        const { data: profile } = await state.supabase
+            .from('profiles')
+            .select('last_message_date, streak, message_count')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        if (!profile) return;
+        
+        let streak = profile.streak || 0;
+        let messageCount = (profile.message_count || 0) + 1;
+        
+        if (profile.last_message_date !== today) {
+            const lastDate = profile.last_message_date ? new Date(profile.last_message_date) : null;
+            const todayDate = new Date(today);
+            
+            if (lastDate) {
+                const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                    streak += 1;
+                } else if (diffDays > 1) {
+                    streak = 1;
+                }
+            } else {
+                streak = 1;
+            }
+        }
+        
+        const { error } = await state.supabase
+            .from('profiles')
+            .update({
+                streak: streak,
+                message_count: messageCount,
+                last_message_date: today
+            })
+            .eq('id', state.currentUser.id);
+            
+        if (error) {
+            console.log('Error updating streak:', error);
+        } else {
+            state.userSettings.streak = streak;
+            state.userSettings.message_count = messageCount;
+        }
+    } catch (error) {
+        console.log('Error updating streak:', error);
+    }
+}
+
+async function createNotification(userId, type, title, message, data = {}) {
+    try {
+        if (!state.supabase) return;
+        
+        const { error } = await state.supabase
+            .from('notifications')
+            .insert([{
+                user_id: userId,
+                type: type,
+                title: title,
+                message: message,
+                data: data,
+                read: false
+            }]);
+            
+        if (error) {
+            console.log('Error creating notification:', error);
+            return;
+        }
+        
+        // Update unread count
+        state.notificationsUnread++;
+        updateNotificationBadge();
+        
+        // Send push notification if enabled
+        if (state.userSettings?.push_notifications) {
+            sendPushNotification(title, message);
+        }
+    } catch (error) {
+        console.log('Error creating notification:', error);
+    }
+}
+
+function updateNotificationBadge() {
+    try {
+        const badge = document.getElementById('notificationDot');
+        if (!badge) return;
+        
+        if (state.notificationsUnread > 0) {
+            badge.textContent = state.notificationsUnread > 99 ? '99+' : state.notificationsUnread.toString();
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (error) {
+        console.log('Error updating notification badge:', error);
+    }
+}
+
+function sendPushNotification(title, message) {
+    // This would integrate with a push notification service
+    // For now, just log
+    console.log('Push notification:', title, message);
 }
 
 function extractMentions(text) {
@@ -2340,7 +2222,6 @@ function updateProfileModal() {
         const profileAvatar = document.getElementById('profileAvatar');
         const profileBio = document.getElementById('profileBio');
         const profileShowRealms = document.getElementById('profileShowRealms');
-        // v0.5.5602 Beta: Add streak and message count display
         const profileStreak = document.getElementById('profileStreak');
         const profileMessageCount = document.getElementById('profileMessageCount');
         
@@ -2379,9 +2260,8 @@ function updateProfileModal() {
         if (profileBio) {
             profileBio.value = state.userSettings?.bio || '';
         }
-        // v0.5.5602 Beta: Update streak and message count display
         if (profileStreak) {
-            profileStreak.textContent = state.userSettings?.streak_count || 0;
+            profileStreak.textContent = state.userSettings?.streak || 0;
         }
         if (profileMessageCount) {
             profileMessageCount.textContent = state.userSettings?.message_count || 0;
@@ -2633,8 +2513,14 @@ async function initializeApp() {
         
         setTimeout(checkWelcomeMessages, 1000);
         
-        // v0.5.5602 Beta: Parse URL hash on load
-        parseUrlHash();
+        // Load notifications
+        loadNotifications();
+        
+        // Check for updates
+        checkForUpdates();
+        
+        // Parse URL hash
+        parseURLHash();
         
     } catch (error) {
         console.log('App initialization error:', error);
@@ -3169,46 +3055,6 @@ function setupEventListeners() {
             confirmBtn.addEventListener('click', handleConfirm);
             cancelBtn.addEventListener('click', handleCancel);
         });
-        
-        // v0.5.5602 Beta: Check for updates button
-        document.getElementById('checkForUpdatesBtn').addEventListener('click', function() {
-            document.getElementById('confirmationModal').style.display = 'flex';
-            document.getElementById('confirmationIcon').textContent = '🔄';
-            document.getElementById('confirmationTitle').textContent = 'Check for Updates';
-            document.getElementById('confirmationMessage').textContent = 'This will clear the cache and reload the application. Any unsaved changes may be lost. Continue?';
-            
-            const confirmBtn = document.getElementById('confirmationConfirm');
-            const cancelBtn = document.getElementById('confirmationCancel');
-            
-            const handleConfirm = async () => {
-                try {
-                    // Clear caches
-                    if ('caches' in window) {
-                        const cacheNames = await caches.keys();
-                        for (const cacheName of cacheNames) {
-                            await caches.delete(cacheName);
-                        }
-                    }
-                    
-                    // Reload the page
-                    window.location.reload();
-                } catch (error) {
-                    console.log('Error during update check:', error);
-                    showToast('Error', 'Failed to check for updates', 'error');
-                    document.getElementById('confirmationModal').style.display = 'none';
-                }
-            };
-            
-            const handleCancel = () => {
-                document.getElementById('confirmationModal').style.display = 'none';
-                confirmBtn.removeEventListener('click', handleConfirm);
-                cancelBtn.removeEventListener('click', handleCancel);
-            };
-            
-            confirmBtn.addEventListener('click', handleConfirm);
-            cancelBtn.addEventListener('click', handleCancel);
-        });
-        
         document.getElementById('profileLogoutBtn').addEventListener('click', function() {
             state.supabase.auth.signOut()
                 .then(() => {
@@ -3432,16 +3278,6 @@ function setupEventListeners() {
             }
         });
         
-        // v0.5.5602 Beta: Realm settings share button
-        document.getElementById('realmSettingsShareBtn').addEventListener('click', function() {
-            if (!state.currentRealm) return;
-            
-            const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-            const realmUrl = `${window.location.origin}${window.location.pathname}#${realmSlug}`;
-            
-            copyToClipboard(realmUrl);
-        });
-        
         document.getElementById('realmSettingsInviteBtn').addEventListener('click', function() {
             showInviteUsersModal();
         });
@@ -3521,135 +3357,13 @@ function setupEventListeners() {
             document.getElementById('iosInstallTooltip').style.display = 'none';
         });
         
-        // v0.5.5602 Beta: Setup mention/channel/realm link click handlers
-        setupMentionLinkHandlers();
+        // Check for updates button
+        document.getElementById('checkForUpdatesBtn').addEventListener('click', function() {
+            checkForUpdates(true);
+        });
         
     } catch (error) {
         console.log('Error setting up event listeners:', error);
-    }
-}
-
-// v0.5.5602 Beta: Setup mention link handlers
-function setupMentionLinkHandlers() {
-    // Delegate clicks to document since messages are dynamic
-    document.addEventListener('click', function(e) {
-        // Handle @ mentions
-        if (e.target.classList.contains('mention')) {
-            const username = e.target.dataset.username;
-            handleMentionClick(username);
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        // Handle # channel mentions
-        if (e.target.classList.contains('channel-mention')) {
-            const channelName = e.target.dataset.channel;
-            handleChannelMentionClick(channelName);
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        
-        // Handle $ realm mentions
-        if (e.target.classList.contains('realm-mention')) {
-            const realmName = e.target.dataset.realm;
-            handleRealmMentionClick(realmName);
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    });
-}
-
-// v0.5.5602 Beta: Handle @ mention clicks
-async function handleMentionClick(username) {
-    try {
-        if (!state.supabase) return;
-        
-        // Remove @ symbol if present
-        const cleanUsername = username.replace('@', '');
-        
-        // Search for user
-        const { data: user, error } = await state.supabase
-            .from('profiles')
-            .select('id, username')
-            .eq('username', cleanUsername)
-            .single();
-            
-        if (error || !user) {
-            showToast('Error', `User @${cleanUsername} not found`, 'error');
-            return;
-        }
-        
-        // Show user profile
-        showUserProfile(user.id);
-    } catch (error) {
-        console.log('Error handling mention click:', error);
-    }
-}
-
-// v0.5.5602 Beta: Handle # channel mention clicks
-async function handleChannelMentionClick(channelName) {
-    try {
-        if (!state.currentRealm || !state.supabase) return;
-        
-        // Remove # symbol if present
-        const cleanChannelName = channelName.replace('#', '');
-        
-        // Search for channel in current realm
-        const { data: channel, error } = await state.supabase
-            .from('channels')
-            .select('*')
-            .eq('name', cleanChannelName)
-            .eq('realm_id', state.currentRealm.id)
-            .eq('is_public', true)
-            .single();
-            
-        if (error || !channel) {
-            showToast('Error', `Channel #${cleanChannelName} not found in this realm`, 'error');
-            return;
-        }
-        
-        // Switch to channel
-        selectChannel(channel.id);
-        showToast('Info', `Switched to #${cleanChannelName}`, 'info');
-    } catch (error) {
-        console.log('Error handling channel mention click:', error);
-    }
-}
-
-// v0.5.5602 Beta: Handle $ realm mention clicks
-async function handleRealmMentionClick(realmName) {
-    try {
-        if (!state.supabase) return;
-        
-        // Remove $ symbol if present
-        const cleanRealmName = realmName.replace('$', '');
-        
-        // Search for realm
-        const { data: realm, error } = await state.supabase
-            .from('realms')
-            .select('*')
-            .or(`name.eq.${cleanRealmName},slug.eq.${cleanRealmName}`)
-            .single();
-            
-        if (error || !realm) {
-            showToast('Error', `Realm $${cleanRealmName} not found`, 'error');
-            return;
-        }
-        
-        // Check if user is already a member
-        const isMember = state.joinedRealms.some(r => r.id === realm.id);
-        
-        if (isMember) {
-            // Switch to realm
-            await switchRealm(realm.id);
-        } else {
-            // Show realm in all realms modal
-            document.getElementById('allRealmsModal').style.display = 'flex';
-            document.getElementById('realmSearchInput').value = cleanRealmName;
-            filterRealms(cleanRealmName);
-        }
-    } catch (error) {
-        console.log('Error handling realm mention click:', error);
     }
 }
 
@@ -3703,15 +3417,78 @@ async function showRealmSettingsModal() {
             
             await loadCoAdmins();
             await loadChannelsForDragAndDrop();
+            
+            // Load realm notification settings
+            await loadRealmNotificationSettings();
         } else {
             nonCreatorSettings.style.display = 'block';
             creatorSettings.style.display = 'none';
+            
+            // Load realm notification settings for non-creator
+            await loadRealmNotificationSettings();
         }
         
         document.getElementById('realmSettingsModal').style.display = 'flex';
     } catch (error) {
         console.log('Error showing realm settings modal:', error);
         showToast('Error', 'Failed to load realm settings', 'error');
+    }
+}
+
+async function loadRealmNotificationSettings() {
+    try {
+        if (!state.currentRealm || !state.supabase || !state.currentUser) return;
+        
+        const { data: settings, error } = await state.supabase
+            .from('realm_notifications')
+            .select('notification_level')
+            .eq('realm_id', state.currentRealm.id)
+            .eq('user_id', state.currentUser.id)
+            .single();
+            
+        if (error && error.code !== 'PGRST116') {
+            console.log('Error loading realm notification settings:', error);
+            return;
+        }
+        
+        const notificationLevel = settings?.notification_level || 'all';
+        document.querySelectorAll('.realm-notification-option').forEach(option => {
+            option.classList.remove('active');
+            if (option.dataset.level === notificationLevel) {
+                option.classList.add('active');
+            }
+        });
+    } catch (error) {
+        console.log('Error loading realm notification settings:', error);
+    }
+}
+
+async function saveRealmNotificationSettings(level) {
+    try {
+        if (!state.currentRealm || !state.supabase || !state.currentUser) return;
+        
+        const { error } = await state.supabase
+            .from('realm_notifications')
+            .upsert({
+                realm_id: state.currentRealm.id,
+                user_id: state.currentUser.id,
+                notification_level: level,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'realm_id,user_id',
+                ignoreDuplicates: false
+            });
+            
+        if (error) {
+            console.log('Error saving realm notification settings:', error);
+            showToast('Error', 'Failed to save notification settings', 'error');
+            return;
+        }
+        
+        state.realmNotifications[state.currentRealm.id] = level;
+        showToast('Success', 'Notification settings saved', 'success');
+    } catch (error) {
+        console.log('Error saving realm notification settings:', error);
     }
 }
 
@@ -4002,8 +3779,8 @@ async function saveRealmSettings() {
             return;
         }
         
-        // v0.5.5602 Beta: Replace spaces with hyphens for slug
-        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        // Validate name - no spaces
+        const validatedName = name.replace(/\s+/g, '_');
         
         // Get icon preview
         const iconPreview = document.getElementById('realmSettingsIconPreview');
@@ -4022,8 +3799,7 @@ async function saveRealmSettings() {
         const { error } = await state.supabase
             .from('realms')
             .update({
-                name: name,
-                slug: slug,
+                name: validatedName,
                 description: description,
                 announcement_message: announcement,
                 is_public: isPublic,
@@ -4038,15 +3814,14 @@ async function saveRealmSettings() {
         }
         
         // Update current realm data
-        state.currentRealm.name = name;
-        state.currentRealm.slug = slug;
+        state.currentRealm.name = validatedName;
         state.currentRealm.description = description;
         state.currentRealm.announcement_message = announcement;
         state.currentRealm.is_public = isPublic;
         state.currentRealm.icon_url = icon_url;
         
         // Update UI
-        document.getElementById('currentRealmName').textContent = name;
+        document.getElementById('currentRealmName').textContent = validatedName;
         const realmIcon = document.querySelector('.realm-icon');
         if (realmIcon) {
             if (icon_url && icon_url.startsWith('http')) {
@@ -4230,7 +4005,33 @@ async function handleRealmBackgroundUpload(event) {
 }
 
 function showInviteUsersModal() {
-    showToast('Coming Soon', 'User invitation system coming in a future update', 'info');
+    try {
+        const modal = document.getElementById('inviteUsersModal');
+        if (!modal) return;
+        
+        // Generate shareable link
+        const realmSlug = state.currentRealm?.slug || '';
+        const shareUrl = `${window.location.origin}${window.location.pathname}#realm=${realmSlug}`;
+        document.getElementById('realmShareLink').value = shareUrl;
+        
+        modal.style.display = 'flex';
+        
+        document.getElementById('copyRealmLinkBtn').addEventListener('click', function() {
+            copyToClipboard(shareUrl);
+            showToast('Success', 'Link copied to clipboard', 'success');
+        });
+        
+        document.getElementById('closeInviteUsersBtn').addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+        
+        document.getElementById('inviteUsersModalCloseBtn').addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+    } catch (error) {
+        console.log('Error showing invite users modal:', error);
+        showToast('Error', 'Failed to open invite modal', 'error');
+    }
 }
 
 async function deleteRealm() {
@@ -4548,7 +4349,34 @@ async function performGlobalSearch(query) {
     }
 }
 
-// v0.5.5602 Beta: Load all notifications with improved styling
+async function loadNotifications() {
+    try {
+        if (!state.supabase || !state.currentUser) return;
+        
+        const { data: notifications, error } = await state.supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', state.currentUser.id)
+            .eq('read', false)
+            .order('created_at', { ascending: false })
+            .limit(20);
+            
+        if (error) {
+            console.log('Error loading notifications:', error);
+            return;
+        }
+        
+        state.notifications = notifications || [];
+        state.notificationsUnread = notifications?.length || 0;
+        updateNotificationBadge();
+        
+        // Setup notification dropdown
+        setupNotificationDropdown();
+    } catch (error) {
+        console.log('Error loading notifications:', error);
+    }
+}
+
 async function loadAllNotifications() {
     try {
         if (!state.supabase) return;
@@ -4577,30 +4405,15 @@ async function loadAllNotifications() {
             return;
         }
         
-        // v0.5.5602 Beta: Update notification dot
-        updateNotificationDot(notifications);
-        
         notifications.forEach(notification => {
             const notificationElement = document.createElement('div');
             notificationElement.className = 'notification-item';
-            notificationElement.dataset.notificationId = notification.id;
-            notificationElement.dataset.read = notification.read || false;
-            
-            // v0.5.5602 Beta: Format time as hour:minute AM/PM
-            const time = new Date(notification.created_at);
-            const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
             notificationElement.innerHTML = `
-                <div class="notification-icon">${getNotificationIcon(notification.type)}</div>
-                <div class="notification-content">
-                    <div class="notification-title">${escapeHtml(notification.title || 'Notification')}</div>
-                    <div class="notification-message">${escapeHtml(notification.message || notification.content)}</div>
-                    <div class="notification-time">${timeStr}</div>
-                </div>
-                ${notification.read ? '' : '<div class="notification-unread-dot"></div>'}
+                <div class="notification-title">${escapeHtml(notification.title || 'Notification')}</div>
+                <div class="notification-content">${escapeHtml(notification.message || notification.content)}</div>
+                <div class="notification-time">${formatTimeAMPM(new Date(notification.created_at))}</div>
             `;
             
-            // v0.5.5602 Beta: Add click handler for detailed view
             notificationElement.addEventListener('click', () => {
                 showNotificationDetail(notification);
             });
@@ -4612,102 +4425,28 @@ async function loadAllNotifications() {
     }
 }
 
-// v0.5.5602 Beta: Get appropriate icon for notification type
-function getNotificationIcon(type) {
-    const icons = {
-        'mention': '@',
-        'admin_added': '👑',
-        'message': '💬',
-        'reaction': '😊',
-        'system': '⚙️',
-        'default': '🔔'
-    };
-    return icons[type] || icons.default;
-}
-
-// v0.5.5602 Beta: Update notification dot
-function updateNotificationDot(notifications) {
-    try {
-        const notificationDot = document.getElementById('notificationDot');
-        if (!notificationDot) return;
-        
-        const unreadCount = notifications.filter(n => !n.read).length;
-        
-        if (unreadCount > 0) {
-            notificationDot.style.display = 'flex';
-            notificationDot.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-        } else {
-            notificationDot.style.display = 'none';
-        }
-    } catch (error) {
-        console.log('Error updating notification dot:', error);
-    }
-}
-
-// v0.5.5602 Beta: Show notification detail view
 function showNotificationDetail(notification) {
     try {
+        const modal = document.getElementById('notificationDetailModal');
+        if (!modal) return;
+        
+        document.getElementById('notificationDetailTitle').textContent = notification.title || 'Notification';
+        document.getElementById('notificationDetailMessage').textContent = notification.message || '';
+        document.getElementById('notificationDetailTime').textContent = formatTimeAMPM(new Date(notification.created_at));
+        
+        // Show back button and hide close button
+        document.getElementById('notificationDetailBackBtn').style.display = 'block';
+        document.getElementById('notificationDetailCloseBtn').style.display = 'none';
+        
+        modal.style.display = 'flex';
+        
         // Mark as read
         markNotificationAsRead(notification.id);
-        
-        // Create detail modal
-        const detailModal = document.createElement('div');
-        detailModal.className = 'modal-back';
-        detailModal.style.display = 'flex';
-        detailModal.style.zIndex = '1000';
-        
-        // Format time
-        const time = new Date(notification.created_at);
-        const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const dateStr = time.toLocaleDateString();
-        
-        detailModal.innerHTML = `
-            <div class="modal" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3>Notification Details</h3>
-                    <button class="modal-close-btn">×</button>
-                </div>
-                <div class="modal-body">
-                    <div class="notification-detail-header">
-                        <div class="notification-detail-icon">${getNotificationIcon(notification.type)}</div>
-                        <div>
-                            <div class="notification-detail-title">${escapeHtml(notification.title || 'Notification')}</div>
-                            <div class="notification-detail-time">${dateStr} at ${timeStr}</div>
-                        </div>
-                    </div>
-                    <div class="notification-detail-message">
-                        ${escapeHtml(notification.message || notification.content)}
-                    </div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button id="closeNotificationDetailBtn" class="btn-primary">Close</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(detailModal);
-        
-        // Close button handlers
-        detailModal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            document.body.removeChild(detailModal);
-        });
-        
-        detailModal.querySelector('#closeNotificationDetailBtn').addEventListener('click', () => {
-            document.body.removeChild(detailModal);
-        });
-        
-        detailModal.addEventListener('click', (e) => {
-            if (e.target === detailModal) {
-                document.body.removeChild(detailModal);
-            }
-        });
-        
     } catch (error) {
         console.log('Error showing notification detail:', error);
     }
 }
 
-// v0.5.5602 Beta: Mark notification as read
 async function markNotificationAsRead(notificationId) {
     try {
         if (!state.supabase) return;
@@ -4722,18 +4461,10 @@ async function markNotificationAsRead(notificationId) {
             return;
         }
         
-        // Update UI
-        const notificationElement = document.querySelector(`[data-notification-id="${notificationId}"]`);
-        if (notificationElement) {
-            notificationElement.dataset.read = 'true';
-            const unreadDot = notificationElement.querySelector('.notification-unread-dot');
-            if (unreadDot) {
-                unreadDot.remove();
-            }
-        }
-        
-        // Update notification dot
-        loadAllNotifications();
+        // Update local state
+        state.notifications = state.notifications.filter(n => n.id !== notificationId);
+        state.notificationsUnread = Math.max(0, state.notificationsUnread - 1);
+        updateNotificationBadge();
     } catch (error) {
         console.log('Error marking notification as read:', error);
     }
@@ -4754,17 +4485,64 @@ async function markAllNotificationsRead() {
             return;
         }
         
-        document.getElementById('notificationDot').style.display = 'none';
+        state.notifications = [];
+        state.notificationsUnread = 0;
+        updateNotificationBadge();
         showToast('Success', 'All notifications marked as read', 'success');
-        
-        // Reload notifications
-        loadAllNotifications();
     } catch (error) {
         console.log('Error marking notifications as read:', error);
     }
 }
 
-// v0.5.5602 Beta: Improved showUserProfile with null guards
+function setupNotificationDropdown() {
+    try {
+        const dropdown = document.getElementById('notificationsDropdown');
+        if (!dropdown) return;
+        
+        dropdown.innerHTML = '';
+        
+        if (state.notifications.length === 0) {
+            dropdown.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
+                    No new notifications
+                </div>
+            `;
+            return;
+        }
+        
+        state.notifications.slice(0, 5).forEach(notification => {
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification-dropdown-item';
+            notificationElement.innerHTML = `
+                <div class="notification-dropdown-title">${escapeHtml(notification.title || 'Notification')}</div>
+                <div class="notification-dropdown-content">${escapeHtml(notification.message?.substring(0, 50) || '')}${notification.message?.length > 50 ? '...' : ''}</div>
+                <div class="notification-dropdown-time">${formatTimeAMPM(new Date(notification.created_at))}</div>
+            `;
+            
+            notificationElement.addEventListener('click', () => {
+                showNotificationDetail(notification);
+                dropdown.style.display = 'none';
+            });
+            
+            dropdown.appendChild(notificationElement);
+        });
+        
+        if (state.notifications.length > 5) {
+            const viewAll = document.createElement('div');
+            viewAll.className = 'notification-dropdown-view-all';
+            viewAll.textContent = `View all ${state.notifications.length} notifications`;
+            viewAll.addEventListener('click', () => {
+                document.getElementById('notificationsModal').style.display = 'flex';
+                loadAllNotifications();
+                dropdown.style.display = 'none';
+            });
+            dropdown.appendChild(viewAll);
+        }
+    } catch (error) {
+        console.log('Error setting up notification dropdown:', error);
+    }
+}
+
 async function showUserProfile(userId, profileData = null) {
     try {
         if (!state.supabase) return;
@@ -4790,118 +4568,73 @@ async function showUserProfile(userId, profileData = null) {
         // Guard against null/undefined
         profile = profile || {};
         
-        // Safely access DOM elements with optional chaining
-        const profileAvatar = document.getElementById('publicProfileAvatar');
-        const profileName = document.getElementById('publicProfileName');
-        const statusText = document.getElementById('publicProfileStatusText');
-        const statusDot = document.getElementById('publicProfileStatusDot');
-        const profileBio = document.getElementById('publicProfileBio');
-        const socialContainer = document.getElementById('publicProfileSocialLinks');
-        const socialSection = document.getElementById('publicProfileSocialSection');
-        const realmsContainer = document.getElementById('publicProfileRealms');
-        const realmsSection = document.getElementById('publicProfileRealmsSection');
+        document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
+        document.getElementById('publicProfileAvatar').onclick = function() {
+            if (profile.avatar_url) {
+                openAvatarFullscreen(profile.avatar_url);
+            }
+        };
         
-        // v0.5.5602 Beta: Add streak and message count display
-        const profileStreak = document.getElementById('publicProfileStreak');
-        const profileMessageCount = document.getElementById('publicProfileMessageCount');
+        document.getElementById('publicProfileName').textContent = profile.username || 'User';
         
-        if (profileAvatar) {
-            profileAvatar.src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
-            profileAvatar.onclick = function() {
-                if (profile.avatar_url) {
-                    openAvatarFullscreen(profile.avatar_url);
-                }
-            };
-        }
-        
-        if (profileName) {
-            profileName.textContent = profile.username || 'User';
-        }
+        // Add streak and message count
+        document.getElementById('publicProfileStreak').textContent = profile.streak || 0;
+        document.getElementById('publicProfileMessageCount').textContent = profile.message_count || 0;
         
         const isStealth = profile.stealth_mode === true;
         const status = isStealth ? 'offline' : (profile.status || 'offline');
+        document.getElementById('publicProfileStatusText').textContent = status === 'online' ? 'Online' : 'Offline';
+        document.getElementById('publicProfileStatusDot').className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
         
-        if (statusText) {
-            statusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        }
-        
-        if (statusDot) {
-            statusDot.className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
-        }
-        
-        if (profileBio) {
-            profileBio.textContent = profile.bio || 'No bio provided';
-        }
-        
-        // v0.5.5602 Beta: Update streak and message count
-        if (profileStreak) {
-            profileStreak.textContent = profile.streak_count || 0;
-        }
-        
-        if (profileMessageCount) {
-            profileMessageCount.textContent = profile.message_count || 0;
-        }
+        document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
         
         const socialLinks = profile.social_links || {};
-        if (socialContainer) {
-            socialContainer.innerHTML = '';
-            
-            if (socialLinks.twitter) {
-                socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
-            }
-            if (socialLinks.instagram) {
-                socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
-            }
-            if (socialLinks.website) {
-                socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
-            }
-            if (socialLinks.other) {
-                socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
-            }
-            
-            if (socialSection) {
-                socialSection.style.display = socialContainer.innerHTML ? 'block' : 'none';
-            }
+        const socialContainer = document.getElementById('publicProfileSocialLinks');
+        socialContainer.innerHTML = '';
+        
+        if (socialLinks.twitter) {
+            socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
+        }
+        if (socialLinks.instagram) {
+            socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
+        }
+        if (socialLinks.website) {
+            socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
+        }
+        if (socialLinks.other) {
+            socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
         }
         
-        const realmsData = await loadOtherUserRealms(profile.id);
+        document.getElementById('publicProfileSocialSection').style.display = socialContainer.innerHTML ? 'block' : 'none';
         
-        if (realmsContainer) {
-            if (realmsData.show_realms === false) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
-                if (realmsSection) {
-                    realmsSection.style.display = 'block';
+        const realmsData = await loadOtherUserRealms(profile.id);
+        const realmsContainer = document.getElementById('publicProfileRealms');
+        
+        if (realmsData.show_realms === false) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else if (realmsData.realms.length === 0) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else {
+            // Update to show realm icons
+            realmsContainer.innerHTML = realmsData.realms.map(realm => {
+                let iconHtml = '';
+                if (realm.icon_url) {
+                    iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
+                } else {
+                    iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
                 }
-            } else if (realmsData.realms.length === 0) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
-                if (realmsSection) {
-                    realmsSection.style.display = 'block';
-                }
-            } else {
-                // Update to show realm icons
-                realmsContainer.innerHTML = realmsData.realms.map(realm => {
-                    let iconHtml = '';
-                    if (realm?.icon_url) {
-                        iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
-                    } else {
-                        iconHtml = `<span style="margin-right: 8px;">${realm?.icon_url || '🏰'}</span>`;
-                    }
-                    return `<div class="realm-chip">${iconHtml}${escapeHtml(realm?.name || 'Unknown Realm')}</div>`;
-                }).join('');
-                if (realmsSection) {
-                    realmsSection.style.display = 'block';
-                }
-            }
+                return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
+            }).join('');
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
         }
         
         state.selectedUserForProfile = profile.id;
-        const publicProfileModal = document.getElementById('publicProfileModal');
-        if (publicProfileModal) {
-            publicProfileModal.style.display = 'flex';
-            // Center the modal
-            publicProfileModal.style.alignItems = 'center';
-            publicProfileModal.style.justifyContent = 'center';
-        }
+        document.getElementById('publicProfileModal').style.display = 'flex';
+        // Center the modal
+        document.getElementById('publicProfileModal').style.alignItems = 'center';
+        document.getElementById('publicProfileModal').style.justifyContent = 'center';
     } catch (error) {
         console.log('Error showing user profile:', error);
         showToast('Error', 'Failed to load user profile', 'error');
@@ -4984,21 +4717,17 @@ function renderRealmsList(realms) {
             if (isJoined) {
                 if (!isProtected) {
                     const leaveBtn = realmItem.querySelector('.leave-realm-btn');
-                    if (leaveBtn) {
-                        leaveBtn.addEventListener('click', async function(e) {
-                            e.stopPropagation();
-                            await leaveRealm(realm.id);
-                        });
-                    }
+                    leaveBtn.addEventListener('click', async function(e) {
+                        e.stopPropagation();
+                        await leaveRealm(realm.id);
+                    });
                 }
             } else {
                 const joinBtn = realmItem.querySelector('.join-realm-btn');
-                if (joinBtn) {
-                    joinBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        await joinRealm(realm.id);
-                    });
-                }
+                joinBtn.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    await joinRealm(realm.id);
+                });
             }
         });       
     } catch (error) {
@@ -5156,20 +4885,14 @@ async function createRealmModal() {
             showToast('Error', 'Please enter a realm name', 'error');
             nameInput.focus();
             return;
-        }
-        
-        // v0.5.5602 Beta: Replace spaces with hyphens and validate no spaces
-        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        
-        // Check for spaces in name
-        if (name.includes(' ')) {
-            showToast('Info', 'Spaces in realm names will be replaced with hyphens', 'info');
-        }
-        
+        }       
+        // Validate name - no spaces
+        const validatedName = name.replace(/\s+/g, '_');
+        const slug = validatedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');        
         const { data: newRealm, error } = await state.supabase
             .from('realms')
             .insert([{
-                name: name,
+                name: validatedName,
                 slug: slug,
                 description: description,
                 created_by: state.currentUser.id,
@@ -5551,11 +5274,6 @@ async function displayUserProfile(profileOrUserId) {
         const socialLinks = document.getElementById('quickProfileSocialLinks');
         const realmsContainer = document.getElementById('quickProfileRealms');
         
-        if (!modal || !avatar || !name) {
-            console.log('Quick profile modal elements not found');
-            return;
-        }
-        
         if (profile.avatar_url) {
             const timestamp = Date.now();
             avatar.src = `${profile.avatar_url}?t=${timestamp}`;
@@ -5609,53 +5327,43 @@ async function displayUserProfile(profileOrUserId) {
         name.textContent = profile.username || 'User';
         const isStealth = profile.stealth_mode === true;
         const status = isStealth ? 'offline' : (profile.status || 'offline');       
-        if (statusText) {
-            statusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        }
-        if (statusDot) {
-            statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        statusText.textContent = status === 'online' ? 'Online' : 'Offline';
+        statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        
+        if (profile.id === state.currentUser.id || profile.show_realms) {
+            emailEl.textContent = profile.email || '';
+        } else {
+            emailEl.textContent = '';
         }
         
-        if (emailEl) {
-            if (profile.id === state.currentUser.id || profile.show_realms) {
-                emailEl.textContent = profile.email || '';
-            } else {
-                emailEl.textContent = '';
+        bioEl.textContent = profile.bio || 'No bio provided';
+        
+        const socialLinksData = profile.social_links || {};
+        if (Object.keys(socialLinksData).length > 0) {
+            socialContainer.style.display = 'block';
+            socialLinks.innerHTML = '';
+            if (socialLinksData.twitter) {
+                socialLinks.innerHTML += `<a href="${socialLinksData.twitter}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Twitter</a>`;
             }
-        }
-        
-        if (bioEl) {
-            bioEl.textContent = profile.bio || 'No bio provided';
-        }
-        
-        if (socialContainer && socialLinks) {
-            const socialLinksData = profile.social_links || {};
-            if (Object.keys(socialLinksData).length > 0) {
-                socialContainer.style.display = 'block';
-                socialLinks.innerHTML = '';
-                if (socialLinksData.twitter) {
-                    socialLinks.innerHTML += `<a href="${socialLinksData.twitter}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Twitter</a>`;
-                }
-                if (socialLinksData.instagram) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.instagram}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Instagram</a>`;
-                }
-                if (socialLinksData.website) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.website}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Website</a>`;
-                }
-                if (socialLinksData.other) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.other}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Other</a>`;
-                }
-            } else {
-                socialContainer.style.display = 'none';
+            if (socialLinksData.instagram) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.instagram}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Instagram</a>`;
             }
+            if (socialLinksData.website) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.website}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Website</a>`;
+            }
+            if (socialLinksData.other) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.other}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Other</a>`;
+            }
+        } else {
+            socialContainer.style.display = 'none';
         }
         
         if (realmsContainer) {
             realmsContainer.innerHTML = '<div style="color: var(--text-secondary); font-style: italic;">Loading realms...</div>';            
-            const realmsData = await loadOtherUserRealms(profile.id);           
+ const realmsData = await loadOtherUserRealms(profile.id);           
             if (realmsData.show_realms === false) {
                 realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
             } else if (realmsData.realms.length === 0) {
@@ -5663,12 +5371,12 @@ async function displayUserProfile(profileOrUserId) {
             } else {
                 realmsContainer.innerHTML = realmsData.realms.map(realm => {
                     let iconHtml = '';
-                    if (realm?.icon_url) {
+                    if (realm.icon_url) {
                         iconHtml = `<img src="${realm.icon_url}" style="width: 16px; height: 16px; border-radius: 3px; margin-right: 6px; object-fit: cover;">`;
                     } else {
-                        iconHtml = `<span style="margin-right: 6px;">${realm?.icon_url || '🏰'}</span>`;
+                        iconHtml = `<span style="margin-right: 6px;">${realm.icon_url || '🏰'}</span>`;
                     }
-                    return `<div class="realm-chip">${iconHtml}${escapeHtml(realm?.name || 'Unknown Realm')}</div>`;
+                    return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
                 }).join('');
             }
         }
@@ -5944,9 +5652,6 @@ async function addReaction(emoji) {
     try {
         if (!state.selectedMessageForReaction || !state.supabase || !state.currentUser) return;
         
-        // v0.5.5602 Beta: Allow reactions in non-writable channels
-        // Remove check for channel writability
-        
         const messageId = state.selectedMessageForReaction.id;
         
         const { data: message, error: fetchError } = await state.supabase
@@ -6015,7 +5720,6 @@ function showMentionModal() {
         state.mentionSearchActive = true;
         document.getElementById('startConversationModal').style.display = 'flex';
         document.getElementById('userSearchInput').value = '';
-        document.getElementById('userSearchInput').placeholder = 'Search for a user to mention...';
         document.getElementById('userSearchResults').style.display = 'none';
         document.getElementById('userSearchInput').focus();
     } catch (error) {
@@ -6023,112 +5727,150 @@ function showMentionModal() {
     }
 }
 
-// v0.5.5602 Beta: Improved channel mention modal
-function showChannelMentionModal() {
+async function showChannelMentionModal(channelName = null) {
     try {
-        if (!state.currentRealm) return;
+        const modal = document.getElementById('channelMentionModal');
+        if (!modal) return;
         
-        // Create modal for channel mentions
-        const modal = document.createElement('div');
-        modal.className = 'modal-back';
+        if (channelName) {
+            document.getElementById('channelMentionSearch').value = channelName;
+            searchChannelMentions(channelName);
+        } else {
+            document.getElementById('channelMentionSearch').value = '';
+            document.getElementById('channelMentionResults').innerHTML = '';
+        }
+        
         modal.style.display = 'flex';
-        modal.style.zIndex = '1000';
-        modal.innerHTML = `
-            <div class="modal" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3>Mention Channel</h3>
-                    <button class="modal-close-btn">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Search for a channel in this realm to mention:</p>
-                    <input type="text" id="channelMentionSearch" class="input" placeholder="Search channels..." style="width: 100%; margin-bottom: 10px;">
-                    <div id="channelMentionResults" class="search-results" style="max-height: 300px; overflow-y: auto;"></div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button id="closeChannelMentionModalBtn" class="btn-secondary">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Close button handlers
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-        });
-        
-        modal.querySelector('#closeChannelMentionModalBtn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-        });
-        
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                document.body.removeChild(modal);
-            }
-        });
-        
-        // Search functionality
-        const searchInput = modal.querySelector('#channelMentionSearch');
-        const resultsContainer = modal.querySelector('#channelMentionResults');
-        
-        searchInput.addEventListener('input', () => {
-            const searchTerm = searchInput.value.trim();
-            
-            if (!searchTerm) {
-                resultsContainer.innerHTML = '';
-                return;
-            }
-            
-            // Filter channels in current realm
-            const filteredChannels = state.channels.filter(channel => 
-                channel.is_public && 
-                channel.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            
-            resultsContainer.innerHTML = '';
-            
-            if (filteredChannels.length === 0) {
-                resultsContainer.innerHTML = `
-                    <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
-                        No channels found
-                    </div>
-                `;
-                return;
-            }
-            
-            filteredChannels.forEach(channel => {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'search-result';
-                resultItem.innerHTML = `
-                    <div class="search-result-header">
-                        <div style="width: 40px; height: 40px; border-radius: 6px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 20px;">
-                            #
-                        </div>
-                        <div>
-                            <div class="search-result-name">${escapeHtml(channel.name)}</div>
-                            <div class="search-result-context">${escapeHtml(channel.description || 'Channel')}</div>
-                        </div>
-                    </div>
-                `;
-                
-                resultItem.addEventListener('click', () => {
-                    insertChannelMention(channel.name);
-                    document.body.removeChild(modal);
-                });
-                
-                resultsContainer.appendChild(resultItem);
-            });
-        });
-        
-        searchInput.focus();
-        
+        document.getElementById('channelMentionSearch').focus();
     } catch (error) {
         console.log('Error showing channel mention modal:', error);
-        showToast('Error', 'Failed to open channel mention', 'error');
     }
 }
 
-// v0.5.5602 Beta: Insert channel mention
+async function showRealmMentionModal(realmSlug = null) {
+    try {
+        const modal = document.getElementById('realmMentionModal');
+        if (!modal) return;
+        
+        if (realmSlug) {
+            document.getElementById('realmMentionSearch').value = realmSlug;
+            searchRealmMentions(realmSlug);
+        } else {
+            document.getElementById('realmMentionSearch').value = '';
+            document.getElementById('realmMentionResults').innerHTML = '';
+        }
+        
+        modal.style.display = 'flex';
+        document.getElementById('realmMentionSearch').focus();
+    } catch (error) {
+        console.log('Error showing realm mention modal:', error);
+    }
+}
+
+async function searchChannelMentions(searchTerm) {
+    try {
+        if (!state.supabase) return;
+        
+        const resultsContainer = document.getElementById('channelMentionResults');
+        resultsContainer.innerHTML = '';
+        
+        if (!searchTerm.trim()) {
+            resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">Start typing to search channels</div>';
+            return;
+        }
+        
+        const { data: channels, error } = await state.supabase
+            .from('channels')
+            .select('*, realms(name)')
+            .ilike('name', `%${searchTerm}%`)
+            .eq('is_public', true)
+            .limit(10);
+            
+        if (error) {
+            console.log('Error searching channels:', error);
+            return;
+        }
+        
+        if (channels.length === 0) {
+            resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No channels found</div>';
+            return;
+        }
+        
+        channels.forEach(channel => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'mention-result';
+            resultItem.innerHTML = `
+                <div class="mention-result-icon">#</div>
+                <div class="mention-result-info">
+                    <div class="mention-result-name">${escapeHtml(channel.name)}</div>
+                    <div class="mention-result-context">${escapeHtml(channel.realms?.name || '')}</div>
+                </div>
+            `;
+            
+            resultItem.addEventListener('click', () => {
+                insertChannelMention(channel.name);
+                document.getElementById('channelMentionModal').style.display = 'none';
+            });
+            
+            resultsContainer.appendChild(resultItem);
+        });
+    } catch (error) {
+        console.log('Error searching channel mentions:', error);
+    }
+}
+
+async function searchRealmMentions(searchTerm) {
+    try {
+        if (!state.supabase) return;
+        
+        const resultsContainer = document.getElementById('realmMentionResults');
+        resultsContainer.innerHTML = '';
+        
+        if (!searchTerm.trim()) {
+            resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">Start typing to search realms</div>';
+            return;
+        }
+        
+        const { data: realms, error } = await state.supabase
+            .from('realms')
+            .select('*')
+            .ilike('name', `%${searchTerm}%`)
+            .eq('is_public', true)
+            .limit(10);
+            
+        if (error) {
+            console.log('Error searching realms:', error);
+            return;
+        }
+        
+        if (realms.length === 0) {
+            resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No realms found</div>';
+            return;
+        }
+        
+        realms.forEach(realm => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'mention-result';
+            resultItem.innerHTML = `
+                <div class="mention-result-icon">🏰</div>
+                <div class="mention-result-info">
+                    <div class="mention-result-name">${escapeHtml(realm.name)}</div>
+                    <div class="mention-result-context">${escapeHtml(realm.description || 'Realm')}</div>
+                </div>
+            `;
+            
+            resultItem.addEventListener('click', () => {
+                insertRealmMention(realm.slug);
+                document.getElementById('realmMentionModal').style.display = 'none';
+            });
+            
+            resultsContainer.appendChild(resultItem);
+        });
+    } catch (error) {
+        console.log('Error searching realm mentions:', error);
+    }
+}
+
 function insertChannelMention(channelName) {
     const messageInput = document.getElementById('messageInput');
     const cursorPos = messageInput.selectionStart;
@@ -6140,126 +5882,15 @@ function insertChannelMention(channelName) {
     messageInput.selectionEnd = cursorPos + channelName.length + 2;
 }
 
-// v0.5.5602 Beta: Improved realm mention modal
-function showRealmMentionModal() {
-    try {
-        // Create modal for realm mentions
-        const modal = document.createElement('div');
-        modal.className = 'modal-back';
-        modal.style.display = 'flex';
-        modal.style.zIndex = '1000';
-        modal.innerHTML = `
-            <div class="modal" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3>Mention Realm</h3>
-                    <button class="modal-close-btn">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Search for a realm to mention:</p>
-                    <input type="text" id="realmMentionSearch" class="input" placeholder="Search realms..." style="width: 100%; margin-bottom: 10px;">
-                    <div id="realmMentionResults" class="search-results" style="max-height: 300px; overflow-y: auto;"></div>
-                    <div class="modal-actions" style="margin-top: 20px;">
-                        <button id="closeRealmMentionModalBtn" class="btn-secondary">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Close button handlers
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-        });
-        
-        modal.querySelector('#closeRealmMentionModalBtn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-        });
-        
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                document.body.removeChild(modal);
-            }
-        });
-        
-        // Search functionality
-        const searchInput = modal.querySelector('#realmMentionSearch');
-        const resultsContainer = modal.querySelector('#realmMentionResults');
-        
-        searchInput.addEventListener('input', async () => {
-            const searchTerm = searchInput.value.trim();
-            
-            if (!searchTerm) {
-                resultsContainer.innerHTML = '';
-                return;
-            }
-            
-            // Search realms
-            const { data: realms, error } = await state.supabase
-                .from('realms')
-                .select('*')
-                .ilike('name', `%${searchTerm}%`)
-                .is('deleted_at', null)
-                .limit(10);
-                
-            if (error) {
-                console.log('Error searching realms:', error);
-                return;
-            }
-            
-            resultsContainer.innerHTML = '';
-            
-            if (realms.length === 0) {
-                resultsContainer.innerHTML = `
-                    <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
-                        No realms found
-                    </div>
-                `;
-                return;
-            }
-            
-            realms.forEach(realm => {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'search-result';
-                resultItem.innerHTML = `
-                    <div class="search-result-header">
-                        <div style="width: 40px; height: 40px; border-radius: 6px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                            ${realm.icon_url ? `<img src="${realm.icon_url}" style="width: 30px; height: 30px; border-radius: 4px;">` : '🏰'}
-                        </div>
-                        <div>
-                            <div class="search-result-name">${escapeHtml(realm.name)}</div>
-                            <div class="search-result-context">${escapeHtml(realm.description || 'Realm')}</div>
-                        </div>
-                    </div>
-                `;
-                
-                resultItem.addEventListener('click', () => {
-                    insertRealmMention(realm.name);
-                    document.body.removeChild(modal);
-                });
-                
-                resultsContainer.appendChild(resultItem);
-            });
-        });
-        
-        searchInput.focus();
-        
-    } catch (error) {
-        console.log('Error showing realm mention modal:', error);
-        showToast('Error', 'Failed to open realm mention', 'error');
-    }
-}
-
-// v0.5.5602 Beta: Insert realm mention
-function insertRealmMention(realmName) {
+function insertRealmMention(realmSlug) {
     const messageInput = document.getElementById('messageInput');
     const cursorPos = messageInput.selectionStart;
     const textBefore = messageInput.value.substring(0, cursorPos);
     const textAfter = messageInput.value.substring(cursorPos);
-    messageInput.value = textBefore + '$' + realmName + ' ' + textAfter;
+    messageInput.value = textBefore + '$' + realmSlug + ' ' + textAfter;
     messageInput.focus();
-    messageInput.selectionStart = cursorPos + realmName.length + 2;
-    messageInput.selectionEnd = cursorPos + realmName.length + 2;
+    messageInput.selectionStart = cursorPos + realmSlug.length + 2;
+    messageInput.selectionEnd = cursorPos + realmSlug.length + 2;
 }
 
 async function searchUsers(searchTerm) {
@@ -6352,22 +5983,14 @@ async function createChannel() {
             showToast('Error', 'Please enter a channel name', 'error');
             nameInput.focus();
             return;
-        }
-        
-        // v0.5.5602 Beta: Replace spaces with hyphens and validate no spaces
-        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        
-        // Check for spaces in name
-        if (name.includes(' ')) {
-            showToast('Info', 'Spaces in channel names will be replaced with hyphens', 'info');
-        }
-        
+        }       
+        // Validate name - no spaces
+        const validatedName = name.replace(/\s+/g, '_');
         const position = state.channels.length;        
         const { data: newChannel, error } = await state.supabase
             .from('channels')
             .insert([{
-                name: name,
-                slug: slug,
+                name: validatedName,
                 description: description,
                 realm_id: state.currentRealm.id,
                 created_by: state.currentUser.id,
@@ -6472,6 +6095,166 @@ async function deleteChannelFinal() {
     } catch (error) {
         console.log('Error in deleteChannelFinal:', error);
         showToast('Error', 'Failed to delete channel', 'error');
+    }
+}
+
+function shareMessageLink(message) {
+    try {
+        if (!message || !state.currentRealm || !state.currentChannel) return;
+        
+        const realmSlug = state.currentRealm.slug;
+        const channelId = state.currentChannel.id;
+        const messageId = message.id;
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}#realm=${realmSlug}&channel=${channelId}&message=${messageId}`;
+        
+        copyToClipboard(shareUrl);
+        showToast('Success', 'Message link copied to clipboard', 'success');
+    } catch (error) {
+        console.log('Error sharing message link:', error);
+        showToast('Error', 'Failed to copy link', 'error');
+    }
+}
+
+function copyToClipboard(text) {
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+    } catch (error) {
+        console.log('Error copying to clipboard:', error);
+    }
+}
+
+function updateURLForRealmChannel() {
+    try {
+        if (!state.currentRealm) return;
+        
+        const realmSlug = state.currentRealm.slug;
+        const channelId = state.currentChannel?.id || '';
+        
+        let hash = `#realm=${realmSlug}`;
+        if (channelId) {
+            hash += `&channel=${channelId}`;
+        }
+        
+        // Update URL without page reload
+        if (window.history.replaceState) {
+            const newUrl = `${window.location.pathname}${hash}`;
+            window.history.replaceState(null, null, newUrl);
+        }
+        
+        state.currentUrlHash = hash;
+    } catch (error) {
+        console.log('Error updating URL:', error);
+    }
+}
+
+function parseURLHash() {
+    try {
+        const hash = window.location.hash.substring(1);
+        if (!hash) return;
+        
+        const params = new URLSearchParams(hash);
+        const realmSlug = params.get('realm');
+        const channelId = params.get('channel');
+        const messageId = params.get('message');
+        
+        if (realmSlug) {
+            // Find realm by slug
+            const realm = state.joinedRealms.find(r => r.slug === realmSlug);
+            if (realm) {
+                setTimeout(async () => {
+                    await switchRealm(realm.id);
+                    
+                    if (channelId) {
+                        setTimeout(() => {
+                            selectChannel(channelId);
+                            
+                            if (messageId) {
+                                setTimeout(() => {
+                                    scrollToMessage(messageId);
+                                }, 1000);
+                            }
+                        }, 500);
+                    }
+                }, 1000);
+            }
+        }
+    } catch (error) {
+        console.log('Error parsing URL hash:', error);
+    }
+}
+
+async function showUserByUsername(username) {
+    try {
+        if (!state.supabase) return;
+        
+        const { data: user, error } = await state.supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .eq('username', username)
+            .single();
+            
+        if (error || !user) {
+            showToast('Error', 'User not found', 'error');
+            return;
+        }
+        
+        showUserProfile(user.id);
+    } catch (error) {
+        console.log('Error showing user by username:', error);
+        showToast('Error', 'Failed to load user', 'error');
+    }
+}
+
+function checkForUpdates(userInitiated = false) {
+    try {
+        // This would typically check against a version API
+        // For now, we'll show a confirmation for manual check
+        if (userInitiated) {
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '🔄';
+            document.getElementById('confirmationTitle').textContent = 'Check for Updates';
+            document.getElementById('confirmationMessage').textContent = 'This will clear cache and reload the app. Continue?';
+            
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');
+            
+            const handleConfirm = () => {
+                // Clear cache and reload
+                if ('caches' in window) {
+                    caches.keys().then(cacheNames => {
+                        cacheNames.forEach(cacheName => {
+                            caches.delete(cacheName);
+                        });
+                    });
+                }
+                
+                // Clear local storage except auth
+                const authData = localStorage.getItem('supabase.auth.token');
+                localStorage.clear();
+                if (authData) {
+                    localStorage.setItem('supabase.auth.token', authData);
+                }
+                
+                window.location.reload(true);
+            };
+            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        }
+    } catch (error) {
+        console.log('Error checking for updates:', error);
     }
 }
 

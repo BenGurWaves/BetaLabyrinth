@@ -55,9 +55,6 @@
     --input-bg: rgba(0, 0, 0, 0.02);
     --realm-bg: none;
 }
-.version {
-    opacity: 0.7;
-}
 * {
     margin: 0;
     padding: 0;
@@ -307,6 +304,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     display: none;
     flex-direction: column;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     padding: 8px 0;
 }
@@ -321,6 +320,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-bottom: 1px solid var(--border-color);
     transition: background var(--transition-fast);
     min-height: 60px;
+    overflow-x: hidden;
+    word-wrap: break-word;
 }
 .notification-dropdown-item:last-child {
     border-bottom: none;
@@ -341,6 +342,9 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     margin-bottom: 8px;
     transition: background var(--transition-fast);
     min-height: 72px;
+    overflow-x: hidden;
+    word-wrap: break-word;
+    width: 100%;
 }
 .notification-item:last-child {
     border-bottom: none;
@@ -360,12 +364,14 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .notification-item-content {
     flex: 1;
+    overflow-x: hidden;
+    word-wrap: break-word;
 }
 .notification-item-title {
     font-size: 16px; /* Large */
     margin-bottom: 6px;
     color: var(--text-primary);
-    font-weight: 700;
+    font-weight: bold;
 }
 .notification-item-body {
     font-size: 13px; /* Normal */
@@ -380,19 +386,34 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-weight: 300;
     opacity: 0.6;
 }
-/* Notification Detail Modal */
-.notification-detail-modal .modal-content {
-    max-width: 500px;
-    padding: 40px;
-    text-align: center;
+/* Notification Detail View */
+.notification-detail-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-primary);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+}
+.notification-detail-view.active {
+    display: flex;
+}
+.notification-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 .notification-detail-back {
-    position: absolute;
-    top: 20px;
-    left: 20px;
     background: transparent;
     border: none;
-    color: var(--color-gold);
+    color: var(--text-primary);
     font-size: 24px;
     cursor: pointer;
     width: 44px;
@@ -402,42 +423,44 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
-    z-index: 10;
 }
 .notification-detail-back:hover {
     background: var(--color-gray-dark);
+    color: var(--color-gold);
+}
+.notification-detail-close {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 24px;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+.notification-detail-close:hover {
+    background: var(--color-gray-dark);
+    color: var(--color-gold);
 }
 .notification-detail-title {
-    font-family: 'Cormorant Garamond', serif;
     font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 16px;
+    font-weight: bold;
+    text-align: center;
+    flex: 1;
+    margin: 0 20px;
     color: var(--text-primary);
 }
 .notification-detail-body {
-    font-size: 15px;
+    padding: 20px;
+    overflow-y: auto;
+    word-wrap: break-word;
+    flex: 1;
     color: var(--text-secondary);
-    font-style: italic;
-    margin-bottom: 24px;
     line-height: 1.6;
-    padding: 0 20px;
-}
-.notification-detail-time {
-    font-size: 13px;
-    color: var(--color-gray);
-    opacity: 0.6;
-    margin-top: 8px;
-}
-/* Notification Modal Mobile Fix */
-@media (max-width: 768px) {
-    .notification-detail-modal .modal-content {
-        max-width: 100%;
-        word-break: break-word;
-        padding: 60px 20px 40px;
-    }
-    .notification-detail-body {
-        padding: 0;
-    }
 }
 /* Header Avatar - FIXED: Circle and fallback initials */
 .header-user-btn {
@@ -599,6 +622,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     z-index: 2000;
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 .realm-dropdown.active {
@@ -1017,18 +1042,9 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gold);
     text-decoration: underline;
     transition: color var(--transition-fast);
+    cursor: pointer;
 }
 .message-text a:hover {
-    color: var(--color-gold-light);
-}
-/* Message Links (@ # $) */
-.mention, .channel-link, .custom-link {
-    color: var(--color-gold);
-    text-decoration: underline;
-    cursor: pointer;
-    font-weight: 700;
-}
-.mention:hover, .channel-link:hover, .custom-link:hover {
     color: var(--color-gold-light);
 }
 .message-edited {
@@ -1378,6 +1394,8 @@ audio {
     padding: 20px;
     backdrop-filter: blur(20px);
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 [data-theme="light"] .modal-back {
     background: rgba(248, 245, 242, 0.85);
@@ -1391,7 +1409,9 @@ audio {
     border: 1px solid var(--border-color);
     backdrop-filter: blur(20px);
     max-height: 90vh;
+    overflow-x: hidden;
     overflow-y: auto;
+    word-break: break-word;
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
@@ -1876,43 +1896,12 @@ audio {
     color: var(--text-secondary);
     font-weight: 300;
 }
-/* Realm Notification Buttons Grid/Row */
-.realm-notification-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
-    margin: 20px 0;
-}
-.realm-notification-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 12px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all var(--transition-fast);
-    text-align: center;
-    font-family: 'Inter', sans-serif;
-    font-weight: 350;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.realm-notification-btn:hover {
-    border-color: var(--color-gold);
-    color: var(--color-gold);
-}
-.realm-notification-btn.active {
-    border-color: var(--color-gold);
-    background: var(--color-gold-transparent);
-    color: var(--color-gold);
-}
 /* Search Modal Full Elegant */
 #searchModal .modal-content {
     max-width: 800px;
     padding: 32px;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .search-modal-header {
     margin-bottom: 32px;
@@ -1936,18 +1925,22 @@ audio {
 .search-results-full {
     max-height: 50vh;
     overflow-y: auto;
+    overflow-x: hidden;
     border-radius: 12px;
     border: 1px solid var(--border-color);
     background: var(--input-bg);
+    word-break: break-word;
 }
 /* Search Results - FIXED: Large touch targets, spaced - UPDATED: Small circle cover for avatars */
 .search-results {
     margin-top: 20px;
     max-height: 240px;
     overflow-y: auto;
+    overflow-x: hidden;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     background: var(--input-bg);
+    word-break: break-word;
 }
 .search-result {
     padding: 20px 16px; /* Increased vertical padding */
@@ -1997,44 +1990,6 @@ audio {
     color: var(--text-secondary);
     font-weight: 300;
 }
-/* Public Realm Modal */
-.public-realm-modal .modal-content {
-    max-width: 500px;
-    text-align: center;
-    padding: 40px;
-}
-.public-realm-icon {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--color-gold);
-    margin: 0 auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
-    background: var(--color-gray-dark);
-    flex-shrink: 0;
-}
-.public-realm-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: var(--text-primary);
-    text-align: center;
-}
-.public-realm-description {
-    font-size: 15px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    padding: 20px;
-    background: var(--color-gray-dark);
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    margin-top: 20px;
-}
 /* Login */
 .login-card {
     background: var(--bg-secondary);
@@ -2044,6 +1999,8 @@ audio {
     max-width: 500px;
     border: 1px solid var(--border-color);
     backdrop-filter: blur(40px);
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .login-title {
     font-size: 32px;
@@ -2194,9 +2151,6 @@ audio {
 }
 .avatar-large:hover::after {
     opacity: 1;
-}
-.avatar-upload-controls {
-    flex: 1;
 }
 .avatar-upload-preview {
     width: 80px;
@@ -2437,6 +2391,8 @@ input:checked + .toggle-slider:before {
     z-index: 4000;
     padding: 20px;
     backdrop-filter: blur(20px);
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .quick-profile-content {
     background: var(--bg-secondary);
@@ -2448,6 +2404,8 @@ input:checked + .toggle-slider:before {
     backdrop-filter: blur(20px);
     max-height: 90vh;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .quick-profile-avatar {
     width: 120px;
@@ -2537,6 +2495,8 @@ input:checked + .toggle-slider:before {
     z-index: 1000;
     max-height: 80vh;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
     border-top: 1px solid var(--border-color);
     backdrop-filter: blur(40px);
 }
@@ -2558,6 +2518,8 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     max-height: 70vh;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .message-context-menu.active {
     display: flex;
@@ -2610,6 +2572,7 @@ input:checked + .toggle-slider:before {
     padding: 32px 32px 60px;
     max-height: 80vh;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling for Safari */
 }
 .emoji-btn {
@@ -2706,6 +2669,8 @@ input:checked + .toggle-slider:before {
 .notification-center-content {
     max-height: 80vh;
     overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 /* Image modal */
 .image-modal-content {
@@ -2781,6 +2746,16 @@ input:checked + .toggle-slider:before {
     border-color: var(--danger);
     color: var(--danger);
 }
+/* Version Text */
+.version-text {
+    opacity: 0.6;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
 /* Confirmation Modal - High Z-Index */
 .confirmation-modal {
     text-align: center;
@@ -2811,6 +2786,8 @@ input:checked + .toggle-slider:before {
 /* Realm Settings Layout */
 .realm-settings-modal .modal-content {
     max-width: 600px;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .realm-settings-section {
     margin-bottom: 32px;
@@ -3395,7 +3372,8 @@ input:checked + .toggle-slider:before {
     background: var(--color-gold-transparent);
     padding: 2px 6px;
     border-radius: 4px;
-    text-decoration: none;
+    text-decoration: underline;
+    cursor: pointer;
 }
 .mention:hover {
     text-decoration: underline;
@@ -3404,6 +3382,11 @@ input:checked + .toggle-slider:before {
 .public-profile-modal .modal-content {
     max-width: 500px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    word-break: break-word;
 }
 .public-profile-avatar {
     width: 140px;
@@ -3461,6 +3444,7 @@ input:checked + .toggle-slider:before {
     text-decoration: underline;
     font-size: 14px;
     transition: color var(--transition-fast);
+    cursor: pointer;
 }
 .social-link:hover {
     color: var(--color-gold);
@@ -3470,6 +3454,7 @@ input:checked + .toggle-slider:before {
     padding: 24px 0;
     border-bottom: 1px solid var(--border-color);
     text-align: left;
+    width: 100%;
 }
 .public-profile-section:last-child {
     border-bottom: none;
@@ -3511,6 +3496,42 @@ input:checked + .toggle-slider:before {
     font-size: 24px; /* Larger font */
     color: var(--text-primary); /* Brighter color */
     font-family: 'Cormorant Garamond', serif;
+}
+/* Realm Notification Buttons */
+.realm-notification-btn {
+    padding: 12px 20px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.realm-notification-btn:hover {
+    border-color: var(--color-gold-light);
+}
+.realm-notification-btn.selected {
+    border-color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    box-shadow: 0 2px 8px rgba(202, 168, 122, 0.3);
+    color: var(--color-gold);
+}
+.realm-notification-buttons-container {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0;
+}
+.realm-notification-buttons-container .realm-notification-btn {
+    flex: 1;
 }
 /* Responsive */
 @media (max-width: 768px) {
@@ -3680,39 +3701,15 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 24px;
     }
-    /* Notification Modal Mobile Fix */
-    .notification-detail-modal .modal-content {
-        max-width: 100%;
-        word-break: break-word;
-        padding: 60px 20px 40px;
-    }
-    .notification-detail-body {
-        padding: 0;
-    }
-    /* Realm Notification Buttons Mobile */
-    .realm-notification-buttons {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-    /* Public Realm Modal Mobile */
-    .public-realm-icon {
-        width: 80px;
-        height: 80px;
-        font-size: 32px;
-    }
-    .public-realm-name {
-        font-size: 24px;
-    }
-    .public-realm-description {
-        padding: 16px;
-        font-size: 14px;
-    }
     /* Offline Overlay Mobile */
     .offline-overlay {
         border-width: 1px;
     }
     .offline-text {
         font-size: 20px;
+    }
+    .realm-notification-buttons-container {
+        flex-direction: column;
     }
 }
 @media (max-width: 480px) {
@@ -3785,24 +3782,6 @@ input:checked + .toggle-slider:before {
     }
     .public-profile-name {
         font-size: 20px;
-    }
-    /* Realm Notification Buttons Small Mobile */
-    .realm-notification-buttons {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-    /* Public Realm Modal Small Mobile */
-    .public-realm-icon {
-        width: 60px;
-        height: 60px;
-        font-size: 24px;
-    }
-    .public-realm-name {
-        font-size: 20px;
-    }
-    .public-realm-description {
-        padding: 12px;
-        font-size: 13px;
     }
     /* Offline Overlay Small Mobile */
     .offline-text {

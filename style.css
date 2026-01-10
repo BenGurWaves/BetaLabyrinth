@@ -1,4 +1,4 @@
-/* Labyrinth Chat v0.5.5602 Beta - Quiet Luxury Mobile-First Design */
+/* Labyrinth Chat v0.5.5602 Beta - Luxurious Mobile-First Design */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a; 
@@ -54,6 +54,9 @@
     --msg-bg-me: rgba(202, 168, 122, 0.08);
     --input-bg: rgba(0, 0, 0, 0.02);
     --realm-bg: none;
+}
+.version {
+    opacity: 0.7;
 }
 * {
     margin: 0;
@@ -216,7 +219,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .top-bar {
     height: var(--top-bar-height);
-    background: rgba(5, 5, 5, 0.6); /* Version Header Transparency */
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -225,9 +228,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     backdrop-filter: blur(20px);
     flex-shrink: 0;
     z-index: 1000;
-}
-[data-theme="light"] .top-bar {
-    background: rgba(248, 245, 242, 0.6); /* Light mode transparency */
 }
 .top-bar-left {
     display: flex;
@@ -321,8 +321,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-bottom: 1px solid var(--border-color);
     transition: background var(--transition-fast);
     min-height: 60px;
-    word-break: break-word; /* No horizontal scroll, word-break */
-    overflow-wrap: break-word;
 }
 .notification-dropdown-item:last-child {
     border-bottom: none;
@@ -333,7 +331,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dropdown-item.unread {
     background: var(--color-gold-transparent);
 }
-/* Notification Items - UPDATED: Title bold large, message italic small, time opacity 0.5 small right */
+/* Notification Items Large Touch & Unread Bold - UPDATED: Title large, message normal, date small gray */
 .notification-item {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
@@ -343,8 +341,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     margin-bottom: 8px;
     transition: background var(--transition-fast);
     min-height: 72px;
-    word-break: break-word; /* No horizontal scroll, word-break */
-    overflow-wrap: break-word;
 }
 .notification-item:last-child {
     border-bottom: none;
@@ -366,73 +362,82 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     flex: 1;
 }
 .notification-item-title {
-    font-size: 17px; /* Bold large */
-    font-weight: 700; /* Bold */
+    font-size: 16px; /* Large */
     margin-bottom: 6px;
     color: var(--text-primary);
+    font-weight: 700;
 }
 .notification-item-body {
-    font-size: 13px; /* Small */
-    font-style: italic; /* Italic */
+    font-size: 13px; /* Normal */
     color: var(--text-secondary);
     margin-bottom: 6px;
     font-weight: 300;
+    font-style: italic;
 }
 .notification-item-time {
     font-size: 11px; /* Small */
-    color: var(--color-gray);
-    opacity: 0.5; /* Opacity 0.5 */
-    text-align: right; /* Right aligned */
+    color: var(--color-gray); /* Gray */
     font-weight: 300;
+    opacity: 0.6;
 }
-/* Notification Detailed View - UPDATED: Back arrow gold, title centered bold large, message normal, time bottom center small transparent */
-.notification-detail-view {
-    position: relative;
-    padding: 32px;
+/* Notification Detail Modal */
+.notification-detail-modal .modal-content {
+    max-width: 500px;
+    padding: 40px;
+    text-align: center;
 }
 .notification-detail-back {
     position: absolute;
-    top: 0;
-    left: 0;
-    color: var(--color-gold); /* Gold arrow */
+    top: 20px;
+    left: 20px;
     background: transparent;
     border: none;
+    color: var(--color-gold);
     font-size: 24px;
     cursor: pointer;
-    padding: 10px;
     width: 44px;
     height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background var(--transition-fast);
+    transition: all var(--transition-fast);
+    z-index: 10;
 }
 .notification-detail-back:hover {
     background: var(--color-gray-dark);
 }
 .notification-detail-title {
-    text-align: center; /* Centered */
-    font-size: 22px; /* Large */
-    font-weight: 700; /* Bold */
-    margin: 40px 0 20px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 16px;
     color: var(--text-primary);
 }
 .notification-detail-body {
-    font-size: 15px; /* Normal */
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 24px;
     line-height: 1.6;
-    color: var(--text-primary);
-    margin-bottom: 40px;
-    word-break: break-word;
-    overflow-wrap: break-word;
+    padding: 0 20px;
 }
 .notification-detail-time {
-    text-align: center; /* Bottom center */
-    font-size: 12px; /* Small */
-    color: var(--text-secondary);
-    opacity: 0.5; /* Transparent */
-    margin-top: 20px;
-    font-weight: 300;
+    font-size: 13px;
+    color: var(--color-gray);
+    opacity: 0.6;
+    margin-top: 8px;
+}
+/* Notification Modal Mobile Fix */
+@media (max-width: 768px) {
+    .notification-detail-modal .modal-content {
+        max-width: 100%;
+        word-break: break-word;
+        padding: 60px 20px 40px;
+    }
+    .notification-detail-body {
+        padding: 0;
+    }
 }
 /* Header Avatar - FIXED: Circle and fallback initials */
 .header-user-btn {
@@ -881,10 +886,10 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 20px;
     width: 44px;
     height: 44px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50%;
     transition: all var(--transition-fast);
 }
 .upload-cancel:hover {
@@ -999,11 +1004,10 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-secondary);
     font-weight: 300;
 }
-/* Links/Mentions/Channels/Realms - UPDATED: @/#/$ special underlined gold hover brighter */
+/* Links www. - Detect in message render */
 .message-text {
     line-height: 1.6;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
+    word-break: break-word;
     font-size: 15px;
     color: var(--text-primary);
     opacity: 0.85;
@@ -1017,21 +1021,15 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .message-text a:hover {
     color: var(--color-gold-light);
 }
-/* Special Links: @ (mentions), # (channels), $ (realms) */
-.message-text .mention, 
-.message-text .channel-link,
-.message-text .realm-link {
+/* Message Links (@ # $) */
+.mention, .channel-link, .custom-link {
     color: var(--color-gold);
     text-decoration: underline;
-    text-decoration-color: var(--color-gold-light);
-    font-weight: 500;
-    transition: all var(--transition-fast);
+    cursor: pointer;
+    font-weight: 700;
 }
-.message-text .mention:hover,
-.message-text .channel-link:hover,
-.message-text .realm-link:hover {
-    color: var(--color-gold-light); /* Brighter on hover */
-    text-decoration-color: var(--color-gold);
+.mention:hover, .channel-link:hover, .custom-link:hover {
+    color: var(--color-gold-light);
 }
 .message-edited {
     font-size: 11px;
@@ -1212,8 +1210,6 @@ audio {
     touch-action: auto;
     -webkit-user-select: auto;
     user-select: auto;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .message-input:focus {
     border-color: var(--color-gold);
@@ -1315,8 +1311,6 @@ audio {
     text-overflow: ellipsis;
     flex: 1;
     font-weight: 300;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .cancel-reply-btn {
     background: transparent;
@@ -1346,8 +1340,6 @@ audio {
     margin-bottom: 32px;
     max-width: 800px;
     backdrop-filter: blur(20px);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .welcome-header {
     display: flex;
@@ -1370,8 +1362,6 @@ audio {
     line-height: 1.8;
     color: var(--text-secondary);
     font-size: 15px;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .welcome-text p {
     margin-bottom: 20px;
@@ -1405,8 +1395,6 @@ audio {
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .modal-title {
     font-size: 28px;
@@ -1613,8 +1601,6 @@ audio {
     gap: 12px;
     background: var(--input-bg);
     position: relative;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .realm-grid-item:hover {
     border-color: var(--color-gold);
@@ -1689,8 +1675,6 @@ audio {
     margin-bottom: 12px;
     cursor: pointer;
     transition: all var(--transition-fast);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .realm-item:hover {
     border-color: var(--color-gold);
@@ -1852,26 +1836,22 @@ audio {
     opacity: 0.5;
     pointer-events: none;
 }
-/* Normal Realm Settings - UPDATED: Name/description styled filled, Notification buttons grid equal, selected gold border/shadow */
+/* Normal Realm Settings - Radios large touch, aligned */
 .realm-settings-radio-group {
     margin: 20px 0;
-    display: grid; /* Grid equal */
-    grid-template-columns: repeat(2, 1fr); /* Equal columns */
-    gap: 12px;
 }
 .realm-settings-radio-label {
     display: flex;
     align-items: center;
     gap: 16px;
     padding: 20px;
-    margin-bottom: 0; /* Remove margin for grid */
+    margin-bottom: 12px;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     cursor: pointer;
     transition: all var(--transition-fast);
     user-select: none;
     -webkit-user-select: none;
-    background: var(--input-bg); /* Styled filled */
 }
 .realm-settings-radio-label:hover {
     border-color: var(--color-gold-light);
@@ -1896,14 +1876,38 @@ audio {
     color: var(--text-secondary);
     font-weight: 300;
 }
-/* Selected state with gold border and shadow */
-.realm-settings-radio-label input[type="radio"]:checked ~ .realm-settings-radio-text {
+/* Realm Notification Buttons Grid/Row */
+.realm-notification-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+.realm-notification-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all var(--transition-fast);
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.realm-notification-btn:hover {
+    border-color: var(--color-gold);
     color: var(--color-gold);
 }
-.realm-settings-radio-label:has(input[type="radio"]:checked) {
-    border-color: var(--color-gold); /* Gold border */
-    box-shadow: 0 0 15px var(--color-gold-transparent); /* Gold shadow */
+.realm-notification-btn.active {
+    border-color: var(--color-gold);
     background: var(--color-gold-transparent);
+    color: var(--color-gold);
 }
 /* Search Modal Full Elegant */
 #searchModal .modal-content {
@@ -1954,8 +1958,6 @@ audio {
     transition: background var(--transition-fast);
     border-bottom: 1px solid var(--border-color);
     min-height: 60px; /* Increased min-height for better touch */
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .search-result:last-child {
     border-bottom: none;
@@ -1995,6 +1997,44 @@ audio {
     color: var(--text-secondary);
     font-weight: 300;
 }
+/* Public Realm Modal */
+.public-realm-modal .modal-content {
+    max-width: 500px;
+    text-align: center;
+    padding: 40px;
+}
+.public-realm-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-gold);
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    background: var(--color-gray-dark);
+    flex-shrink: 0;
+}
+.public-realm-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    text-align: center;
+}
+.public-realm-description {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 20px;
+    background: var(--color-gray-dark);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    margin-top: 20px;
+}
 /* Login */
 .login-card {
     background: var(--bg-secondary);
@@ -2004,8 +2044,6 @@ audio {
     max-width: 500px;
     border: 1px solid var(--border-color);
     backdrop-filter: blur(40px);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .login-title {
     font-size: 32px;
@@ -2033,8 +2071,6 @@ audio {
     font-weight: 350;
     transition: border-color var(--transition-fast);
     min-height: 48px;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .form-input:focus {
     outline: none;
@@ -2412,8 +2448,6 @@ input:checked + .toggle-slider:before {
     backdrop-filter: blur(20px);
     max-height: 90vh;
     overflow-y: auto;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .quick-profile-avatar {
     width: 120px;
@@ -2622,8 +2656,6 @@ input:checked + .toggle-slider:before {
     transform: translateX(100px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     pointer-events: none;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .toast.active {
     transform: translateX(0);
@@ -2674,8 +2706,6 @@ input:checked + .toggle-slider:before {
 .notification-center-content {
     max-height: 80vh;
     overflow-y: auto;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 /* Image modal */
 .image-modal-content {
@@ -2766,8 +2796,6 @@ input:checked + .toggle-slider:before {
     color: var(--text-primary);
     margin-bottom: 32px;
     line-height: 1.6;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .confirmation-actions {
     display: flex;
@@ -3079,8 +3107,6 @@ input:checked + .toggle-slider:before {
     cursor: pointer;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .pinned-message-container:hover {
     border-color: var(--color-gold);
@@ -3116,8 +3142,6 @@ input:checked + .toggle-slider:before {
 .welcome-modal-content {
     max-width: 600px;
     text-align: center;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .welcome-modal-title {
     font-size: 32px;
@@ -3269,8 +3293,6 @@ input:checked + .toggle-slider:before {
 .non-creator-settings {
     text-align: center;
     padding: 40px 20px;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .non-creator-icon {
     font-size: 48px;
@@ -3286,8 +3308,6 @@ input:checked + .toggle-slider:before {
 .announcement-modal-content {
     max-width: 600px;
     text-align: center;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .announcement-title {
     font-size: 24px;
@@ -3313,8 +3333,6 @@ input:checked + .toggle-slider:before {
     background: var(--input-bg);
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .delete-step {
     margin-bottom: 16px;
@@ -3382,7 +3400,7 @@ input:checked + .toggle-slider:before {
 .mention:hover {
     text-decoration: underline;
 }
-/* Public Profile Modal - UPDATED: Clean centered, button large gold */
+/* Public Profile Modal */
 .public-profile-modal .modal-content {
     max-width: 500px;
     text-align: center;
@@ -3464,29 +3482,6 @@ input:checked + .toggle-slider:before {
     margin-bottom: 16px;
     text-align: center;
 }
-/* Public Realm Modal - UPDATED: Clean centered, button large gold */
-.public-realm-modal .modal-content {
-    text-align: center; /* Clean centered */
-}
-.public-realm-modal .btn-primary {
-    font-size: 18px; /* Large */
-    padding: 20px 32px; /* Large */
-    border: 2px solid var(--color-gold); /* Gold */
-    background: transparent;
-    color: var(--color-gold);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    min-height: 60px;
-}
-.public-realm-modal .btn-primary:hover {
-    background: var(--color-gold);
-    color: var(--color-black);
-}
 /* Offline Overlay - UPDATED: Prominent */
 .offline-overlay {
     position: fixed;
@@ -3506,8 +3501,6 @@ input:checked + .toggle-slider:before {
     text-align: center;
     color: var(--text-primary);
     padding: 40px;
-    word-break: break-word; /* No overflow, word-wrap */
-    overflow-wrap: break-word;
 }
 .offline-icon {
     font-size: 48px;
@@ -3687,16 +3680,32 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 24px;
     }
-    /* Normal Realm Settings Mobile */
-    .realm-settings-radio-group {
-        grid-template-columns: 1fr; /* Stack on mobile */
-        gap: 8px;
+    /* Notification Modal Mobile Fix */
+    .notification-detail-modal .modal-content {
+        max-width: 100%;
+        word-break: break-word;
+        padding: 60px 20px 40px;
+    }
+    .notification-detail-body {
+        padding: 0;
+    }
+    /* Realm Notification Buttons Mobile */
+    .realm-notification-buttons {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
     }
     /* Public Realm Modal Mobile */
-    .public-realm-modal .btn-primary {
-        font-size: 16px;
-        padding: 18px 24px;
-        min-height: 56px;
+    .public-realm-icon {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+    }
+    .public-realm-name {
+        font-size: 24px;
+    }
+    .public-realm-description {
+        padding: 16px;
+        font-size: 14px;
     }
     /* Offline Overlay Mobile */
     .offline-overlay {
@@ -3776,6 +3785,24 @@ input:checked + .toggle-slider:before {
     }
     .public-profile-name {
         font-size: 20px;
+    }
+    /* Realm Notification Buttons Small Mobile */
+    .realm-notification-buttons {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    /* Public Realm Modal Small Mobile */
+    .public-realm-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+    .public-realm-name {
+        font-size: 20px;
+    }
+    .public-realm-description {
+        padding: 12px;
+        font-size: 13px;
     }
     /* Offline Overlay Small Mobile */
     .offline-text {

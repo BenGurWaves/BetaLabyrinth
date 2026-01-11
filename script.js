@@ -48,10 +48,13 @@ let state = {
     typingTimeout: null,
     isTyping: false,
     mentionSearchActive: false,
-    streakCount: 0,
-    messageCount: 0,
-    notifications: [],
-    unreadNotificationCount: 0
+    // DM-specific state
+    dmChannels: [],
+    dmParticipants: {},
+    dmSettings: {},
+    currentDMChannel: null,
+    isDMModalOpen: false,
+    dmSearchResults: []
 };
 
 function hideLoader() {
@@ -155,7 +158,7 @@ async function fetchAndUpdateProfile(immediate = false) {
         console.log('Fetching latest profile from Supabase...');        
         const { data: profile, error } = await state.supabase
             .from('profiles')
-            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, streak_count, message_count')
+            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, streak_count, last_active_date, total_messages_sent')
             .eq('id', state.currentUser.id)
             .single();            
         if (error) {
@@ -176,8 +179,9 @@ async function fetchAndUpdateProfile(immediate = false) {
             state.userSettings.send_with_enter = profile.send_with_enter !== false;
             state.userSettings.open_links_in_app = profile.open_links_in_app === true;
             state.userSettings.send_read_receipts = profile.send_read_receipts !== false;
-            state.streakCount = profile.streak_count || 0;
-            state.messageCount = profile.message_count || 0;
+            state.userSettings.streak_count = profile.streak_count || 0;
+            state.userSettings.last_active_date = profile.last_active_date;
+            state.userSettings.total_messages_sent = profile.total_messages_sent || 0;
         }
         updateHeaderUserButton();
         updateProfileModal();        
@@ -261,7 +265,8 @@ async function loadUserProfile() {
                 social_links: {},
                 show_realms: true,
                 streak_count: 0,
-                message_count: 0
+                last_active_date: null,
+                total_messages_sent: 0
             };
         }        
         console.log('Loading user profile from Supabase...');        
@@ -294,7 +299,8 @@ async function loadUserProfile() {
                 social_links: {},
                 show_realms: true,
                 streak_count: 0,
-                message_count: 0
+                last_active_date: null,
+                total_messages_sent: 0
             };
         }
         const defaultProfile = {
@@ -315,7 +321,8 @@ async function loadUserProfile() {
             social_links: profile.social_links || {},
             show_realms: profile.show_realms !== false,
             streak_count: profile.streak_count || 0,
-            message_count: profile.message_count || 0
+            last_active_date: profile.last_active_date,
+            total_messages_sent: profile.total_messages_sent || 0
         };        
         console.log('User profile loaded from Supabase');
         return defaultProfile;
@@ -339,8 +346,62 @@ async function loadUserProfile() {
             social_links: {},
             show_realms: true,
             streak_count: 0,
-            message_count: 0
+            last_active_date: null,
+            total_messages_sent: 0
         };
+    }
+}
+
+async function updateStreak() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        
+        const { data: profile, error } = await state.supabase
+            .from('profiles')
+            .select('last_active_date, streak_count')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        if (error) {
+            console.log('Error fetching profile for streak update:', error);
+            return;
+        }
+        
+        if (profile.last_active_date === today) return;
+        
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        
+        let newStreakCount = 1;
+        if (profile.last_active_date === yesterdayStr) {
+            newStreakCount = (profile.streak_count || 0) + 1;
+        }
+        
+        const { error: updateError } = await state.supabase
+            .from('profiles')
+            .update({ 
+                streak_count: newStreakCount,
+                last_active_date: today 
+            })
+            .eq('id', state.currentUser.id);
+            
+        if (updateError) {
+            console.log('Error updating streak:', updateError);
+            return;
+        }
+        
+        // Update local state
+        if (state.userSettings) {
+            state.userSettings.streak_count = newStreakCount;
+            state.userSettings.last_active_date = today;
+        }
+        
+        console.log('Streak updated:', newStreakCount);
+    } catch (error) {
+        console.log('Error in updateStreak:', error);
     }
 }
 
@@ -463,12 +524,7 @@ async function ensureProtectedRealmsJoined() {
                         announcement_message: null
                     };
                 }
-                // Validate slug has no spaces
-                if (realmData.slug.includes(' ')) {
-                    realmData.slug = realmData.slug.replace(/\s+/g, '_');
-                }
-                
-                const { data: newRealm, error: createError } = await state.supabase
+                    const { data: newRealm, error: createError } = await state.supabase
                     .from('realms')
                     .insert([realmData])
                     .select()
@@ -540,22 +596,27 @@ async function switchRealm(realmId) {
             return;
         }      
         state.currentRealm = realm;
-        // Update realm icon in sidebar
+        // Update realm icon in sidebar with actual realm icon
         const realmIcon = document.querySelector('.realm-icon');
-        if (realmIcon && realm.icon_url) {
-            realmIcon.style.backgroundImage = `url(${realm.icon_url})`;
-            realmIcon.textContent = '';
-            realmIcon.style.backgroundSize = 'cover';
-            realmIcon.style.backgroundPosition = 'center';
-        } else if (realmIcon) {
-            realmIcon.style.backgroundImage = 'none';
-            realmIcon.textContent = realm.icon_url || '🏰';
+        if (realmIcon) {
+            if (realm.icon_url && realm.icon_url.startsWith('http')) {
+                realmIcon.style.backgroundImage = `url(${realm.icon_url})`;
+                realmIcon.textContent = '';
+                realmIcon.style.backgroundSize = 'cover';
+                realmIcon.style.backgroundPosition = 'center';
+            } else {
+                realmIcon.style.backgroundImage = 'none';
+                realmIcon.textContent = realm.icon_url || '🏰';
+            }
         }
         document.getElementById('currentRealmName').textContent = realm.name;
         document.getElementById('realmMembers').textContent = '';
         
         const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-        if (realmSettingsBtn) {
+        // Hide realm settings button for DM realm
+        if (realm.slug === 'direct-messages') {
+            realmSettingsBtn.style.display = 'none';
+        } else {
             realmSettingsBtn.style.display = 'flex';
         }
         
@@ -566,64 +627,23 @@ async function switchRealm(realmId) {
             .eq('id', state.currentUser.id)
             .then(() => console.log('Last realm updated'))
             .catch(err => console.log('Error updating last realm (non-critical):', err));
-        loadChannels();
+        
+        // Load appropriate channels based on realm type
+        if (realm.slug === 'direct-messages') {
+            loadDMChannels();
+        } else {
+            loadChannels();
+        }
+        
         document.getElementById('realmDropdown').classList.remove('active');
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.remove('active');
         }
         
-        // Update URL hash
-        updateURLHash();
-        
         setTimeout(() => checkRealmAnnouncement(realm), 500);
     } catch (error) {
         console.log('Error in switchRealm:', error);
         showToast('Error', 'Failed to switch realm', 'error');
-    }
-}
-
-function updateURLHash() {
-    try {
-        if (!state.currentRealm || !state.currentChannel) return;
-        
-        const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-        const channelSlug = state.currentChannel.name.replace(/\s+/g, '_') || state.currentChannel.id;
-        
-        window.location.hash = `${realmSlug}#${channelSlug}`;
-    } catch (error) {
-        console.log('Error updating URL hash:', error);
-    }
-}
-
-function parseURLHash() {
-    try {
-        const hash = window.location.hash.substring(1);
-        if (!hash) return;
-        
-        const [realmSlug, channelSlug] = hash.split('#');
-        if (!realmSlug) return;
-        
-        // Find realm by slug or ID
-        let realm = state.joinedRealms.find(r => r.slug === realmSlug || r.id === realmSlug);
-        if (!realm) return;
-        
-        // Switch to realm
-        switchRealm(realm.id).then(() => {
-            // After realm loads, find and select channel
-            setTimeout(() => {
-                if (channelSlug && state.channels.length > 0) {
-                    const channel = state.channels.find(c => 
-                        c.name.replace(/\s+/g, '_') === channelSlug || 
-                        c.id === channelSlug
-                    );
-                    if (channel) {
-                        selectChannel(channel.id);
-                    }
-                }
-            }, 500);
-        });
-    } catch (error) {
-        console.log('Error parsing URL hash:', error);
     }
 }
 
@@ -656,25 +676,20 @@ function showRealmAnnouncementModal(realmName, announcement) {
         const title = document.getElementById('realmAnnouncementTitle');
         const message = document.getElementById('realmAnnouncementMessage');
         
-        if (title) title.textContent = `Announcement from ${realmName}`;
-        if (message) message.textContent = announcement;
+        title.textContent = `Announcement from ${realmName}`;
+        message.textContent = announcement;
         
-        if (modal) modal.style.display = 'flex';
+        modal.style.display = 'flex';
         
-        const closeBtn = document.getElementById('realmAnnouncementCloseBtn');
-        if (closeBtn) {
-            closeBtn.onclick = function() {
-                if (modal) modal.style.display = 'none';
-            };
-        }
+        document.getElementById('realmAnnouncementCloseBtn').onclick = function() {
+            modal.style.display = 'none';
+        };
         
-        if (modal) {
-            modal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
-                }
-            });
-        }
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
     } catch (error) {
         console.log('Error showing realm announcement modal:', error);
     }
@@ -702,9 +717,9 @@ function renderRealmDropdown() {
             if (state.currentRealm && realm.id === state.currentRealm.id) {
                 option.classList.add('active');
             }
-            // Add realm icon
+            // Add realm icon with actual realm icon
             let iconHtml = '';
-            if (realm.icon_url) {
+            if (realm.icon_url && realm.icon_url.startsWith('http')) {
                 iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
             } else {
                 iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
@@ -713,12 +728,10 @@ function renderRealmDropdown() {
             if (realm.slug === 'direct-messages') {
                 option.innerHTML = `${iconHtml} Direct Messages <span id="dmRealmAddBtn" style="margin-left: auto; font-size: 20px; color: var(--color-gold);">+</span>`;
                 const addBtn = option.querySelector('#dmRealmAddBtn');
-                if (addBtn) {
-                    addBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        showStartConversationModal();
-                    });
-                }
+                addBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showStartConversationModal();
+                });
             } else {
                 let realmText = realm.name;
                 if (realm.show_creator) {
@@ -813,6 +826,114 @@ async function loadChannels() {
     }
 }
 
+async function loadDMChannels() {
+    try {
+        if (!state.currentRealm || !state.supabase || state.currentRealm.slug !== 'direct-messages') {
+            return;
+        }
+        
+        console.log('Loading DM channels...');
+        
+        // First ensure Notes channel exists
+        await ensureNotesChannel();
+        
+        // Load DM channels
+        const { data: dmChannels, error } = await state.supabase
+            .from('dm_channels')
+            .select('*')
+            .or(`user1_id.eq.${state.currentUser.id},user2_id.eq.${state.currentUser.id}`)
+            .order('updated_at', { ascending: false })
+            .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.log('Error loading DM channels:', error);
+            state.dmChannels = [];
+        } else {
+            state.dmChannels = dmChannels || [];
+            console.log('Loaded', state.dmChannels.length, 'DM channels');
+        }
+        
+        // Update UI
+        updateDMChannelList();
+        
+        // Select first channel if available
+        if (state.dmChannels.length > 0 && !state.currentDMChannel) {
+            selectDMChannel(state.dmChannels[0].id);
+        }
+        
+        // Setup realtime subscription
+        setupDMChannelSubscription();
+        
+    } catch (error) {
+        console.log('Error in loadDMChannels:', error);
+    }
+}
+
+async function ensureNotesChannel() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        // Check if Notes channel exists
+        const { data: existingNotes, error } = await state.supabase
+            .from('dm_channels')
+            .select('*')
+            .eq('user1_id', state.currentUser.id)
+            .is('user2_id', null)
+            .eq('name', 'Notes')
+            .single();
+            
+        if (error || !existingNotes) {
+            // Create Notes channel
+            const { data: newChannel, error: createError } = await state.supabase
+                .from('dm_channels')
+                .insert([{
+                    user1_id: state.currentUser.id,
+                    name: 'Notes',
+                    description: 'Private notes for yourself',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+                
+            if (createError) {
+                console.log('Error creating Notes channel:', createError);
+                return;
+            }
+            
+            // Add participant
+            const { error: participantError } = await state.supabase
+                .from('dm_participants')
+                .insert([{
+                    channel_id: newChannel.id,
+                    user_id: state.currentUser.id,
+                    joined_at: new Date().toISOString()
+                }]);
+                
+            if (participantError) {
+                console.log('Error adding participant to Notes:', participantError);
+            }
+            
+            // Add DM settings
+            const { error: settingsError } = await state.supabase
+                .from('dm_settings')
+                .insert([{
+                    channel_id: newChannel.id,
+                    user_id: state.currentUser.id,
+                    notifications: 'all'
+                }]);
+                
+            if (settingsError) {
+                console.log('Error adding DM settings for Notes:', settingsError);
+            }
+            
+            console.log('Notes channel created');
+        }
+    } catch (error) {
+        console.log('Error ensuring Notes channel:', error);
+    }
+}
+
 async function ensureSelfDMChannel() {
     try {
         if (!state.currentUser || !state.supabase || !state.currentRealm) return;
@@ -850,6 +971,534 @@ async function ensureSelfDMChannel() {
         }
     } catch (error) {
         console.log('Error ensuring self-DM channel:', error);
+    }
+}
+
+function updateDMChannelList() {
+    try {
+        const channelList = document.getElementById('channelList');
+        if (!channelList) return;
+        
+        channelList.innerHTML = '';
+        
+        // Add DM-specific header with plus button
+        const header = document.createElement('div');
+        header.className = 'channel-header';
+        header.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <span>Direct Messages</span>
+                <button id="dmAddBtn" style="background: none; border: none; color: var(--color-gold); font-size: 20px; cursor: pointer; padding: 0 8px;">+</button>
+            </div>
+        `;
+        channelList.appendChild(header);
+        
+        const dmAddBtn = document.getElementById('dmAddBtn');
+        if (dmAddBtn) {
+            dmAddBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showStartConversationModal();
+            });
+        }
+        
+        if (state.dmChannels.length === 0) {
+            channelList.innerHTML += `
+                <div class="channel-item" style="color: var(--text-secondary); text-align: center; font-style: italic; padding: 20px;">
+                    No conversations yet. Click + to start one.
+                </div>
+            `;
+            return;
+        }
+        
+        state.dmChannels.forEach(channel => {
+            const item = document.createElement('div');
+            item.className = 'channel-item dm-channel-item';
+            if (state.currentDMChannel && channel.id === state.currentDMChannel.id) {
+                item.classList.add('active');
+            }
+            
+            // Get channel display name
+            let displayName = channel.name || 'Loading...';
+            if (!channel.name) {
+                // For 1:1 chats without name, we'll compute it when we load participants
+                displayName = 'Loading...';
+            }
+            
+            item.innerHTML = `
+                <div class="channel-icon">${channel.name === 'Notes' ? '📝' : '👤'}</div>
+                <div style="flex: 1;">${escapeHtml(displayName)}</div>
+                <div class="dm-channel-settings-btn" style="color: var(--color-gray); font-size: 12px; padding: 4px; opacity: 0; transition: opacity var(--transition-fast);">⋮</div>
+            `;
+            
+            // Store channel data for later use
+            item.dataset.channelId = channel.id;
+            
+            item.onclick = async function(e) {
+                if (!e.target.classList.contains('dm-channel-settings-btn')) {
+                    await selectDMChannel(channel.id);
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('active');
+                    }
+                }
+            };
+            
+            const settingsBtn = item.querySelector('.dm-channel-settings-btn');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showDMChannelSettings(channel.id);
+                });
+                item.addEventListener('mouseenter', function() {
+                    settingsBtn.style.opacity = '1';
+                });
+                item.addEventListener('mouseleave', function() {
+                    settingsBtn.style.opacity = '0';
+                });
+            }
+            
+            channelList.appendChild(item);
+            
+            // Load participants to compute display name
+            loadChannelParticipants(channel.id, item);
+        });
+        
+    } catch (error) {
+        console.log('Error updating DM channel list:', error);
+    }
+}
+
+async function loadChannelParticipants(channelId, channelElement) {
+    try {
+        if (!state.supabase) return;
+        
+        const { data: participants, error } = await state.supabase
+            .from('dm_participants')
+            .select(`
+                user_id,
+                profiles:user_id (username, avatar_url, status, stealth_mode)
+            `)
+            .eq('channel_id', channelId);
+            
+        if (error || !participants) {
+            console.log('Error loading participants:', error);
+            return;
+        }
+        
+        // Store in state
+        state.dmParticipants[channelId] = participants.map(p => ({
+            id: p.user_id,
+            username: p.profiles?.username || 'User',
+            avatar_url: p.profiles?.avatar_url,
+            status: p.profiles?.status || 'offline',
+            stealth_mode: p.profiles?.stealth_mode === true
+        }));
+        
+        // Compute display name
+        const channel = state.dmChannels.find(c => c.id === channelId);
+        if (!channel) return;
+        
+        let displayName = channel.name;
+        if (!displayName) {
+            const currentUserId = state.currentUser.id;
+            const otherParticipants = participants.filter(p => p.user_id !== currentUserId);
+            
+            if (otherParticipants.length === 0) {
+                // Notes channel
+                displayName = 'Notes';
+            } else if (otherParticipants.length === 1) {
+                // 1:1 chat
+                displayName = otherParticipants[0].profiles?.username || 'User';
+            } else {
+                // Group chat
+                displayName = otherParticipants.map(p => p.profiles?.username).join(', ');
+            }
+        }
+        
+        // Update channel element
+        if (channelElement) {
+            const nameElement = channelElement.querySelector('div:nth-child(2)');
+            if (nameElement) {
+                nameElement.textContent = displayName;
+            }
+        }
+        
+    } catch (error) {
+        console.log('Error loading channel participants:', error);
+    }
+}
+
+async function selectDMChannel(channelId) {
+    try {
+        if (!state.supabase) return;
+        
+        const channel = state.dmChannels.find(c => c.id === channelId);
+        if (!channel) {
+            console.log('DM channel not found:', channelId);
+            return;
+        }
+        
+        state.currentDMChannel = channel;
+        state.currentChannel = null; // Clear regular channel
+        
+        // Update UI
+        document.querySelectorAll('.dm-channel-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        const activeItem = document.querySelector(`.dm-channel-item[data-channel-id="${channelId}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+        
+        // Load participants if not already loaded
+        if (!state.dmParticipants[channelId]) {
+            await loadChannelParticipants(channelId, null);
+        }
+        
+        // Update chat header
+        updateDMChatHeader(channelId);
+        
+        // Load messages
+        loadDMMessages(channelId);
+        
+    } catch (error) {
+        console.log('Error in selectDMChannel:', error);
+        showToast('Error', 'Failed to select conversation', 'error');
+    }
+}
+
+function updateDMChatHeader(channelId) {
+    try {
+        const participants = state.dmParticipants[channelId];
+        if (!participants) return;
+        
+        const currentUserId = state.currentUser.id;
+        const otherParticipants = participants.filter(p => p.id !== currentUserId);
+        
+        let displayName = '';
+        let isNotes = false;
+        let isGroup = false;
+        
+        if (otherParticipants.length === 0) {
+            // Notes channel
+            displayName = '📝 Notes';
+            isNotes = true;
+        } else if (otherParticipants.length === 1) {
+            // 1:1 chat
+            const otherUser = otherParticipants[0];
+            const isOnline = otherUser.status === 'online' && !otherUser.stealth_mode;
+            displayName = `
+                <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" onclick="openDMUserProfile('${otherUser.id}')">
+                    <div class="header-avatar ${isOnline ? 'online' : ''}" style="background-image: url('${otherUser.avatar_url || ''}');"></div>
+                    <div>
+                        <div>${escapeHtml(otherUser.username)}</div>
+                        <div class="header-status ${isOnline ? 'online' : ''}">${isOnline ? 'Online' : 'Offline'}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Group chat
+            const channel = state.dmChannels.find(c => c.id === channelId);
+            displayName = channel?.name || otherParticipants.map(p => p.username).join(', ');
+            isGroup = true;
+        }
+        
+        // Update channel header
+        const channelHeader = document.getElementById('channelHeader');
+        if (channelHeader) {
+            channelHeader.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        ${displayName}
+                    </div>
+                    ${!isNotes ? `<button class="dm-header-settings-btn" onclick="showDMChannelSettings('${channelId}')">⋮</button>` : ''}
+                </div>
+            `;
+        }
+        
+        // Update message input placeholder
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            if (isNotes) {
+                messageInput.placeholder = 'Message 📝 Notes...';
+            } else if (isGroup) {
+                messageInput.placeholder = `Message ${escapeHtml(displayName)}...`;
+            } else {
+                messageInput.placeholder = `Message ${otherParticipants[0]?.username || 'User'}...`;
+            }
+        }
+        
+    } catch (error) {
+        console.log('Error updating DM chat header:', error);
+    }
+}
+
+async function loadDMMessages(channelId) {
+    try {
+        if (!channelId || !state.supabase) {
+            console.log('Cannot load DM messages: no channel selected');
+            return;
+        }
+        
+        console.log('Loading DM messages for channel:', channelId);
+        
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (messagesContainer) {
+            messagesContainer.innerHTML = '<div class="empty-state" id="emptyState">Loading messages...</div>';
+        }
+        
+        const { data: messages, error } = await state.supabase
+            .from('dm_messages')
+            .select(`
+                *,
+                profiles:sender_id (
+                    username,
+                    avatar_url,
+                    status,
+                    stealth_mode
+                )
+            `)
+            .eq('dm_id', channelId)
+            .order('created_at', { ascending: true })
+            .limit(50);
+            
+        if (error) {
+            console.log('Error loading DM messages:', error);
+            if (messagesContainer) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state" id="emptyState">
+                        Failed to load messages. Try again later.
+                    </div>
+                `;
+            }
+            return;
+        }
+        
+        // Clear existing messages
+        state.messages = [];
+        
+        // Render messages
+        if (messagesContainer) {
+            messagesContainer.innerHTML = '';
+        }
+        
+        if (messages.length === 0) {
+            if (messagesContainer) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state" id="emptyState">
+                        No messages yet. Start the conversation!
+                    </div>
+                `;
+            }
+            return;
+        }
+        
+        messages.forEach(message => {
+            appendDMMessage(message);
+        });
+        
+        setTimeout(() => {
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }, 100);
+        
+        // Setup realtime subscription
+        setupDMMessageSubscription(channelId);
+        
+    } catch (error) {
+        console.log('Error in loadDMMessages:', error);
+    }
+}
+
+function appendDMMessage(message) {
+    try {
+        const messagesContainer = document.getElementById('messagesContainer');
+        if (!messagesContainer) return;
+        
+        const emptyState = document.getElementById('emptyState');
+        if (emptyState && emptyState.parentNode === messagesContainer) {
+            emptyState.remove();
+        }
+        
+        const isMe = message.sender_id === state.currentUser?.id;
+        const username = message.profiles?.username || 'User';
+        const avatarUrl = message.profiles?.avatar_url;
+        const isStealth = message.profiles?.stealth_mode === true;
+        const status = isStealth ? 'offline' : (message.profiles?.status || 'offline');
+        
+        const msgElement = document.createElement('div');
+        msgElement.className = `msg ${isMe ? 'me' : ''}`;
+        msgElement.dataset.messageId = message.id;
+        
+        const time = new Date(message.created_at);
+        const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const editedTag = message.edited_at ? '<span class="message-edited">(edited)</span>' : '';
+        const formattedContent = formatMessageContent(message.content);
+        
+        msgElement.innerHTML = `
+            <img class="message-avatar" src="${avatarUrl ? avatarUrl + '?t=' + Date.now() : ''}" alt="${username}" onerror="this.style.display='none';" onclick="openUserProfile('${message.sender_id}')">
+            <div class="msg-body">
+                <div class="message-header">
+                    <div class="message-username">${escapeHtml(username)}</div>
+                    <div class="message-time">${timeStr} ${editedTag}</div>
+                </div>
+                <div class="message-text">${formattedContent}</div>
+                ${message.reactions && message.reactions.length > 0 ? `
+                    <div class="reactions-container">
+                        ${renderReactions(message.reactions)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        messagesContainer.appendChild(msgElement);
+        setupMessageContextMenu(msgElement, {
+            ...message,
+            user_id: message.sender_id,
+            channel_id: message.dm_id,
+            profiles: message.profiles
+        });
+        
+        setTimeout(() => {
+            msgElement.style.opacity = '1';
+        }, 10);
+        
+    } catch (error) {
+        console.log('Error appending DM message:', error);
+    }
+}
+
+async function sendMessage() {
+    try {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        
+        if (!message || !state.currentUser) return;
+        
+        // Check if we're in a DM channel or regular channel
+        if (state.currentDMChannel) {
+            // Send DM message
+            await sendDMMessage(message);
+        } else if (state.currentChannel) {
+            // Send regular channel message
+            if (state.currentChannel.is_writable === false) {
+                showToast('Error', 'This channel is read-only', 'error');
+                return;
+            }
+            
+            const optimisticMessage = {
+                id: `temp_${Date.now()}`,
+                content: message,
+                channel_id: state.currentChannel.id,
+                user_id: state.currentUser.id,
+                created_at: new Date().toISOString(),
+                profiles: {
+                    username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
+                    avatar_url: state.userSettings?.avatar_url,
+                    status: state.userSettings?.status || 'online',
+                    stealth_mode: state.userSettings?.stealth_mode || false
+                }
+            };
+            
+            appendMessage(optimisticMessage);
+            
+            state.supabase
+                .from('messages')
+                .insert([{
+                    content: message,
+                    channel_id: state.currentChannel.id,
+                    user_id: state.currentUser.id
+                }])
+                .then(({ error }) => {
+                    if (error) {
+                        console.log('Error sending message:', error);
+                        showToast('Error', 'Failed to send message', 'error');
+                    } else {
+                        // Update total messages sent
+                        updateTotalMessagesSent();
+                    }
+                });
+        } else {
+            showToast('Error', 'No channel selected', 'error');
+            return;
+        }
+        
+        input.value = '';
+        input.style.height = 'auto';
+        updateSendButtonState();
+        
+        setTimeout(() => {
+            const container = document.getElementById('messagesContainer');
+            if (container) container.scrollTop = container.scrollHeight;
+        }, 100);
+        
+    } catch (error) {
+        console.log('Error in sendMessage:', error);
+        showToast('Error', 'Failed to send message', 'error');
+    }
+}
+
+async function sendDMMessage(content) {
+    try {
+        if (!state.currentDMChannel || !state.currentUser || !state.supabase) return;
+        
+        // Create optimistic message
+        const optimisticMessage = {
+            id: `temp_${Date.now()}`,
+            content: content,
+            dm_id: state.currentDMChannel.id,
+            sender_id: state.currentUser.id,
+            created_at: new Date().toISOString(),
+            profiles: {
+                username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
+                avatar_url: state.userSettings?.avatar_url,
+                status: state.userSettings?.status || 'online',
+                stealth_mode: state.userSettings?.stealth_mode || false
+            }
+        };
+        
+        appendDMMessage(optimisticMessage);
+        
+        // Send to database
+        const { error } = await state.supabase
+            .from('dm_messages')
+            .insert([{
+                dm_id: state.currentDMChannel.id,
+                sender_id: state.currentUser.id,
+                content: content
+            }]);
+            
+        if (error) {
+            console.log('Error sending DM message:', error);
+            showToast('Error', 'Failed to send message', 'error');
+            return;
+        }
+        
+        // Update channel's updated_at timestamp
+        await state.supabase
+            .from('dm_channels')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', state.currentDMChannel.id);
+            
+        // Update total messages sent
+        updateTotalMessagesSent();
+        
+    } catch (error) {
+        console.log('Error in sendDMMessage:', error);
+    }
+}
+
+async function updateTotalMessagesSent() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const { error } = await state.supabase
+            .rpc('increment_total_messages', { user_id: state.currentUser.id });
+            
+        if (error) {
+            console.log('Error updating total messages:', error);
+        }
+    } catch (error) {
+        console.log('Error in updateTotalMessagesSent:', error);
     }
 }
 
@@ -917,12 +1566,11 @@ function renderChannels() {
 function updateAddChannelButton() {
     try {
         const addChannelContainer = document.getElementById('addChannelContainer');
-        if (addChannelContainer) {
-            if (state.currentRealm && state.currentRealm.created_by === state.currentUser?.id && state.currentRealm.slug !== 'direct-messages') {
-                addChannelContainer.style.display = 'block';
-            } else {
-                addChannelContainer.style.display = 'none';
-            }
+        if (!addChannelContainer) return;
+        if (state.currentRealm && state.currentRealm.created_by === state.currentUser?.id && state.currentRealm.slug !== 'direct-messages') {
+            addChannelContainer.style.display = 'block';
+        } else {
+            addChannelContainer.style.display = 'none';
         }
     } catch (error) {
         console.log('Error updating add channel button:', error);
@@ -938,6 +1586,8 @@ async function selectChannel(channelId) {
             return;
         }        
         state.currentChannel = channel;
+        state.currentDMChannel = null; // Clear DM channel
+        
         document.querySelectorAll('.channel-item').forEach(item => {
             item.classList.remove('active');
         });
@@ -949,11 +1599,7 @@ async function selectChannel(channelId) {
             activeItem.classList.add('active');
         }
         updateMessageInputForChannel();
-        loadMessages();
-        
-        // Update URL hash
-        updateURLHash();
-        
+        loadMessages();      
     } catch (error) {
         console.log('Error in selectChannel:', error);
         showToast('Error', 'Failed to select channel', 'error');
@@ -976,8 +1622,8 @@ function updateMessageInputForChannel() {
             messageInput.placeholder = "This channel is read-only";
             messageInput.style.opacity = "0.5";
             messageInput.style.pointerEvents = "none";
-            if (sendBtn) sendBtn.style.display = "none";
-            if (readOnlyNotice) readOnlyNotice.classList.add('active');
+            sendBtn.style.display = "none";
+            readOnlyNotice.classList.add('active');
         } else {
             messageInput.disabled = false;
             let placeholderText = `Message ${isDMRealm ? (isSelfDM ? '📝' : '👤') : '#'}${state.currentChannel.name}`;
@@ -987,8 +1633,8 @@ function updateMessageInputForChannel() {
             messageInput.placeholder = placeholderText;
             messageInput.style.opacity = "1";
             messageInput.style.pointerEvents = "auto";
-            if (sendBtn) sendBtn.style.display = "flex";
-            if (readOnlyNotice) readOnlyNotice.classList.remove('active');
+            sendBtn.style.display = "flex";
+            readOnlyNotice.classList.remove('active');
             if (!messageInput.disabled) {
                 setTimeout(() => messageInput.focus(), 100);
             }
@@ -1042,7 +1688,6 @@ async function loadMessages() {
                 loadPinnedMessage();
                 setupMessageSubscription();
                 updateReadReceipts();
-                setupTypingIndicators();
             })
             .catch(error => {
                 console.log('Error loading messages:', error);               
@@ -1085,8 +1730,7 @@ async function loadPinnedMessage() {
         
         const pinnedMessageId = state.currentChannel.pinned_message_id;
         if (!pinnedMessageId) {
-            const container = document.getElementById('pinnedMessageContainer');
-            if (container) container.style.display = 'none';
+            document.getElementById('pinnedMessageContainer').style.display = 'none';
             state.pinnedMessage = null;
             return;
         }
@@ -1104,8 +1748,7 @@ async function loadPinnedMessage() {
             .single();
             
         if (error || !message) {
-            const container = document.getElementById('pinnedMessageContainer');
-            if (container) container.style.display = 'none';
+            document.getElementById('pinnedMessageContainer').style.display = 'none';
             state.pinnedMessage = null;
             return;
         }
@@ -1114,8 +1757,7 @@ async function loadPinnedMessage() {
         displayPinnedMessage(message);
     } catch (error) {
         console.log('Error loading pinned message:', error);
-        const container = document.getElementById('pinnedMessageContainer');
-        if (container) container.style.display = 'none';
+        document.getElementById('pinnedMessageContainer').style.display = 'none';
     }
 }
 
@@ -1136,12 +1778,9 @@ function displayPinnedMessage(message) {
         `;
         container.style.display = 'block';
         
-        const pinnedContainer = container.querySelector('.pinned-message-container');
-        if (pinnedContainer) {
-            pinnedContainer.addEventListener('click', () => {
-                scrollToMessage(message.id);
-            });
-        }
+        container.querySelector('.pinned-message-container').addEventListener('click', () => {
+            scrollToMessage(message.id);
+        });
     } catch (error) {
         console.log('Error displaying pinned message:', error);
     }
@@ -1160,23 +1799,6 @@ async function pinMessage(messageId) {
     try {
         if (!state.currentChannel || !state.supabase) return;
         
-        // Unpin existing message first
-        if (state.currentChannel.pinned_message_id && state.currentChannel.pinned_message_id !== messageId) {
-            const { data: existingPinned } = await state.supabase
-                .from('messages')
-                .select('id')
-                .eq('id', state.currentChannel.pinned_message_id)
-                .single();
-                
-            if (existingPinned) {
-                // Unpin the existing message
-                await state.supabase
-                    .from('messages')
-                    .update({ is_pinned: false })
-                    .eq('id', existingPinned.id);
-            }
-        }
-        
         const { error } = await state.supabase
             .from('channels')
             .update({ pinned_message_id: messageId })
@@ -1188,46 +1810,11 @@ async function pinMessage(messageId) {
             return;
         }
         
-        // Update message as pinned
-        await state.supabase
-            .from('messages')
-            .update({ is_pinned: true })
-            .eq('id', messageId);
-        
         showToast('Success', 'Message pinned', 'success');
         loadPinnedMessage();
     } catch (error) {
         console.log('Error pinning message:', error);
         showToast('Error', 'Failed to pin message', 'error');
-    }
-}
-
-async function unpinMessage() {
-    try {
-        if (!state.currentChannel || !state.supabase || !state.currentChannel.pinned_message_id) return;
-        
-        const { error } = await state.supabase
-            .from('channels')
-            .update({ pinned_message_id: null })
-            .eq('id', state.currentChannel.id);
-            
-        if (error) {
-            console.log('Error unpinning message:', error);
-            showToast('Error', 'Failed to unpin message', 'error');
-            return;
-        }
-        
-        // Update message as unpinned
-        await state.supabase
-            .from('messages')
-            .update({ is_pinned: false })
-            .eq('id', state.currentChannel.pinned_message_id);
-        
-        showToast('Success', 'Message unpinned', 'success');
-        loadPinnedMessage();
-    } catch (error) {
-        console.log('Error unpinning message:', error);
-        showToast('Error', 'Failed to unpin message', 'error');
     }
 }
 
@@ -1258,24 +1845,12 @@ function extractRumbleId(url) {
 function formatMessageContent(content) {
     if (!content) return '';
     let escapedContent = escapeHtml(content);
-    // Highlight mentions with better detection
+    // Highlight mentions
     escapedContent = escapedContent.replace(/@(\w+)/g, '<span class="mention" data-username="$1">@$1</span>');
-    // Highlight channel mentions
-    escapedContent = escapedContent.replace(/#(\w+)/g, '<span class="channel-mention" data-channel="$1">#$1</span>');
-    // Highlight realm mentions
-    escapedContent = escapedContent.replace(/\$(\w+)/g, '<span class="realm-mention" data-realm="$1">$$1</span>');
-    
-    // Improved URL regex to detect www. and http/https
-    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/g;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
     return escapedContent.replace(urlRegex, function(url) {
-        let cleanUrl = url.replace(/[.,!?;:]$/, '');
+        const cleanUrl = url.replace(/[.,!?;:]$/, '');
         const trailingChar = url.slice(cleanUrl.length);
-        
-        // Add http:// prefix for www. links
-        if (cleanUrl.startsWith('www.')) {
-            cleanUrl = 'https://' + cleanUrl;
-        }
-        
         const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(cleanUrl);
         const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(cleanUrl);
         const isAudio = /\.(mp3|wav|ogg)(\?.*)?$/i.test(cleanUrl);
@@ -1421,25 +1996,19 @@ function setupMessageContextMenu(msgElement, message) {
         const contextMenu = document.createElement('div');
         contextMenu.className = 'message-context-menu';
         contextMenu.style.display = 'none';
-        const isOwnMessage = message.user_id === state.currentUser?.id;
+        const isOwnMessage = message.user_id === state.currentUser?.id || message.sender_id === state.currentUser?.id;
         const isChannelCreator = state.currentChannel?.created_by === state.currentUser?.id;
         const isBenGurWaves = state.userSettings?.username === 'TheRealBenGurWaves';
         const canPin = isOwnMessage || isChannelCreator || isBenGurWaves;
-        const isPinned = state.currentChannel?.pinned_message_id === message.id;
         
         const menuItems = [
             { icon: '😊', text: 'React', className: 'react' },
-            { icon: '🔗', text: 'Share Message', className: 'share' },
             { icon: '👤', text: 'View Profile', className: 'view-profile' },
             { icon: '⚠️', text: 'Report', className: 'report' }
         ];
         
         if (canPin && state.currentRealm?.slug !== 'direct-messages') {
-            if (isPinned) {
-                menuItems.push({ icon: '📌', text: 'Unpin Message', className: 'unpin' });
-            } else {
-                menuItems.push({ icon: '📌', text: 'Pin Message', className: 'pin' });
-            }
+            menuItems.push({ icon: '📌', text: 'Pin Message', className: 'pin' });
         }
         
         if (isOwnMessage) {
@@ -1494,7 +2063,7 @@ function setupMessageContextMenu(msgElement, message) {
             }
             
             state.selectedMessageForContext = message;
-            state.selectedUserForProfile = message.user_id;
+            state.selectedUserForProfile = message.user_id || message.sender_id;
         };
         
         const removeMenu = () => {
@@ -1535,15 +2104,9 @@ function setupMessageContextMenu(msgElement, message) {
             removeMenu();
         });
         
-        contextMenu.querySelector('.share').addEventListener('click', (e) => {
-            e.stopPropagation();
-            shareMessage(message);
-            removeMenu();
-        });
-        
         contextMenu.querySelector('.view-profile').addEventListener('click', (e) => {
             e.stopPropagation();
-            showUserProfile(message.user_id, message.profiles);
+            showUserProfile(message.user_id || message.sender_id, message.profiles);
             removeMenu();
         });
         
@@ -1554,19 +2117,11 @@ function setupMessageContextMenu(msgElement, message) {
         });
         
         if (canPin && state.currentRealm?.slug !== 'direct-messages') {
-            if (isPinned) {
-                contextMenu.querySelector('.unpin').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    unpinMessage();
-                    removeMenu();
-                });
-            } else {
-                contextMenu.querySelector('.pin').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    pinMessage(message.id);
-                    removeMenu();
-                });
-            }
+            contextMenu.querySelector('.pin').addEventListener('click', (e) => {
+                e.stopPropagation();
+                pinMessage(message.id);
+                removeMenu();
+            });
         }
         
         if (isOwnMessage) {
@@ -1597,23 +2152,6 @@ function setupMessageContextMenu(msgElement, message) {
         
     } catch (error) {
         console.log('Error setting up context menu:', error);
-    }
-}
-
-async function shareMessage(message) {
-    try {
-        if (!message || !state.currentRealm || !state.currentChannel) return;
-        
-        const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-        const channelSlug = state.currentChannel.name.replace(/\s+/g, '_') || state.currentChannel.id;
-        const shareUrl = `${window.location.origin}${window.location.pathname}#${realmSlug}#${channelSlug}?message=${message.id}`;
-        
-        // Copy to clipboard
-        await navigator.clipboard.writeText(shareUrl);
-        showToast('Success', 'Message link copied to clipboard!', 'success');
-    } catch (error) {
-        console.log('Error sharing message:', error);
-        showToast('Error', 'Failed to copy link', 'error');
     }
 }
 
@@ -1663,19 +2201,44 @@ async function saveMessageEdit(messageId, newContent) {
         if (!state.supabase || !newContent || newContent.trim() === '') {
             cancelMessageEdit();
             return;
-        }        
-        const { error } = await state.supabase
-            .from('messages')
-            .update({ 
-                content: newContent,
-                edited_at: new Date().toISOString()
-            })
-            .eq('id', messageId);           
-        if (error) {
-            console.log('Error updating message:', error);
-            showToast('Error', 'Failed to update message', 'error');
-            return;
-        }       
+        }
+        
+        // Determine if it's a regular message or DM message
+        const message = state.messages.find(m => m.id === messageId) || 
+                       (state.currentDMChannel ? { dm_id: state.currentDMChannel.id } : null);
+        
+        if (message && message.dm_id) {
+            // Update DM message
+            const { error } = await state.supabase
+                .from('dm_messages')
+                .update({ 
+                    content: newContent,
+                    edited_at: new Date().toISOString()
+                })
+                .eq('id', messageId);
+                
+            if (error) {
+                console.log('Error updating DM message:', error);
+                showToast('Error', 'Failed to update message', 'error');
+                return;
+            }
+        } else {
+            // Update regular message
+            const { error } = await state.supabase
+                .from('messages')
+                .update({ 
+                    content: newContent,
+                    edited_at: new Date().toISOString()
+                })
+                .eq('id', messageId);
+                
+            if (error) {
+                console.log('Error updating message:', error);
+                showToast('Error', 'Failed to update message', 'error');
+                return;
+            }
+        }
+        
         state.editingMessageId = null;
         showToast('Success', 'Message updated', 'success');
     } catch (error) {
@@ -1710,11 +2273,21 @@ async function deleteMessage(message) {
         const cancelBtn = document.getElementById('confirmationCancel');
         const handleConfirm = async () => {
             try {
-                const { error } = await state.supabase
-                    .from('messages')
-                    .delete()
-                    .eq('id', message.id);
-                if (error) throw error;                
+                // Determine if it's a DM message or regular message
+                if (message.dm_id || state.currentDMChannel) {
+                    const { error } = await state.supabase
+                        .from('dm_messages')
+                        .delete()
+                        .eq('id', message.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await state.supabase
+                        .from('messages')
+                        .delete()
+                        .eq('id', message.id);
+                    if (error) throw error;
+                }
+                
                 showToast('Success', 'Message deleted', 'success');
                 document.getElementById('confirmationModal').style.display = 'none';            
             } catch (error) {
@@ -1815,105 +2388,6 @@ function renderReactions(reactions) {
         console.log('Error rendering reactions:', error);
         return '';
     }
-}
-
-function setupTypingIndicators() {
-    try {
-        if (!state.currentChannel || !state.supabase) return;
-        
-        // Clean up previous subscription
-        if (state.presenceSubscription) {
-            state.supabase.removeChannel(state.presenceSubscription);
-        }
-        
-        // Subscribe to presence changes for this channel
-        state.presenceSubscription = state.supabase
-            .channel(`typing:${state.currentChannel.id}`)
-            .on('presence', { event: 'sync' }, () => {
-                const presenceState = state.presenceSubscription.presenceState();
-                const typingUsers = {};
-                
-                for (const [presenceId, presences] of Object.entries(presenceState)) {
-                    // @ts-ignore
-                    for (const presence of presences) {
-                        if (presence.typing && presence.user_id !== state.currentUser?.id) {
-                            typingUsers[presence.user_id] = presence.username;
-                        }
-                    }
-                }
-                
-                state.typingUsers = typingUsers;
-                updateTypingIndicator();
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    // Track our own presence
-                    await state.presenceSubscription.track({
-                        user_id: state.currentUser.id,
-                        username: state.userSettings.username,
-                        typing: false
-                    }, true);
-                }
-            });
-            
-        // Setup typing detection on message input
-        const messageInput = document.getElementById('messageInput');
-        if (messageInput) {
-            messageInput.addEventListener('input', () => {
-                handleTyping();
-            });
-        }
-        
-    } catch (error) {
-        console.log('Error setting up typing indicators:', error);
-    }
-}
-
-function updateTypingIndicator() {
-    try {
-        const typingIndicator = document.getElementById('typingIndicator');
-        if (!typingIndicator) return;
-        
-        const typingUsers = Object.values(state.typingUsers);
-        
-        if (typingUsers.length === 0) {
-            typingIndicator.style.display = 'none';
-            return;
-        }
-        
-        if (typingUsers.length === 1) {
-            typingIndicator.innerHTML = `<span class="typing-dots"></span> ${typingUsers[0]} is typing...`;
-        } else if (typingUsers.length === 2) {
-            typingIndicator.innerHTML = `<span class="typing-dots"></span> ${typingUsers[0]} and ${typingUsers[1]} are typing...`;
-        } else {
-            typingIndicator.innerHTML = `<span class="typing-dots"></span> ${typingUsers.length} people are typing...`;
-        }
-        
-        typingIndicator.style.display = 'block';
-    } catch (error) {
-        console.log('Error updating typing indicator:', error);
-    }
-}
-
-function handleTyping() {
-    if (!state.presenceSubscription || !state.currentChannel) return;
-    clearTimeout(state.typingTimeout);
-    if (!state.isTyping) {
-        state.isTyping = true;
-        state.presenceSubscription.track({
-            user_id: state.currentUser.id,
-            username: state.userSettings.username,
-            typing: true
-        }, true);
-    }
-    state.typingTimeout = setTimeout(() => {
-        state.isTyping = false;
-        state.presenceSubscription.track({
-            user_id: state.currentUser.id,
-            username: state.userSettings.username,
-            typing: false
-        }, true);
-    }, 1000);
 }
 
 function setupMessageSubscription() {
@@ -2019,154 +2493,133 @@ function setupMessageSubscription() {
     }
 }
 
-async function updateStreakAndMessageCount() {
+function setupDMMessageSubscription(channelId) {
     try {
-        if (!state.currentUser || !state.supabase) return;
+        if (!channelId || !state.supabase) return;
         
-        const today = new Date().toISOString().split('T')[0];
-        const { data: lastActivity } = await state.supabase
-            .from('profiles')
-            .select('last_active_date, streak_count, message_count')
-            .eq('id', state.currentUser.id)
-            .single();
-            
-        let newStreakCount = lastActivity?.streak_count || 0;
-        let newMessageCount = (lastActivity?.message_count || 0) + 1;
-        
-        if (lastActivity?.last_active_date) {
-            const lastDate = new Date(lastActivity.last_active_date);
-            const todayDate = new Date(today);
-            const diffTime = Math.abs(todayDate - lastDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 1) {
-                newStreakCount += 1;
-            } else if (diffDays > 1) {
-                newStreakCount = 1;
-            }
-        } else {
-            newStreakCount = 1;
+        // Remove existing subscription if any
+        if (state.dmMessageSubscription) {
+            state.supabase.removeChannel(state.dmMessageSubscription);
         }
         
-        const { error } = await state.supabase
-            .from('profiles')
-            .update({
-                last_active_date: today,
-                streak_count: newStreakCount,
-                message_count: newMessageCount
+        state.dmMessageSubscription = state.supabase
+            .channel(`dm_messages:${channelId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'dm_messages',
+                filter: `dm_id=eq.${channelId}`
+            }, async (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    if (payload.new.sender_id === state.currentUser.id) return;
+                    
+                    const { data: message, error } = await state.supabase
+                        .from('dm_messages')
+                        .select(`
+                            *,
+                            profiles:sender_id (
+                                username,
+                                avatar_url,
+                                status,
+                                stealth_mode
+                            )
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+                        
+                    if (error || !message) return;
+                    
+                    appendDMMessage(message);
+                    
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    if (messagesContainer) {
+                        const scrollBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+                        if (scrollBottom < 200) {
+                            setTimeout(() => {
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }, 100);
+                        }
+                    }
+                    
+                    if (state.userSettings?.in_app_notifications && !document.hasFocus()) {
+                        showToast('New Message', `From ${message.profiles?.username || 'User'}`, 'info');
+                    }
+                    
+                    // Update channel's updated_at
+                    await state.supabase
+                        .from('dm_channels')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('id', channelId);
+                }
+                else if (payload.eventType === 'UPDATE') {
+                    // Handle message updates (edits)
+                    const msgElement = document.querySelector(`[data-message-id="${payload.new.id}"]`);
+                    if (msgElement) {
+                        const msgBody = msgElement.querySelector('.msg-body');
+                        if (msgBody) {
+                            const messageText = msgBody.querySelector('.message-text');
+                            const messageTime = msgBody.querySelector('.message-time');
+                            
+                            if (messageText) {
+                                messageText.innerHTML = formatMessageContent(payload.new.content);
+                            }
+                            if (payload.new.edited_at && !messageTime.innerHTML.includes('(edited)')) {
+                                messageTime.innerHTML = messageTime.innerHTML.replace(/\s*$/, '') + ' <span class="message-edited">(edited)</span>';
+                            }
+                        }
+                    }
+                }
+                else if (payload.eventType === 'DELETE') {
+                    const msgElement = document.querySelector(`[data-message-id="${payload.old.id}"]`);
+                    if (msgElement && msgElement.parentNode) {
+                        msgElement.parentNode.removeChild(msgElement);
+                    }
+                }
             })
-            .eq('id', state.currentUser.id);
+            .subscribe();
             
-        if (error) {
-            console.log('Error updating streak and message count:', error);
-        } else {
-            state.streakCount = newStreakCount;
-            state.messageCount = newMessageCount;
-        }
     } catch (error) {
-        console.log('Error in updateStreakAndMessageCount:', error);
+        console.log('Error setting up DM message subscription:', error);
     }
 }
 
-async function sendMessage() {
+function setupDMChannelSubscription() {
     try {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();        
-        if (!message || !state.currentUser || !state.currentChannel) return;
-        if (state.currentChannel.is_writable === false) {
-            showToast('Error', 'This channel is read-only', 'error');
-            return;
-        }
-        const optimisticMessage = {
-            id: `temp_${Date.now()}`,
-            content: message,
-            channel_id: state.currentChannel.id,
-            user_id: state.currentUser.id,
-            created_at: new Date().toISOString(),
-            profiles: {
-                username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
-                avatar_url: state.userSettings?.avatar_url,
-                status: state.userSettings?.status || 'online',
-                stealth_mode: state.userSettings?.stealth_mode || false
-            }
-        };
-        appendMessage(optimisticMessage);
-        input.value = '';
-        input.style.height = 'auto';
-        updateSendButtonState();
-        setTimeout(() => {
-            const container = document.getElementById('messagesContainer');
-            if (container) container.scrollTop = container.scrollHeight;
-        }, 100);
+        if (!state.supabase || !state.currentUser) return;
         
-        // Extract mentions and create notifications
-        const mentions = extractMentions(message);
-        const notificationPromises = [];
-        
-        for (const username of mentions) {
-            const { data: user } = await state.supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', username)
-                .single();
-            if (user) {
-                // Check user's realm notification settings
-                const { data: realmNotification } = await state.supabase
-                    .from('user_realms')
-                    .select('realm_notifications')
-                    .eq('user_id', user.id)
-                    .eq('realm_id', state.currentRealm.id)
-                    .single();
-                    
-                if (realmNotification?.realm_notifications !== 'muted') {
-                    const notificationData = {
-                        user_id: user.id,
-                        title: 'You were mentioned',
-                        message: `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`,
-                        type: 'mention',
-                        realm_id: state.currentRealm.id,
-                        channel_id: state.currentChannel.id
-                    };
-                    
-                    notificationPromises.push(
-                        state.supabase
-                            .from('notifications')
-                            .insert(notificationData)
-                    );
-                    
-                    // Show red dot on bell
-                    const notificationDot = document.getElementById('notificationDot');
-                    if (notificationDot) {
-                        notificationDot.style.display = 'block';
-                    }
-                }
-            }
+        // Remove existing subscription if any
+        if (state.dmChannelSubscription) {
+            state.supabase.removeChannel(state.dmChannelSubscription);
         }
         
-        // Send message
-        const { error } = await state.supabase
-            .from('messages')
-            .insert([{
-                content: message,
-                channel_id: state.currentChannel.id,
-                user_id: state.currentUser.id
-            }]);
-            
-        if (error) {
-            console.log('Error sending message:', error);
-            showToast('Error', 'Failed to send message', 'error');
-            return;
-        }
-        
-        // Update streak and message count
-        await updateStreakAndMessageCount();
-        
-        // Create notifications
-        await Promise.all(notificationPromises);
+        state.dmChannelSubscription = state.supabase
+            .channel(`dm_channels:${state.currentUser.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'dm_channels',
+                filter: `user1_id.eq.${state.currentUser.id},user2_id.eq.${state.currentUser.id}`
+            }, async (payload) => {
+                console.log('DM channel change detected:', payload.eventType);
+                
+                // Reload DM channels
+                await loadDMChannels();
+            })
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'dm_participants',
+                filter: `user_id.eq.${state.currentUser.id}`
+            }, async (payload) => {
+                console.log('DM participant change detected:', payload.eventType);
+                
+                // Reload DM channels
+                await loadDMChannels();
+            })
+            .subscribe();
             
     } catch (error) {
-        console.log('Error in sendMessage:', error);
-        showToast('Error', 'Failed to send message', 'error');
+        console.log('Error setting up DM channel subscription:', error);
     }
 }
 
@@ -2234,9 +2687,6 @@ function updateProfileModal() {
         const profileAvatar = document.getElementById('profileAvatar');
         const profileBio = document.getElementById('profileBio');
         const profileShowRealms = document.getElementById('profileShowRealms');
-        const profileStreak = document.getElementById('profileStreak');
-        const profileMessageCount = document.getElementById('profileMessageCount');
-        
         if (profileEmail) {
             if (state.emailVisible) {
                 profileEmail.value = state.currentUser.email || 'Not set';
@@ -2272,24 +2722,11 @@ function updateProfileModal() {
         if (profileBio) {
             profileBio.value = state.userSettings?.bio || '';
         }
-        if (profileStreak) {
-            profileStreak.textContent = state.streakCount || 0;
-        }
-        if (profileMessageCount) {
-            profileMessageCount.textContent = state.messageCount || 0;
-        }
-        
         const socialLinks = state.userSettings?.social_links || {};
-        const socialTwitter = document.getElementById('socialTwitter');
-        const socialInstagram = document.getElementById('socialInstagram');
-        const socialWebsite = document.getElementById('socialWebsite');
-        const socialOther = document.getElementById('socialOther');
-        
-        if (socialTwitter) socialTwitter.value = socialLinks.twitter || '';
-        if (socialInstagram) socialInstagram.value = socialLinks.instagram || '';
-        if (socialWebsite) socialWebsite.value = socialLinks.website || '';
-        if (socialOther) socialOther.value = socialLinks.other || '';
-        
+        document.getElementById('socialTwitter').value = socialLinks.twitter || '';
+        document.getElementById('socialInstagram').value = socialLinks.instagram || '';
+        document.getElementById('socialWebsite').value = socialLinks.website || '';
+        document.getElementById('socialOther').value = socialLinks.other || '';
         if (profileShowRealms) {
             profileShowRealms.checked = state.userSettings?.show_realms !== false;
         }
@@ -2323,7 +2760,7 @@ async function loadUserRealmsForProfile() {
         // Update to show realm icons
         realmsList.innerHTML = realms.map(realm => {
             let iconHtml = '';
-            if (realm.icon_url) {
+            if (realm.icon_url && realm.icon_url.startsWith('http')) {
                 iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
             } else {
                 iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
@@ -2403,8 +2840,10 @@ function updateSendButtonState() {
         const input = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const content = input ? input.value.trim() : '';
-        const isChannelWritable = state.currentChannel?.is_writable !== false;      
-        if (sendBtn) sendBtn.disabled = !content || !state.currentUser || !state.currentChannel || !isChannelWritable;
+        const isChannelWritable = state.currentChannel?.is_writable !== false;
+        const hasDMChannel = state.currentDMChannel !== null;
+        
+        sendBtn.disabled = !content || !state.currentUser || (!state.currentChannel && !hasDMChannel) || (state.currentChannel && !isChannelWritable);
     } catch (error) {
         console.log('Error updating send button:', error);
     }
@@ -2412,7 +2851,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.5602 Beta...');
+        console.log('Initializing Supabase v0.5.560 Beta...');
         state.loaderTimeout = setTimeout(hideLoader, 5000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2427,12 +2866,12 @@ function initializeSupabase() {
             .then(({ data: { session }, error }) => {
                 if (error) {
                     console.log('Auth check error:', error);
-                    redirectToSignIn();
+                    showLoginScreen();
                     return;
                 }                
                 if (!session) {
-                    console.log('No session found - redirecting to signin');
-                    redirectToSignIn();
+                    console.log('No session found - showing login screen');
+                    showLoginScreen();
                     return;
                 }                
                 state.currentUser = session.user;
@@ -2441,13 +2880,13 @@ function initializeSupabase() {
             })
             .catch(error => {
                 console.log('Auth error:', error);
-                redirectToSignIn();
+                showLoginScreen();
             });
             
         state.supabase.auth.onAuthStateChange((event, session) => {
             console.log('Auth state changed:', event);            
             if (event === 'SIGNED_OUT') {
-                redirectToSignIn();
+                showLoginScreen();
             } else if (event === 'SIGNED_IN' && session) {
                 state.currentUser = session.user;
                 if (!state.initComplete) {
@@ -2459,15 +2898,71 @@ function initializeSupabase() {
         console.log('Error initializing Supabase:', error);
         showToast('Error', 'Failed to initialize', 'error');
         hideLoader();
-        redirectToSignIn();
+        showLoginScreen();
     }
 }
 
-function redirectToSignIn() {
+function showLoginScreen() {
     try {
-        window.location.href = 'signin.html';
+        hideLoader();
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('signInBtn').onclick = signIn;
+        document.getElementById('signUpBtn').onclick = signUp;
+        document.getElementById('loginPassword').onkeypress = function(e) {
+            if (e.key === 'Enter') signIn();
+        };
     } catch (error) {
-        console.log('Error redirecting to signin:', error);
+        console.log('Error showing login screen:', error);
+    }
+}
+
+async function signIn() {
+    try {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;       
+        if (!email || !password) {
+            showToast('Error', 'Please enter email and password', 'error');
+            return;
+        }        
+        const { data, error } = await state.supabase.auth.signInWithPassword({
+            email,
+            password
+        });       
+        if (error) throw error;       
+        state.currentUser = data.user;
+        document.getElementById('loginOverlay').style.display = 'none';
+        initializeApp();       
+    } catch (error) {
+        console.log('Sign in error:', error);
+        showToast('Error', error.message || 'Failed to sign in', 'error');
+    }
+}
+
+async function signUp() {
+    try {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;        
+        if (!email || !password) {
+            showToast('Error', 'Please enter email and password', 'error');
+            return;
+        }        
+        if (password.length < 6) {
+            showToast('Error', 'Password must be at least 6 characters', 'error');
+            return;
+        }        
+        const { data, error } = await state.supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        });        
+        if (error) throw error;        
+        showToast('Success', 'Account created! Check your email to confirm.', 'success');        
+    } catch (error) {
+        console.log('Sign up error:', error);
+        showToast('Error', error.message || 'Failed to create account', 'error');
     }
 }
 
@@ -2475,9 +2970,13 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.5602 Beta...');
-        const app = document.getElementById('app');
-        if (app) app.style.display = 'flex';
+        console.log('Initializing app v0.5.560 Beta...');
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('loginOverlay').style.display = 'none';
+        
+        // Update streak first
+        await updateStreak();
+        
         state.userSettings = await loadUserProfile();
         if (state.userSettings) {
             applyUserSettings();
@@ -2496,31 +2995,41 @@ async function initializeApp() {
         }
         if (realmToSelect) {
             state.currentRealm = realmToSelect;
-            // Update realm icon in sidebar
+            // Update realm icon in sidebar with actual realm icon
             const realmIcon = document.querySelector('.realm-icon');
-            if (realmIcon && realmToSelect.icon_url) {
-                realmIcon.style.backgroundImage = `url(${realmToSelect.icon_url})`;
-                realmIcon.textContent = '';
-                realmIcon.style.backgroundSize = 'cover';
-                realmIcon.style.backgroundPosition = 'center';
-            } else if (realmIcon) {
-                realmIcon.style.backgroundImage = 'none';
-                realmIcon.textContent = realmToSelect.icon_url || '🏰';
+            if (realmIcon) {
+                if (realmToSelect.icon_url && realmToSelect.icon_url.startsWith('http')) {
+                    realmIcon.style.backgroundImage = `url(${realmToSelect.icon_url})`;
+                    realmIcon.textContent = '';
+                    realmIcon.style.backgroundSize = 'cover';
+                    realmIcon.style.backgroundPosition = 'center';
+                } else {
+                    realmIcon.style.backgroundImage = 'none';
+                    realmIcon.textContent = realmToSelect.icon_url || '🏰';
+                }
             }
-            const currentRealmName = document.getElementById('currentRealmName');
-            if (currentRealmName) currentRealmName.textContent = realmToSelect.name;
-            const realmMembers = document.getElementById('realmMembers');
-            if (realmMembers) realmMembers.textContent = '';
+            document.getElementById('currentRealmName').textContent = realmToSelect.name;
+            document.getElementById('realmMembers').textContent = '';
             
             const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-            if (realmSettingsBtn) realmSettingsBtn.style.display = 'flex';
+            // Hide realm settings button for DM realm
+            if (realmToSelect.slug === 'direct-messages') {
+                realmSettingsBtn.style.display = 'none';
+            } else {
+                realmSettingsBtn.style.display = 'flex';
+            }
             
             renderRealmDropdown();
-            loadChannels();
+            
+            // Load appropriate channels based on realm type
+            if (realmToSelect.slug === 'direct-messages') {
+                loadDMChannels();
+            } else {
+                loadChannels();
+            }
         }
         setupEventListeners();
         initializePWA();
-        setupOfflineDetection();
         state.initComplete = true;
         state.isLoading = false;
         if (state.loaderTimeout) {
@@ -2529,14 +3038,8 @@ async function initializeApp() {
         }
         hideLoader();
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.5602 Beta', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.5.560 Beta', 'success');
         }, 500);
-        
-        // Parse URL hash on load
-        parseURLHash();
-        
-        // Load notifications
-        loadNotifications();
         
         setTimeout(checkWelcomeMessages, 1000);
     } catch (error) {
@@ -2588,25 +3091,20 @@ function showWelcomeModal(realm) {
         const title = document.getElementById('welcomeModalTitle');
         const message = document.getElementById('welcomeModalMessage');
         
-        if (title) title.textContent = `Welcome to ${realm.name}`;
-        if (message) message.textContent = realm.welcome_message;
+        title.textContent = `Welcome to ${realm.name}`;
+        message.textContent = realm.welcome_message;
         
-        if (modal) modal.style.display = 'flex';
+        modal.style.display = 'flex';
         
-        const closeBtn = document.getElementById('welcomeModalCloseBtn');
-        if (closeBtn) {
-            closeBtn.onclick = function() {
-                if (modal) modal.style.display = 'none';
-            };
-        }
+        document.getElementById('welcomeModalCloseBtn').onclick = function() {
+            modal.style.display = 'none';
+        };
         
-        if (modal) {
-            modal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
-                }
-            });
-        }
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
     } catch (error) {
         console.log('Error showing welcome modal:', error);
     }
@@ -2629,245 +3127,74 @@ async function loadInitialData() {
         }
         if (realmToSelect) {
             state.currentRealm = realmToSelect;
-            // Update realm icon in sidebar
+            // Update realm icon in sidebar with actual realm icon
             const realmIcon = document.querySelector('.realm-icon');
-            if (realmIcon && realmToSelect.icon_url) {
-                realmIcon.style.backgroundImage = `url(${realmToSelect.icon_url})`;
-                realmIcon.textContent = '';
-                realmIcon.style.backgroundSize = 'cover';
-                realmIcon.style.backgroundPosition = 'center';
-            } else if (realmIcon) {
-                realmIcon.style.backgroundImage = 'none';
-                realmIcon.textContent = realmToSelect.icon_url || '🏰';
+            if (realmIcon) {
+                if (realmToSelect.icon_url && realmToSelect.icon_url.startsWith('http')) {
+                    realmIcon.style.backgroundImage = `url(${realmToSelect.icon_url})`;
+                    realmIcon.textContent = '';
+                    realmIcon.style.backgroundSize = 'cover';
+                    realmIcon.style.backgroundPosition = 'center';
+                } else {
+                    realmIcon.style.backgroundImage = 'none';
+                    realmIcon.textContent = realmToSelect.icon_url || '🏰';
+                }
             }
-            const currentRealmName = document.getElementById('currentRealmName');
-            if (currentRealmName) currentRealmName.textContent = realmToSelect.name;
+            document.getElementById('currentRealmName').textContent = realmToSelect.name;
             
             const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-            if (realmSettingsBtn) realmSettingsBtn.style.display = 'flex';
+            // Hide realm settings button for DM realm
+            if (realmToSelect.slug === 'direct-messages') {
+                realmSettingsBtn.style.display = 'none';
+            } else {
+                realmSettingsBtn.style.display = 'flex';
+            }
             
             renderRealmDropdown();
-            loadChannels();
+            
+            // Load appropriate channels based on realm type
+            if (realmToSelect.slug === 'direct-messages') {
+                loadDMChannels();
+            } else {
+                loadChannels();
+            }
         }
     } catch (error) {
         console.log('Error in loadInitialData:', error);
     }
 }
 
-function setupOfflineDetection() {
-    try {
-        const offlineOverlay = document.getElementById('offlineOverlay');
-        if (!offlineOverlay) return;
-        
-        const updateOnlineStatus = (online) => {
-            state.isOnline = online;
-            if (!online) {
-                offlineOverlay.style.display = 'flex';
-                showToast('Offline', 'You are currently offline', 'warning');
-            } else {
-                offlineOverlay.style.display = 'none';
-                showToast('Online', 'Connection restored', 'success');
-            }
-        };
-        
-        // Initial check
-        updateOnlineStatus(navigator.onLine);
-        
-        // Event listeners
-        window.addEventListener('online', () => updateOnlineStatus(true));
-        window.addEventListener('offline', () => updateOnlineStatus(false));
-        
-        // Periodic check (every 30 seconds)
-        setInterval(() => {
-            if (navigator.onLine !== state.isOnline) {
-                updateOnlineStatus(navigator.onLine);
-            }
-        }, 30000);
-        
-    } catch (error) {
-        console.log('Error setting up offline detection:', error);
-    }
-}
-
-async function loadNotifications() {
-    try {
-        if (!state.supabase) return;
-        
-        const { data: notifications, error } = await state.supabase
-            .from('notifications')
-            .select('*')
-            .eq('user_id', state.currentUser.id)
-            .eq('read', false)
-            .order('created_at', { ascending: false })
-            .limit(20);
-            
-        if (error) {
-            console.log('Error loading notifications:', error);
-            return;
-        }
-        
-        state.notifications = notifications || [];
-        state.unreadNotificationCount = notifications?.length || 0;
-        
-        // Update notification dot
-        const notificationDot = document.getElementById('notificationDot');
-        if (notificationDot) {
-            if (state.unreadNotificationCount > 0) {
-                notificationDot.style.display = 'block';
-                notificationDot.textContent = state.unreadNotificationCount > 9 ? '9+' : state.unreadNotificationCount;
-            } else {
-                notificationDot.style.display = 'none';
-            }
-        }
-        
-        // Update notification dropdown
-        updateNotificationDropdown();
-    } catch (error) {
-        console.log('Error loading notifications:', error);
-    }
-}
-
-function updateNotificationDropdown() {
-    try {
-        const dropdown = document.getElementById('notificationsDropdown');
-        if (!dropdown) return;
-        
-        if (state.notifications.length === 0) {
-            dropdown.innerHTML = `
-                <div class="notification-item" style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                    No new notifications
-                </div>
-            `;
-            return;
-        }
-        
-        dropdown.innerHTML = '';
-        state.notifications.forEach(notification => {
-            const notificationElement = document.createElement('div');
-            notificationElement.className = 'notification-item';
-            notificationElement.dataset.notificationId = notification.id;
-            
-            const time = new Date(notification.created_at);
-            const timeStr = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-            
-            notificationElement.innerHTML = `
-                <div class="notification-title">${escapeHtml(notification.title)}</div>
-                <div class="notification-message">${escapeHtml(notification.message)}</div>
-                <div class="notification-time">${timeStr}</div>
-            `;
-            
-            notificationElement.addEventListener('click', () => {
-                viewNotificationDetails(notification);
-            });
-            
-            dropdown.appendChild(notificationElement);
-        });
-    } catch (error) {
-        console.log('Error updating notification dropdown:', error);
-    }
-}
-
-async function viewNotificationDetails(notification) {
-    try {
-        const modal = document.getElementById('notificationDetailModal');
-        const title = document.getElementById('notificationDetailTitle');
-        const message = document.getElementById('notificationDetailMessage');
-        const time = document.getElementById('notificationDetailTime');
-        const backBtn = document.getElementById('notificationDetailBack');
-        
-        if (title) title.textContent = notification.title;
-        if (message) message.textContent = notification.message;
-        if (time) {
-            const notificationTime = new Date(notification.created_at);
-            time.textContent = notificationTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-        
-        // Mark as read
-        await markNotificationAsRead(notification.id);
-        
-        if (modal) modal.style.display = 'flex';
-        
-        if (backBtn) {
-            backBtn.onclick = function() {
-                if (modal) modal.style.display = 'none';
-                loadNotifications();
-            };
-        }
-    } catch (error) {
-        console.log('Error viewing notification details:', error);
-    }
-}
-
-async function markNotificationAsRead(notificationId) {
-    try {
-        if (!state.supabase) return;
-        
-        const { error } = await state.supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('id', notificationId);
-            
-        if (error) {
-            console.log('Error marking notification as read:', error);
-        }
-    } catch (error) {
-        console.log('Error marking notification as read:', error);
-    }
-}
-
-async function markAllNotificationsRead() {
-    try {
-        if (!state.supabase) return;
-        
-        const { error } = await state.supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('user_id', state.currentUser.id)
-            .eq('read', false);
-            
-        if (error) {
-            console.log('Error marking notifications as read:', error);
-            return;
-        }
-        
-        const notificationDot = document.getElementById('notificationDot');
-        if (notificationDot) notificationDot.style.display = 'none';
-        
-        showToast('Success', 'All notifications marked as read', 'success');
-        loadNotifications();
-    } catch (error) {
-        console.log('Error marking notifications as read:', error);
+function updateOnlineStatus(online) {
+    state.isOnline = online;
+    const offlineOverlay = document.getElementById('offlineOverlay');
+    if (!offlineOverlay) return;
+    if (!online) {
+        offlineOverlay.style.display = 'flex';
+    } else {
+        offlineOverlay.style.display = 'none';
     }
 }
 
 function setupEventListeners() {
     try {
-        // Mobile menu
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        if (mobileMenuBtn) {
-            mobileMenuBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const sidebar = document.getElementById('sidebar');
-                if (sidebar) sidebar.classList.toggle('active');
-                const realmDropdown = document.getElementById('realmDropdown');
-                if (realmDropdown) realmDropdown.classList.remove('active');
-            });
-        }
-        
+        document.getElementById('mobileMenuBtn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+            document.getElementById('realmDropdown').classList.remove('active');
+        });
         document.addEventListener('click', function(e) {
             if (window.innerWidth <= 768) {
                 const sidebar = document.getElementById('sidebar');
                 const mobileMenuBtn = document.getElementById('mobileMenuBtn');                
-                if (sidebar && sidebar.classList.contains('active') && 
+                if (sidebar.classList.contains('active') && 
                     !sidebar.contains(e.target) && 
                     e.target !== mobileMenuBtn && 
-                    !mobileMenuBtn?.contains(e.target)) {
+                    !mobileMenuBtn.contains(e.target)) {
                     sidebar.classList.remove('active');
                 }
             }
         });
-        
-        // Touch gestures for mobile
         let touchStartX = 0;
         let touchEndX = 0;        
         document.addEventListener('touchstart', function(e) {
@@ -2876,174 +3203,93 @@ function setupEventListeners() {
         document.addEventListener('touchend', function(e) {
             touchEndX = e.changedTouches[0].screenX;
             const sidebar = document.getElementById('sidebar');
-            if (sidebar && sidebar.classList.contains('active') && touchStartX - touchEndX > 100) {
+            if (sidebar.classList.contains('active') && touchStartX - touchEndX > 100) {
                 sidebar.classList.remove('active');
             }
-            if (sidebar && !sidebar.classList.contains('active') && touchEndX - touchStartX > 100 && touchStartX < 50) {
+            if (!sidebar.classList.contains('active') && touchEndX - touchStartX > 100 && touchStartX < 50) {
                 sidebar.classList.add('active');
             }
         });
+        document.getElementById('realmSection').addEventListener('click', function(e) {
+            if (!e.target.closest('.realm-dropdown') && !e.target.closest('.realm-settings-btn')) {
+                document.getElementById('realmDropdown').classList.toggle('active');
+            }
+        });        
+        document.getElementById('realmDropdownBtn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('realmDropdown').classList.toggle('active');
+        });
         
-        // Realm dropdown
-        const realmSection = document.getElementById('realmSection');
-        if (realmSection) {
-            realmSection.addEventListener('click', function(e) {
-                if (!e.target.closest('.realm-dropdown') && !e.target.closest('.realm-settings-btn')) {
-                    const realmDropdown = document.getElementById('realmDropdown');
-                    if (realmDropdown) realmDropdown.classList.toggle('active');
-                }
-            });
-        }
-        
-        const realmDropdownBtn = document.getElementById('realmDropdownBtn');
-        if (realmDropdownBtn) {
-            realmDropdownBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const realmDropdown = document.getElementById('realmDropdown');
-                if (realmDropdown) realmDropdown.classList.toggle('active');
-            });
-        }
-        
-        const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-        if (realmSettingsBtn) {
-            realmSettingsBtn.addEventListener('click', async function(e) {
-                e.stopPropagation();
-                if (!state.currentRealm) return;
-                await showRealmSettingsModal();
-            });
-        }
+        document.getElementById('realmSettingsBtn').addEventListener('click', async function(e) {
+            e.stopPropagation();
+            if (!state.currentRealm) return;
+            await showRealmSettingsModal();
+        });
         
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.realm-section') && !e.target.closest('.realm-dropdown')) {
-                const realmDropdown = document.getElementById('realmDropdown');
-                if (realmDropdown) realmDropdown.classList.remove('active');
+                document.getElementById('realmDropdown').classList.remove('active');
             }
         });
-        
-        // Message input
         const messageInput = document.getElementById('messageInput');        
-        if (messageInput) {
-            messageInput.addEventListener('input', function() {
-                this.style.height = 'auto';
-                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-                updateSendButtonState();
-                handleTyping();
-            });        
-            
-            messageInput.addEventListener('keydown', function(e) {
-                if (state.userSettings?.send_with_enter) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                    }
-                }
-                // Handle @ mention trigger
-                if (e.key === '@' && !state.mentionSearchActive) {
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            updateSendButtonState();
+        });        
+        messageInput.addEventListener('keydown', function(e) {
+            if (state.userSettings?.send_with_enter) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    state.mentionSearchActive = true;
-                    showMentionModal();
+                    sendMessage();
                 }
-                // Handle # channel mention
-                if (e.key === '#') {
-                    e.preventDefault();
-                    showChannelMentionModal();
-                }
-                // Handle $ realm mention
-                if (e.key === '$') {
-                    e.preventDefault();
-                    showRealmMentionModal();
-                }
-            });
-        }
-        
-        // Send button
-        const sendBtn = document.getElementById('sendBtn');
-        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-        
-        // User modal
-        const headerUserBtn = document.getElementById('headerUserBtn');
-        if (headerUserBtn) {
-            headerUserBtn.addEventListener('click', function() {
-                const userModal = document.getElementById('userModal');
-                if (userModal) userModal.style.display = 'flex';
-                fetchAndUpdateProfile();
-                updateSettingsModal();
-                updateProfileModal();
-            });
-        }
-        
-        const userModalCloseBtn = document.getElementById('userModalCloseBtn');
-        if (userModalCloseBtn) {
-            userModalCloseBtn.addEventListener('click', function() {
-                const userModal = document.getElementById('userModal');
-                if (userModal) userModal.style.display = 'none';
-            });
-        }
-        
-        // Notification bell
-        const notificationBell = document.getElementById('notificationBell');
-        if (notificationBell) {
-            notificationBell.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const notificationsDropdown = document.getElementById('notificationsDropdown');
-                if (notificationsDropdown) {
-                    notificationsDropdown.style.display = notificationsDropdown.style.display === 'block' ? 'none' : 'block';
-                }
-            });
-        }
-        
-        // Close notification dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            const notificationsDropdown = document.getElementById('notificationsDropdown');
-            const notificationBell = document.getElementById('notificationBell');
-            
-            if (notificationsDropdown && notificationsDropdown.style.display === 'block' &&
-                !notificationsDropdown.contains(e.target) && 
-                e.target !== notificationBell && 
-                !notificationBell?.contains(e.target)) {
-                notificationsDropdown.style.display = 'none';
+            }
+            // Handle @ mention trigger
+            if (e.key === '@') {
+                e.preventDefault();
+                state.mentionSearchActive = true;
+                showStartConversationModal(true);
             }
         });
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('headerUserBtn').addEventListener('click', function() {
+            document.getElementById('userModal').style.display = 'flex';
+            fetchAndUpdateProfile();
+            updateSettingsModal();
+            updateProfileModal();
+        });
+        document.getElementById('userModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('userModal').style.display = 'none';
+        });
         
-        // Global search
-        const globalSearchBtn = document.getElementById('globalSearchBtn');
-        if (globalSearchBtn) {
-            globalSearchBtn.addEventListener('click', function() {
-                const globalSearchModal = document.getElementById('globalSearchModal');
-                if (globalSearchModal) globalSearchModal.style.display = 'flex';
-                const globalSearchInput = document.getElementById('globalSearchInput');
-                if (globalSearchInput) globalSearchInput.focus();
-            });
-        }
+        // Notification bell - direct modal open
+        document.getElementById('notificationBell').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('notificationsModal').style.display = 'flex';
+            loadAllNotifications();
+        });
         
-        const globalSearchCloseBtn = document.getElementById('globalSearchCloseBtn');
-        if (globalSearchCloseBtn) {
-            globalSearchCloseBtn.addEventListener('click', function() {
-                const globalSearchModal = document.getElementById('globalSearchModal');
-                if (globalSearchModal) globalSearchModal.style.display = 'none';
-            });
-        }
+        document.getElementById('globalSearchBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'flex';
+            document.getElementById('globalSearchInput').focus();
+        });
         
-        const globalSearchModalCloseBtn = document.getElementById('globalSearchModalCloseBtn');
-        if (globalSearchModalCloseBtn) {
-            globalSearchModalCloseBtn.addEventListener('click', function() {
-                const globalSearchModal = document.getElementById('globalSearchModal');
-                if (globalSearchModal) globalSearchModal.style.display = 'none';
-            });
-        }
+        document.getElementById('globalSearchCloseBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'none';
+        });
+        
+        document.getElementById('globalSearchModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('globalSearchModal').style.display = 'none';
+        });
         
         // Enhanced global search
-        const globalSearchInput = document.getElementById('globalSearchInput');
-        if (globalSearchInput) {
-            globalSearchInput.addEventListener('input', function() {
-                clearTimeout(state.realmSearchTimer);
-                state.realmSearchTimer = setTimeout(() => {
-                    performGlobalSearch(this.value);
-                }, 300);
-            });
-        }
+        document.getElementById('globalSearchInput').addEventListener('input', function() {
+            clearTimeout(state.realmSearchTimer);
+            state.realmSearchTimer = setTimeout(() => {
+                performGlobalSearch(this.value);
+            }, 300);
+        });
         
-        // Modal tabs
         document.querySelectorAll('.modal-tab').forEach(tab => {
             tab.addEventListener('click', function() {
                 const tabId = this.dataset.tab;                
@@ -3057,30 +3303,14 @@ function setupEventListeners() {
                 });
             });
         });
+        document.getElementById('avatarUploadBtn').addEventListener('click', function() {
+            document.getElementById('avatarUploadInput').click();
+        });
+        document.getElementById('avatarUploadInput').addEventListener('change', handleAvatarUpload);
+        document.getElementById('profileAvatar').addEventListener('click', function() {
+            document.getElementById('avatarUploadInput').click();
+        });
         
-        // Avatar upload
-        const avatarUploadBtn = document.getElementById('avatarUploadBtn');
-        if (avatarUploadBtn) {
-            avatarUploadBtn.addEventListener('click', function() {
-                const avatarUploadInput = document.getElementById('avatarUploadInput');
-                if (avatarUploadInput) avatarUploadInput.click();
-            });
-        }
-        
-        const avatarUploadInput = document.getElementById('avatarUploadInput');
-        if (avatarUploadInput) {
-            avatarUploadInput.addEventListener('change', handleAvatarUpload);
-        }
-        
-        const profileAvatar = document.getElementById('profileAvatar');
-        if (profileAvatar) {
-            profileAvatar.addEventListener('click', function() {
-                const avatarUploadInput = document.getElementById('avatarUploadInput');
-                if (avatarUploadInput) avatarUploadInput.click();
-            });
-        }
-        
-        // Settings toggles
         const settingsToggles = [
             'settingsInAppNotifications',
             'settingsPushNotifications',
@@ -3130,9 +3360,7 @@ function setupEventListeners() {
                         return;
                     }
                     
-                    if (state.userSettings) {
-                        state.userSettings[field] = value;
-                    }
+                    state.userSettings[field] = value;
                     showToast('Settings Updated', 'Setting saved successfully', 'success');
                     
                     if (toggleId === 'settingsSendWithEnter') {
@@ -3142,7 +3370,6 @@ function setupEventListeners() {
             }
         });
         
-        // Theme options
         document.querySelectorAll('.theme-option').forEach(option => {
             option.addEventListener('click', async function() {
                 const theme = this.dataset.theme;
@@ -3165,7 +3392,6 @@ function setupEventListeners() {
             });
         });
         
-        // Show realms toggle
         const showRealmsToggle = document.getElementById('profileShowRealms');        
         if (showRealmsToggle) {
             showRealmsToggle.addEventListener('change', async function() {
@@ -3184,7 +3410,6 @@ function setupEventListeners() {
             });
         }
         
-        // Disabled toggles
         document.querySelectorAll('.toggle-switch.disabled').forEach(toggle => {
             toggle.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -3193,181 +3418,86 @@ function setupEventListeners() {
             });
         });
         
-        // Quick profile modal
-        const quickProfileCloseBtn = document.getElementById('quickProfileCloseBtn');
-        if (quickProfileCloseBtn) {
-            quickProfileCloseBtn.addEventListener('click', function() {
-                const quickProfileModal = document.getElementById('quickProfileModal');
-                if (quickProfileModal) quickProfileModal.style.display = 'none';
-                state.selectedUserForProfile = null;
-            });
-        }
-        
-        const quickProfileContactBtn = document.getElementById('quickProfileContactBtn');
-        if (quickProfileContactBtn) {
-            quickProfileContactBtn.addEventListener('click', async function() {
-                if (state.selectedUserForProfile) {
-                    await createOrOpenDM(state.selectedUserForProfile);
-                    const quickProfileModal = document.getElementById('quickProfileModal');
-                    if (quickProfileModal) quickProfileModal.style.display = 'none';
+        document.getElementById('quickProfileCloseBtn').addEventListener('click', function() {
+            document.getElementById('quickProfileModal').style.display = 'none';
+            state.selectedUserForProfile = null;
+        });       
+        document.getElementById('quickProfileContactBtn').addEventListener('click', async function() {
+            if (state.selectedUserForProfile) {
+                await createOrOpenDM(state.selectedUserForProfile);
+                document.getElementById('quickProfileModal').style.display = 'none';
+            }
+        });       
+        document.getElementById('quickProfileReportBtn').addEventListener('click', async function() {
+            if (state.selectedUserForProfile) {
+                await reportUser(state.selectedUserForProfile);
+                document.getElementById('quickProfileModal').style.display = 'none';
+            }
+        });
+        document.getElementById('closeEmojiPickerBtn').addEventListener('click', function() {
+            document.getElementById('emojiPickerModal').style.display = 'none';
+        });
+        document.getElementById('mediaFullscreenClose').addEventListener('click', function() {
+            document.getElementById('mediaFullscreenModal').style.display = 'none';
+            const img = document.getElementById('mediaFullscreenImg');
+            const video = document.getElementById('mediaFullscreenVideo');
+            img.style.display = 'none';
+            video.style.display = 'none';
+            video.pause();
+            video.src = '';
+        });        
+        document.getElementById('mediaFullscreenFullscreenBtn').addEventListener('click', function() {
+            if (state.mediaFullscreenElement) {
+                if (state.mediaFullscreenElement.requestFullscreen) {
+                    state.mediaFullscreenElement.requestFullscreen();
+                } else if (state.mediaFullscreenElement.webkitRequestFullscreen) {
+                    state.mediaFullscreenElement.webkitRequestFullscreen();
+                } else if (state.mediaFullscreenElement.msRequestFullscreen) {
+                    state.mediaFullscreenElement.msRequestFullscreen();
                 }
-            });
-        }
-        
-        const quickProfileReportBtn = document.getElementById('quickProfileReportBtn');
-        if (quickProfileReportBtn) {
-            quickProfileReportBtn.addEventListener('click', async function() {
-                if (state.selectedUserForProfile) {
-                    await reportUser(state.selectedUserForProfile);
-                    const quickProfileModal = document.getElementById('quickProfileModal');
-                    if (quickProfileModal) quickProfileModal.style.display = 'none';
-                }
-            });
-        }
-        
-        // Emoji picker
-        const closeEmojiPickerBtn = document.getElementById('closeEmojiPickerBtn');
-        if (closeEmojiPickerBtn) {
-            closeEmojiPickerBtn.addEventListener('click', function() {
-                const emojiPickerModal = document.getElementById('emojiPickerModal');
-                if (emojiPickerModal) emojiPickerModal.style.display = 'none';
-            });
-        }
-        
-        // Media fullscreen
-        const mediaFullscreenClose = document.getElementById('mediaFullscreenClose');
-        if (mediaFullscreenClose) {
-            mediaFullscreenClose.addEventListener('click', function() {
-                const mediaFullscreenModal = document.getElementById('mediaFullscreenModal');
-                if (mediaFullscreenModal) mediaFullscreenModal.style.display = 'none';
+            }
+        });
+        document.getElementById('mediaFullscreenModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
                 const img = document.getElementById('mediaFullscreenImg');
                 const video = document.getElementById('mediaFullscreenVideo');
-                if (img) img.style.display = 'none';
-                if (video) {
-                    video.style.display = 'none';
-                    video.pause();
-                    video.src = '';
-                }
-            });
-        }
-        
-        const mediaFullscreenFullscreenBtn = document.getElementById('mediaFullscreenFullscreenBtn');
-        if (mediaFullscreenFullscreenBtn) {
-            mediaFullscreenFullscreenBtn.addEventListener('click', function() {
-                if (state.mediaFullscreenElement) {
-                    if (state.mediaFullscreenElement.requestFullscreen) {
-                        state.mediaFullscreenElement.requestFullscreen();
-                    } else if (state.mediaFullscreenElement.webkitRequestFullscreen) {
-                        state.mediaFullscreenElement.webkitRequestFullscreen();
-                    } else if (state.mediaFullscreenElement.msRequestFullscreen) {
-                        state.mediaFullscreenElement.msRequestFullscreen();
-                    }
-                }
-            });
-        }
-        
-        const mediaFullscreenModal = document.getElementById('mediaFullscreenModal');
-        if (mediaFullscreenModal) {
-            mediaFullscreenModal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
-                    const img = document.getElementById('mediaFullscreenImg');
-                    const video = document.getElementById('mediaFullscreenVideo');
-                    if (img) img.style.display = 'none';
-                    if (video) {
-                        video.style.display = 'none';
-                        video.pause();
-                        video.src = '';
-                    }
-                }
-            });
-        }
-        
-        // All realms modal
-        const closeAllRealmsBtn = document.getElementById('closeAllRealmsBtn');
-        if (closeAllRealmsBtn) {
-            closeAllRealmsBtn.addEventListener('click', function() {
-                const allRealmsModal = document.getElementById('allRealmsModal');
-                if (allRealmsModal) allRealmsModal.style.display = 'none';
-            });
-        }
-        
-        const allRealmsModalCloseBtn = document.getElementById('allRealmsModalCloseBtn');
-        if (allRealmsModalCloseBtn) {
-            allRealmsModalCloseBtn.addEventListener('click', function() {
-                const allRealmsModal = document.getElementById('allRealmsModal');
-                if (allRealmsModal) allRealmsModal.style.display = 'none';
-            });
-        }
-        
-        const createNewRealmBtn = document.getElementById('createNewRealmBtn');
-        if (createNewRealmBtn) {
-            createNewRealmBtn.addEventListener('click', function() {
-                const allRealmsModal = document.getElementById('allRealmsModal');
-                if (allRealmsModal) allRealmsModal.style.display = 'none';
-                const createRealmModal = document.getElementById('createRealmModal');
-                if (createRealmModal) createRealmModal.style.display = 'flex';
-            });
-        }
-        
-        // Create realm modal
-        const createRealmModalCloseBtn = document.getElementById('createRealmModalCloseBtn');
-        if (createRealmModalCloseBtn) {
-            createRealmModalCloseBtn.addEventListener('click', function() {
-                const createRealmModal = document.getElementById('createRealmModal');
-                if (createRealmModal) createRealmModal.style.display = 'none';
-            });
-        }
-        
-        const cancelCreateRealmBtn = document.getElementById('cancelCreateRealmBtn');
-        if (cancelCreateRealmBtn) {
-            cancelCreateRealmBtn.addEventListener('click', function() {
-                const createRealmModal = document.getElementById('createRealmModal');
-                if (createRealmModal) createRealmModal.style.display = 'none';
-            });
-        }
-        
-        const confirmCreateRealmBtn = document.getElementById('confirmCreateRealmBtn');
-        if (confirmCreateRealmBtn) {
-            confirmCreateRealmBtn.addEventListener('click', createRealmModal);
-        }
-        
-        // Add channel
-        const addChannelBtn = document.getElementById('addChannelBtn');
-        if (addChannelBtn) {
-            addChannelBtn.addEventListener('click', function() {
-                const currentRealmNameForChannel = document.getElementById('currentRealmNameForChannel');
-                if (currentRealmNameForChannel) {
-                    currentRealmNameForChannel.textContent = state.currentRealm?.name || 'this realm';
-                }
-                const createChannelModal = document.getElementById('createChannelModal');
-                if (createChannelModal) createChannelModal.style.display = 'flex';
-            });
-        }
-        
-        const cancelCreateChannelBtn = document.getElementById('cancelCreateChannelBtn');
-        if (cancelCreateChannelBtn) {
-            cancelCreateChannelBtn.addEventListener('click', function() {
-                const createChannelModal = document.getElementById('createChannelModal');
-                if (createChannelModal) createChannelModal.style.display = 'none';
-            });
-        }
-        
-        const confirmCreateChannelBtn = document.getElementById('confirmCreateChannelBtn');
-        if (confirmCreateChannelBtn) {
-            confirmCreateChannelBtn.addEventListener('click', createChannel);
-        }
-        
-        // Delete channel
-        const cancelDeleteChannelBtn = document.getElementById('cancelDeleteChannelBtn');
-        if (cancelDeleteChannelBtn) {
-            cancelDeleteChannelBtn.addEventListener('click', function() {
-                const deleteChannelModal = document.getElementById('deleteChannelModal');
-                if (deleteChannelModal) deleteChannelModal.style.display = 'none';
-                state.pendingChannelDelete = null;
-                resetDeleteChannelSteps();
-            });
-        }
+                img.style.display = 'none';
+                video.style.display = 'none';
+                video.pause();
+                video.src = '';
+            }
+        });
+        document.getElementById('closeAllRealmsBtn').addEventListener('click', function() {
+            document.getElementById('allRealmsModal').style.display = 'none';
+        });
+        document.getElementById('allRealmsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('allRealmsModal').style.display = 'none';
+        });
+        document.getElementById('createNewRealmBtn').addEventListener('click', function() {
+            document.getElementById('allRealmsModal').style.display = 'none';
+            document.getElementById('createRealmModal').style.display = 'flex';
+        });
+        document.getElementById('createRealmModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('createRealmModal').style.display = 'none';
+        });
+        document.getElementById('cancelCreateRealmBtn').addEventListener('click', function() {
+            document.getElementById('createRealmModal').style.display = 'none';
+        });
+        document.getElementById('confirmCreateRealmBtn').addEventListener('click', createRealmModal);
+        document.getElementById('addChannelBtn').addEventListener('click', function() {
+            document.getElementById('currentRealmNameForChannel').textContent = state.currentRealm?.name || 'this realm';
+            document.getElementById('createChannelModal').style.display = 'flex';
+        });
+        document.getElementById('cancelCreateChannelBtn').addEventListener('click', function() {
+            document.getElementById('createChannelModal').style.display = 'none';
+        });        
+        document.getElementById('confirmCreateChannelBtn').addEventListener('click', createChannel);
+        document.getElementById('cancelDeleteChannelBtn').addEventListener('click', function() {
+            document.getElementById('deleteChannelModal').style.display = 'none';
+            state.pendingChannelDelete = null;
+            resetDeleteChannelSteps();
+        });
         
         document.querySelectorAll('.delete-step-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -3377,151 +3507,94 @@ function setupEventListeners() {
             });
         });
         
-        // Force refresh
-        const forceRefreshBtn = document.getElementById('forceRefreshBtn');
-        if (forceRefreshBtn) {
-            forceRefreshBtn.addEventListener('click', function() {
-                const confirmationModal = document.getElementById('confirmationModal');
-                if (confirmationModal) confirmationModal.style.display = 'flex';
-                const confirmationIcon = document.getElementById('confirmationIcon');
-                if (confirmationIcon) confirmationIcon.textContent = '↻';
-                const confirmationTitle = document.getElementById('confirmationTitle');
-                if (confirmationTitle) confirmationTitle.textContent = 'Force Refresh';
-                const confirmationMessage = document.getElementById('confirmationMessage');
-                if (confirmationMessage) confirmationMessage.textContent = 'This will reload the application and clear local cache. Continue?';
-                
-                const confirmBtn = document.getElementById('confirmationConfirm');
-                const cancelBtn = document.getElementById('confirmationCancel');
-                
-                const handleConfirm = () => {
-                    localStorage.clear();
-                    window.location.reload(true);
-                };
-                
-                const handleCancel = () => {
-                    const confirmationModal = document.getElementById('confirmationModal');
-                    if (confirmationModal) confirmationModal.style.display = 'none';
-                    if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-                    if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
-                };
-                
-                if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
-                if (cancelBtn) cancelBtn.addEventListener('click', handleCancel);
-            });
-        }
-        
-        const modalForceRefreshBtn = document.getElementById('modalForceRefreshBtn');
-        if (modalForceRefreshBtn) {
-            modalForceRefreshBtn.addEventListener('click', function() {
-                const confirmationModal = document.getElementById('confirmationModal');
-                if (confirmationModal) confirmationModal.style.display = 'flex';
-                const confirmationIcon = document.getElementById('confirmationIcon');
-                if (confirmationIcon) confirmationIcon.textContent = '↻';
-                const confirmationTitle = document.getElementById('confirmationTitle');
-                if (confirmationTitle) confirmationTitle.textContent = 'Force Refresh';
-                const confirmationMessage = document.getElementById('confirmationMessage');
-                if (confirmationMessage) confirmationMessage.textContent = 'This will reload the application and clear local cache. Continue?';
-                
-                const confirmBtn = document.getElementById('confirmationConfirm');
-                const cancelBtn = document.getElementById('confirmationCancel');
-                
-                const handleConfirm = () => {
-                    localStorage.clear();
-                    window.location.reload(true);
-                };
-                
-                const handleCancel = () => {
-                    const confirmationModal = document.getElementById('confirmationModal');
-                    if (confirmationModal) confirmationModal.style.display = 'none';
-                    if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-                    if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
-                };
-                
-                if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
-                if (cancelBtn) cancelBtn.addEventListener('click', handleCancel);
-            });
-        }
-        
-        // Check for updates button
-        const checkForUpdatesBtn = document.getElementById('checkForUpdatesBtn');
-        if (checkForUpdatesBtn) {
-            checkForUpdatesBtn.addEventListener('click', async function() {
-                if ('caches' in window) {
-                    await caches.delete('labyrinth-chat');
-                }
-                window.location.reload();
-            });
-        }
-        
-        // Logout
-        const profileLogoutBtn = document.getElementById('profileLogoutBtn');
-        if (profileLogoutBtn) {
-            profileLogoutBtn.addEventListener('click', function() {
-                state.supabase.auth.signOut()
-                    .then(() => {
-                        window.location.href = 'signin.html';
-                    })
-                    .catch(error => {
-                        console.log('Logout error:', error);
-                        showToast('Error', 'Failed to logout', 'error');
-                    });
-            });
-        }
-        
-        // Delete account
-        const deleteAccountBtn = document.getElementById('deleteAccountBtn');
-        if (deleteAccountBtn) {
-            deleteAccountBtn.addEventListener('click', function() {
-                const confirmationModal = document.getElementById('confirmationModal');
-                if (confirmationModal) confirmationModal.style.display = 'flex';
-                const confirmationIcon = document.getElementById('confirmationIcon');
-                if (confirmationIcon) confirmationIcon.textContent = '🗑️';
-                const confirmationTitle = document.getElementById('confirmationTitle');
-                if (confirmationTitle) confirmationTitle.textContent = 'Delete Account';
-                const confirmationMessage = document.getElementById('confirmationMessage');
-                if (confirmationMessage) confirmationMessage.textContent = 'This cannot be undone. All your data, messages, and realms will be permanently deleted.';           
-                
-                const confirmBtn = document.getElementById('confirmationConfirm');
-                const cancelBtn = document.getElementById('confirmationCancel');            
-                
-                const handleConfirm = async () => {
-                    try {
-                        showToast('Info', 'Account deletion coming in a future update', 'info');
-                        const confirmationModal = document.getElementById('confirmationModal');
-                        if (confirmationModal) confirmationModal.style.display = 'none';
-                    } catch (error) {
-                        console.log('Error deleting account:', error);
-                        showToast('Error', 'Failed to delete account', 'error');
-                        const confirmationModal = document.getElementById('confirmationModal');
-                        if (confirmationModal) confirmationModal.style.display = 'none';
-                    }                
-                    if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-                    if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
-                };            
-                
-                const handleCancel = () => {
-                    const confirmationModal = document.getElementById('confirmationModal');
-                    if (confirmationModal) confirmationModal.style.display = 'none';
-                    if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-                    if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
-                };            
-                
-                if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
-                if (cancelBtn) cancelBtn.addEventListener('click', handleCancel);
-            });
-        }
-        
-        // Email toggle
-        const emailToggleBtn = document.getElementById('emailToggleBtn');
-        if (emailToggleBtn) {
-            emailToggleBtn.addEventListener('click', function() {
-                state.emailVisible = !state.emailVisible;
-                this.textContent = state.emailVisible ? 'Hide Email' : 'Show Email';
-                updateProfileModal();
-            });
-        }
-        
-        // Username auto-save
+        document.getElementById('forceRefreshBtn').addEventListener('click', function() {
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '↻';
+            document.getElementById('confirmationTitle').textContent = 'Force Refresh';
+            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');
+            
+            const handleConfirm = () => {
+                localStorage.clear();
+                window.location.reload(true);
+            };
+            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        });        
+        document.getElementById('modalForceRefreshBtn').addEventListener('click', function() {
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '↻';
+            document.getElementById('confirmationTitle').textContent = 'Force Refresh';
+            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');
+            
+            const handleConfirm = () => {
+                localStorage.clear();
+                window.location.reload(true);
+            };
+            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        });
+        document.getElementById('profileLogoutBtn').addEventListener('click', function() {
+            state.supabase.auth.signOut()
+                .then(() => {
+                    window.location.href = '/';
+                })
+                .catch(error => {
+                    console.log('Logout error:', error);
+                    showToast('Error', 'Failed to logout', 'error');
+                });
+        });
+        document.getElementById('deleteAccountBtn').addEventListener('click', function() {
+            document.getElementById('confirmationModal').style.display = 'flex';
+            document.getElementById('confirmationIcon').textContent = '🗑️';
+            document.getElementById('confirmationTitle').textContent = 'Delete Account';
+            document.getElementById('confirmationMessage').textContent = 'This cannot be undone. All your data, messages, and realms will be permanently deleted.';           
+            const confirmBtn = document.getElementById('confirmationConfirm');
+            const cancelBtn = document.getElementById('confirmationCancel');            
+            const handleConfirm = async () => {
+                try {
+                    showToast('Info', 'Account deletion coming in a future update', 'info');
+                    document.getElementById('confirmationModal').style.display = 'none';
+                } catch (error) {
+                    console.log('Error deleting account:', error);
+                    showToast('Error', 'Failed to delete account', 'error');
+                    document.getElementById('confirmationModal').style.display = 'none';
+                }                
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };            
+            const handleCancel = () => {
+                document.getElementById('confirmationModal').style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };            
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        });
+        document.getElementById('emailToggleBtn').addEventListener('click', function() {
+            state.emailVisible = !state.emailVisible;
+            this.textContent = state.emailVisible ? 'Hide Email' : 'Show Email';
+            updateProfileModal();
+        });
         const usernameInput = document.getElementById('profileUsername');
         if (usernameInput) {
             usernameInput.addEventListener('input', function() {
@@ -3535,8 +3608,6 @@ function setupEventListeners() {
                 saveUsername(this.value.trim());
             });
         }
-        
-        // Bio auto-save
         const bioInput = document.getElementById('profileBio');
         if (bioInput) {
             bioInput.addEventListener('input', function() {
@@ -3550,8 +3621,6 @@ function setupEventListeners() {
                 saveBio(this.value);
             });
         }
-        
-        // Social links auto-save
         const socialInputs = ['socialTwitter', 'socialInstagram', 'socialWebsite', 'socialOther'];
         socialInputs.forEach(id => {
             const input = document.getElementById(id);
@@ -3561,8 +3630,6 @@ function setupEventListeners() {
                 });
             }
         });
-        
-        // Modal back click
         document.querySelectorAll('.modal-back').forEach(modal => {
             modal.addEventListener('click', function(e) {
                 if (e.target === this) {
@@ -3572,48 +3639,46 @@ function setupEventListeners() {
                         resetDeleteChannelSteps();
                     }
                     if (this.id === 'startConversationModal') {
-                        const userSearchInput = document.getElementById('userSearchInput');
-                        if (userSearchInput) userSearchInput.value = '';
-                        const userSearchResults = document.getElementById('userSearchResults');
-                        if (userSearchResults) userSearchResults.style.display = 'none';
+                        document.getElementById('userSearchInput').value = '';
+                        document.getElementById('userSearchResults').style.display = 'none';
                         state.mentionSearchActive = false;
+                    }
+                    if (this.id === 'dmChannelSettingsModal') {
+                        state.selectedDMChannel = null;
                     }
                 }
             });
         });
-        
-        // Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                const realmDropdown = document.getElementById('realmDropdown');
-                if (realmDropdown) realmDropdown.classList.remove('active');
-                
-                const modals = [
-                    'userModal', 'allRealmsModal', 'createRealmModal', 'createChannelModal',
-                    'deleteChannelModal', 'quickProfileModal', 'emojiPickerModal',
-                    'confirmationModal', 'mediaFullscreenModal', 'startConversationModal',
-                    'enhancedMediaModal', 'welcomeModal', 'realmSettingsModal',
-                    'realmAnnouncementModal', 'avatarFullscreenModal', 'globalSearchModal',
-                    'notificationsModal', 'publicProfileModal', 'notificationsDropdown',
-                    'notificationDetailModal'
-                ];
-                
-                modals.forEach(modalId => {
-                    const modal = document.getElementById(modalId);
-                    if (modal) modal.style.display = 'none';
-                });
-                
+                document.getElementById('realmDropdown').classList.remove('active');
+                document.getElementById('userModal').style.display = 'none';
+                document.getElementById('allRealmsModal').style.display = 'none';
+                document.getElementById('createRealmModal').style.display = 'none';
+                document.getElementById('createChannelModal').style.display = 'none';
+                document.getElementById('deleteChannelModal').style.display = 'none';
+                document.getElementById('quickProfileModal').style.display = 'none';
+                document.getElementById('emojiPickerModal').style.display = 'none';
+                document.getElementById('confirmationModal').style.display = 'none';
+                document.getElementById('mediaFullscreenModal').style.display = 'none';
+                document.getElementById('startConversationModal').style.display = 'none';
+                document.getElementById('enhancedMediaModal').style.display = 'none';
+                document.getElementById('welcomeModal').style.display = 'none';
+                document.getElementById('realmSettingsModal').style.display = 'none';
+                document.getElementById('realmAnnouncementModal').style.display = 'none';
+                document.getElementById('avatarFullscreenModal').style.display = 'none';
+                document.getElementById('globalSearchModal').style.display = 'none';
+                document.getElementById('notificationsModal').style.display = 'none';
+                document.getElementById('publicProfileModal').style.display = 'none';
+                document.getElementById('notificationsDropdown').style.display = 'none';
+                document.getElementById('dmChannelSettingsModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
-                    const sidebar = document.getElementById('sidebar');
-                    if (sidebar) sidebar.classList.remove('active');
+                    document.getElementById('sidebar').classList.remove('active');
                 }              
-                
-                const deleteChannelModal = document.getElementById('deleteChannelModal');
-                if (deleteChannelModal && deleteChannelModal.style.display === 'none') {
+                if (document.getElementById('deleteChannelModal').style.display === 'none') {
                     state.pendingChannelDelete = null;
                     resetDeleteChannelSteps();
                 }
-                
                 if (state.editingMessageId) {
                     state.editingMessageId = null;
                     document.querySelectorAll('.message-edit-input').forEach(input => {
@@ -3627,315 +3692,207 @@ function setupEventListeners() {
                 }
             }
         });
-        
-        // Visibility change
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden && state.supabase && state.currentUser) {
                 loadInitialData();
             }
         });
         
-        // Realm search
-        const realmSearchInput = document.getElementById('realmSearchInput');
-        if (realmSearchInput) {
-            realmSearchInput.addEventListener('input', function() {
-                clearTimeout(state.realmSearchTimer);
-                state.realmSearchTimer = setTimeout(() => {
-                    filterRealms(this.value);
-                }, 300);
-            });
-        }
+        document.getElementById('realmSearchInput').addEventListener('input', function() {
+            clearTimeout(state.realmSearchTimer);
+            state.realmSearchTimer = setTimeout(() => {
+                filterRealms(this.value);
+            }, 300);
+        });
         
-        // User search
-        const userSearchInput = document.getElementById('userSearchInput');
-        if (userSearchInput) {
-            userSearchInput.addEventListener('input', function() {
-                clearTimeout(state.userSearchTimer);
-                state.userSearchTimer = setTimeout(() => {
-                    searchUsers(this.value);
-                }, 300);
-            });
-        }
+        document.getElementById('userSearchInput').addEventListener('input', function() {
+            clearTimeout(state.userSearchTimer);
+            state.userSearchTimer = setTimeout(() => {
+                searchUsers(this.value);
+            }, 300);
+        });
         
-        // Start conversation modal
-        const cancelStartConversationBtn = document.getElementById('cancelStartConversationBtn');
-        if (cancelStartConversationBtn) {
-            cancelStartConversationBtn.addEventListener('click', function() {
-                const startConversationModal = document.getElementById('startConversationModal');
-                if (startConversationModal) startConversationModal.style.display = 'none';
-                const userSearchInput = document.getElementById('userSearchInput');
-                if (userSearchInput) userSearchInput.value = '';
-                const userSearchResults = document.getElementById('userSearchResults');
-                if (userSearchResults) userSearchResults.style.display = 'none';
-                state.mentionSearchActive = false;
-            });
-        }
+        document.getElementById('cancelStartConversationBtn').addEventListener('click', function() {
+            document.getElementById('startConversationModal').style.display = 'none';
+            document.getElementById('userSearchInput').value = '';
+            document.getElementById('userSearchResults').style.display = 'none';
+            state.mentionSearchActive = false;
+        });
         
-        const startConversationModalCloseBtn = document.getElementById('startConversationModalCloseBtn');
-        if (startConversationModalCloseBtn) {
-            startConversationModalCloseBtn.addEventListener('click', function() {
-                const startConversationModal = document.getElementById('startConversationModal');
-                if (startConversationModal) startConversationModal.style.display = 'none';
-                const userSearchInput = document.getElementById('userSearchInput');
-                if (userSearchInput) userSearchInput.value = '';
-                const userSearchResults = document.getElementById('userSearchResults');
-                if (userSearchResults) userSearchResults.style.display = 'none';
-                state.mentionSearchActive = false;
-            });
-        }
+        document.getElementById('startConversationModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('startConversationModal').style.display = 'none';
+            document.getElementById('userSearchInput').value = '';
+            document.getElementById('userSearchResults').style.display = 'none';
+            state.mentionSearchActive = false;
+        });
         
-        // Enhanced media modal
-        const enhancedMediaClose = document.getElementById('enhancedMediaClose');
-        if (enhancedMediaClose) {
-            enhancedMediaClose.addEventListener('click', function() {
-                const enhancedMediaModal = document.getElementById('enhancedMediaModal');
-                if (enhancedMediaModal) enhancedMediaModal.style.display = 'none';
-                const iframe = document.getElementById('enhancedMediaIframe');
-                if (iframe) iframe.src = '';
-            });
-        }
+        document.getElementById('enhancedMediaClose').addEventListener('click', function() {
+            document.getElementById('enhancedMediaModal').style.display = 'none';
+            const iframe = document.getElementById('enhancedMediaIframe');
+            iframe.src = '';
+        });
         
-        // Avatar fullscreen modal
-        const avatarFullscreenClose = document.getElementById('avatarFullscreenClose');
-        if (avatarFullscreenClose) {
-            avatarFullscreenClose.addEventListener('click', function() {
-                const avatarFullscreenModal = document.getElementById('avatarFullscreenModal');
-                if (avatarFullscreenModal) avatarFullscreenModal.style.display = 'none';
-            });
-        }
+        document.getElementById('avatarFullscreenClose').addEventListener('click', function() {
+            document.getElementById('avatarFullscreenModal').style.display = 'none';
+        });
         
-        const avatarFullscreenModal = document.getElementById('avatarFullscreenModal');
-        if (avatarFullscreenModal) {
-            avatarFullscreenModal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
-                }
-            });
-        }
+        document.getElementById('avatarFullscreenModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
         
-        // Realm announcement modal
-        const realmAnnouncementCloseBtn = document.getElementById('realmAnnouncementCloseBtn');
-        if (realmAnnouncementCloseBtn) {
-            realmAnnouncementCloseBtn.addEventListener('click', function() {
-                const realmAnnouncementModal = document.getElementById('realmAnnouncementModal');
-                if (realmAnnouncementModal) realmAnnouncementModal.style.display = 'none';
-            });
-        }
+        document.getElementById('realmAnnouncementCloseBtn').addEventListener('click', function() {
+            document.getElementById('realmAnnouncementModal').style.display = 'none';
+        });
         
-        // Realm settings modal
-        const realmSettingsModalCloseBtn = document.getElementById('realmSettingsModalCloseBtn');
-        if (realmSettingsModalCloseBtn) {
-            realmSettingsModalCloseBtn.addEventListener('click', function() {
-                const realmSettingsModal = document.getElementById('realmSettingsModal');
-                if (realmSettingsModal) realmSettingsModal.style.display = 'none';
-            });
-        }
+        document.getElementById('realmSettingsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsModal').style.display = 'none';
+        });
         
-        const cancelRealmSettingsBtn = document.getElementById('cancelRealmSettingsBtn');
-        if (cancelRealmSettingsBtn) {
-            cancelRealmSettingsBtn.addEventListener('click', function() {
-                const realmSettingsModal = document.getElementById('realmSettingsModal');
-                if (realmSettingsModal) realmSettingsModal.style.display = 'none';
-            });
-        }
+        document.getElementById('cancelRealmSettingsBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsModal').style.display = 'none';
+        });
         
-        const saveRealmSettingsBtn = document.getElementById('saveRealmSettingsBtn');
-        if (saveRealmSettingsBtn) {
-            saveRealmSettingsBtn.addEventListener('click', saveRealmSettings);
-        }
+        document.getElementById('saveRealmSettingsBtn').addEventListener('click', saveRealmSettings);
         
-        const realmSettingsChooseEmojiBtn = document.getElementById('realmSettingsChooseEmojiBtn');
-        if (realmSettingsChooseEmojiBtn) {
-            realmSettingsChooseEmojiBtn.addEventListener('click', function() {
-                showRealmIconEmojiPicker();
-            });
-        }
+        document.getElementById('realmSettingsChooseEmojiBtn').addEventListener('click', function() {
+            showRealmIconEmojiPicker();
+        });
         
-        const realmSettingsIconUploadBtn = document.getElementById('realmSettingsIconUploadBtn');
-        if (realmSettingsIconUploadBtn) {
-            realmSettingsIconUploadBtn.addEventListener('click', function() {
-                const realmSettingsIconUpload = document.getElementById('realmSettingsIconUpload');
-                if (realmSettingsIconUpload) realmSettingsIconUpload.click();
-            });
-        }
+        document.getElementById('realmSettingsIconUploadBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsIconUpload').click();
+        });
         
-        const realmSettingsBackgroundUploadBtn = document.getElementById('realmSettingsBackgroundUploadBtn');
-        if (realmSettingsBackgroundUploadBtn) {
-            realmSettingsBackgroundUploadBtn.addEventListener('click', function() {
-                const realmSettingsBackgroundUpload = document.getElementById('realmSettingsBackgroundUpload');
-                if (realmSettingsBackgroundUpload) realmSettingsBackgroundUpload.click();
-            });
-        }
+        document.getElementById('realmSettingsBackgroundUploadBtn').addEventListener('click', function() {
+            document.getElementById('realmSettingsBackgroundUpload').click();
+        });
         
-        const realmSettingsIconUpload = document.getElementById('realmSettingsIconUpload');
-        if (realmSettingsIconUpload) {
-            realmSettingsIconUpload.addEventListener('change', handleRealmIconUpload);
-        }
+        document.getElementById('realmSettingsIconUpload').addEventListener('change', handleRealmIconUpload);
+        document.getElementById('realmSettingsBackgroundUpload').addEventListener('change', handleRealmBackgroundUpload);
         
-        const realmSettingsBackgroundUpload = document.getElementById('realmSettingsBackgroundUpload');
-        if (realmSettingsBackgroundUpload) {
-            realmSettingsBackgroundUpload.addEventListener('change', handleRealmBackgroundUpload);
-        }
+        document.getElementById('realmSettingsPublic').addEventListener('change', function() {
+            const privateSection = document.getElementById('privateRealmSection');
+            if (this.checked) {
+                privateSection.style.display = 'none';
+            } else {
+                privateSection.style.display = 'block';
+            }
+        });
         
-        const realmSettingsPublic = document.getElementById('realmSettingsPublic');
-        if (realmSettingsPublic) {
-            realmSettingsPublic.addEventListener('change', function() {
-                const privateSection = document.getElementById('privateRealmSection');
-                if (privateSection) {
-                    if (this.checked) {
-                        privateSection.style.display = 'none';
-                    } else {
-                        privateSection.style.display = 'block';
-                    }
-                }
-            });
-        }
+        document.getElementById('realmSettingsInviteBtn').addEventListener('click', function() {
+            showInviteUsersModal();
+        });
         
-        const realmSettingsInviteBtn = document.getElementById('realmSettingsInviteBtn');
-        if (realmSettingsInviteBtn) {
-            realmSettingsInviteBtn.addEventListener('click', function() {
-                showInviteUsersModal();
-            });
-        }
+        document.getElementById('realmAddCoAdminBtn').addEventListener('click', function() {
+            addCoAdmin();
+        });
         
-        const realmAddCoAdminBtn = document.getElementById('realmAddCoAdminBtn');
-        if (realmAddCoAdminBtn) {
-            realmAddCoAdminBtn.addEventListener('click', function() {
+        document.getElementById('realmCoAdminSearch').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
                 addCoAdmin();
-            });
-        }
+            }
+        });
         
-        const realmCoAdminSearch = document.getElementById('realmCoAdminSearch');
-        if (realmCoAdminSearch) {
-            realmCoAdminSearch.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    addCoAdmin();
-                }
-            });
-        }
+        document.getElementById('realmSettingsCreateChannelBtn').addEventListener('click', function() {
+            document.getElementById('createChannelModal').style.display = 'flex';
+        });
         
-        const realmSettingsCreateChannelBtn = document.getElementById('realmSettingsCreateChannelBtn');
-        if (realmSettingsCreateChannelBtn) {
-            realmSettingsCreateChannelBtn.addEventListener('click', function() {
-                const createChannelModal = document.getElementById('createChannelModal');
-                if (createChannelModal) createChannelModal.style.display = 'flex';
-            });
-        }
+        document.getElementById('realmSettingsLeaveBtn').addEventListener('click', function() {
+            if (!state.currentRealm) return;
+            leaveRealm(state.currentRealm.id);
+        });
         
-        const realmSettingsLeaveBtn = document.getElementById('realmSettingsLeaveBtn');
-        if (realmSettingsLeaveBtn) {
-            realmSettingsLeaveBtn.addEventListener('click', function() {
-                if (!state.currentRealm) return;
-                leaveRealm(state.currentRealm.id);
-            });
-        }
+        document.getElementById('realmSettingsDeleteBtn').addEventListener('click', function() {
+            if (!state.currentRealm) return;
+            deleteRealm();
+        });
         
-        const realmSettingsDeleteBtn = document.getElementById('realmSettingsDeleteBtn');
-        if (realmSettingsDeleteBtn) {
-            realmSettingsDeleteBtn.addEventListener('click', function() {
-                if (!state.currentRealm) return;
-                deleteRealm();
-            });
-        }
+        document.getElementById('markAllReadBtn').addEventListener('click', function() {
+            markAllNotificationsRead();
+        });
         
-        const realmSettingsShareBtn = document.getElementById('realmSettingsShareBtn');
-        if (realmSettingsShareBtn) {
-            realmSettingsShareBtn.addEventListener('click', function() {
-                if (!state.currentRealm) return;
-                shareRealm();
-            });
-        }
+        document.getElementById('viewAllNotificationsBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'flex';
+            loadAllNotifications();
+        });
         
-        // Notifications
-        const markAllReadBtn = document.getElementById('markAllReadBtn');
-        if (markAllReadBtn) {
-            markAllReadBtn.addEventListener('click', function() {
-                markAllNotificationsRead();
-            });
-        }
+        document.getElementById('notificationsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'none';
+        });
         
-        const viewAllNotificationsBtn = document.getElementById('viewAllNotificationsBtn');
-        if (viewAllNotificationsBtn) {
-            viewAllNotificationsBtn.addEventListener('click', function() {
-                const notificationsModal = document.getElementById('notificationsModal');
-                if (notificationsModal) notificationsModal.style.display = 'flex';
-                loadAllNotifications();
-            });
-        }
+        document.getElementById('notificationsCloseBtn').addEventListener('click', function() {
+            document.getElementById('notificationsModal').style.display = 'none';
+        });
         
-        const notificationsModalCloseBtn = document.getElementById('notificationsModalCloseBtn');
-        if (notificationsModalCloseBtn) {
-            notificationsModalCloseBtn.addEventListener('click', function() {
-                const notificationsModal = document.getElementById('notificationsModal');
-                if (notificationsModal) notificationsModal.style.display = 'none';
-            });
-        }
+        document.getElementById('publicProfileModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('publicProfileModal').style.display = 'none';
+        });
         
-        const notificationsCloseBtn = document.getElementById('notificationsCloseBtn');
-        if (notificationsCloseBtn) {
-            notificationsCloseBtn.addEventListener('click', function() {
-                const notificationsModal = document.getElementById('notificationsModal');
-                if (notificationsModal) notificationsModal.style.display = 'none';
-            });
-        }
+        document.getElementById('publicProfileContactBtn').addEventListener('click', function() {
+            if (state.selectedUserForProfile) {
+                createOrOpenDM(state.selectedUserForProfile);
+                document.getElementById('publicProfileModal').style.display = 'none';
+            }
+        });
         
-        // Public profile modal
-        const publicProfileModalCloseBtn = document.getElementById('publicProfileModalCloseBtn');
-        if (publicProfileModalCloseBtn) {
-            publicProfileModalCloseBtn.addEventListener('click', function() {
-                const publicProfileModal = document.getElementById('publicProfileModal');
-                if (publicProfileModal) publicProfileModal.style.display = 'none';
-            });
-        }
+        document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
+            document.getElementById('publicProfileModal').style.display = 'none';
+        });
         
-        const publicProfileContactBtn = document.getElementById('publicProfileContactBtn');
-        if (publicProfileContactBtn) {
-            publicProfileContactBtn.addEventListener('click', function() {
-                if (state.selectedUserForProfile) {
-                    createOrOpenDM(state.selectedUserForProfile);
-                    const publicProfileModal = document.getElementById('publicProfileModal');
-                    if (publicProfileModal) publicProfileModal.style.display = 'none';
-                }
-            });
-        }
+        // DM Channel Settings modal
+        document.getElementById('dmChannelSettingsCloseBtn').addEventListener('click', function() {
+            document.getElementById('dmChannelSettingsModal').style.display = 'none';
+            state.selectedDMChannel = null;
+        });
         
-        const publicProfileCloseBtn = document.getElementById('publicProfileCloseBtn');
-        if (publicProfileCloseBtn) {
-            publicProfileCloseBtn.addEventListener('click', function() {
-                const publicProfileModal = document.getElementById('publicProfileModal');
-                if (publicProfileModal) publicProfileModal.style.display = 'none';
-            });
-        }
+        document.getElementById('dmChannelSettingsModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('dmChannelSettingsModal').style.display = 'none';
+            state.selectedDMChannel = null;
+        });
         
-        // Install PWA button
-        const installPWAButton = document.getElementById('installPWAButton');
-        if (installPWAButton) {
-            installPWAButton.addEventListener('click', function() {
-                if (state.deferredPrompt) {
-                    state.deferredPrompt.prompt();
-                    state.deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('User accepted the install prompt');
-                            this.style.display = 'none';
-                        }
-                        state.deferredPrompt = null;
-                    });
-                }
-            });
-        }
+        document.getElementById('dmChannelSettingsSaveBtn').addEventListener('click', function() {
+            saveDMChannelSettings();
+        });
         
-        // iOS install tooltip close
-        const iosInstallTooltipClose = document.getElementById('iosInstallTooltipClose');
-        if (iosInstallTooltipClose) {
-            iosInstallTooltipClose.addEventListener('click', function() {
-                const iosInstallTooltip = document.getElementById('iosInstallTooltip');
-                if (iosInstallTooltip) iosInstallTooltip.style.display = 'none';
-            });
-        }
+        document.getElementById('dmChannelSettingsAddUserBtn').addEventListener('click', function() {
+            showAddUserToDMModal();
+        });
+        
+        document.getElementById('dmChannelSettingsLeaveBtn').addEventListener('click', function() {
+            leaveDMChannel();
+        });
+        
+        // Online/offline event listeners
+        window.addEventListener('online', () => updateOnlineStatus(true));
+        window.addEventListener('offline', () => updateOnlineStatus(false));
+        setInterval(() => updateOnlineStatus(navigator.onLine), 60000);
+        
         
     } catch (error) {
         console.log('Error setting up event listeners:', error);
     }
+}
+
+function handleTyping() {
+    if (!state.presenceSubscription || !state.currentChannel) return;
+    clearTimeout(state.typingTimeout);
+    if (!state.isTyping) {
+        state.isTyping = true;
+        state.presenceSubscription.track({
+            user_id: state.currentUser.id,
+            username: state.userSettings.username,
+            typing: true
+        }, true);
+    }
+    state.typingTimeout = setTimeout(() => {
+        state.isTyping = false;
+        state.presenceSubscription.track({
+            user_id: state.currentUser.id,
+            username: state.userSettings.username,
+            typing: false
+        }, true);
+    }, 1000);
 }
 
 async function showRealmSettingsModal() {
@@ -3946,12 +3903,11 @@ async function showRealmSettingsModal() {
         const nonCreatorSettings = document.getElementById('nonCreatorSettings');
         const creatorSettings = document.getElementById('creatorSettings');
         
-        const realmSettingsRealmName = document.getElementById('realmSettingsRealmName');
-        if (realmSettingsRealmName) realmSettingsRealmName.textContent = state.currentRealm.name;
+        document.getElementById('realmSettingsRealmName').textContent = state.currentRealm.name;
         
         if (isCreator) {
-            if (nonCreatorSettings) nonCreatorSettings.style.display = 'none';
-            if (creatorSettings) creatorSettings.style.display = 'block';
+            nonCreatorSettings.style.display = 'none';
+            creatorSettings.style.display = 'block';
             
             const { data: realm, error } = await state.supabase
                 .from('realms')
@@ -3965,208 +3921,39 @@ async function showRealmSettingsModal() {
                 return;
             }
             
-            const realmSettingsName = document.getElementById('realmSettingsName');
-            const realmSettingsDescription = document.getElementById('realmSettingsDescription');
-            const realmSettingsAnnouncement = document.getElementById('realmSettingsAnnouncement');
-            const realmSettingsPublic = document.getElementById('realmSettingsPublic');
-            
-            if (realmSettingsName) realmSettingsName.value = realm.name || '';
-            if (realmSettingsDescription) realmSettingsDescription.value = realm.description || '';
-            if (realmSettingsAnnouncement) realmSettingsAnnouncement.value = realm.announcement_message || '';
-            if (realmSettingsPublic) realmSettingsPublic.checked = realm.is_public === true;
+            document.getElementById('realmSettingsName').value = realm.name || '';
+            document.getElementById('realmSettingsDescription').value = realm.description || '';
+            document.getElementById('realmSettingsAnnouncement').value = realm.announcement_message || '';
+            document.getElementById('realmSettingsPublic').checked = realm.is_public === true;
             
             const iconPreview = document.getElementById('realmSettingsIconPreview');
-            if (iconPreview) {
-                if (realm.icon_url) {
-                    iconPreview.style.backgroundImage = `url(${realm.icon_url})`;
-                    iconPreview.textContent = '';
-                    iconPreview.style.backgroundSize = 'cover';
-                    iconPreview.style.backgroundPosition = 'center';
-                } else {
-                    iconPreview.style.backgroundImage = 'none';
-                    iconPreview.textContent = '🏰';
-                }
+            if (realm.icon_url && realm.icon_url.startsWith('http')) {
+                iconPreview.style.backgroundImage = `url(${realm.icon_url})`;
+                iconPreview.textContent = '';
+                iconPreview.style.backgroundSize = 'cover';
+                iconPreview.style.backgroundPosition = 'center';
+            } else {
+                iconPreview.style.backgroundImage = 'none';
+                iconPreview.textContent = realm.icon_url || '🏰';
             }
             
-            const privateRealmSection = document.getElementById('privateRealmSection');
-            if (privateRealmSection) {
-                if (realm.is_public) {
-                    privateRealmSection.style.display = 'none';
-                } else {
-                    privateRealmSection.style.display = 'block';
-                }
+            if (realm.is_public) {
+                document.getElementById('privateRealmSection').style.display = 'none';
+            } else {
+                document.getElementById('privateRealmSection').style.display = 'block';
             }
-            
-            // Load notification settings
-            await loadRealmNotificationSettings();
             
             await loadCoAdmins();
             await loadChannelsForDragAndDrop();
         } else {
-            if (nonCreatorSettings) nonCreatorSettings.style.display = 'block';
-            if (creatorSettings) creatorSettings.style.display = 'none';
-            
-            // Load notification settings for non-creator
-            await loadRealmNotificationSettings();
+            nonCreatorSettings.style.display = 'block';
+            creatorSettings.style.display = 'none';
         }
         
-        const realmSettingsModal = document.getElementById('realmSettingsModal');
-        if (realmSettingsModal) realmSettingsModal.style.display = 'flex';
+        document.getElementById('realmSettingsModal').style.display = 'flex';
     } catch (error) {
         console.log('Error showing realm settings modal:', error);
         showToast('Error', 'Failed to load realm settings', 'error');
-    }
-}
-
-async function loadRealmNotificationSettings() {
-    try {
-        if (!state.currentRealm || !state.supabase || !state.currentUser) return;
-        
-        const { data: userRealm, error } = await state.supabase
-            .from('user_realms')
-            .select('realm_notifications')
-            .eq('user_id', state.currentUser.id)
-            .eq('realm_id', state.currentRealm.id)
-            .single();
-            
-        if (error && error.code !== 'PGRST116') {
-            console.log('Error loading realm notification settings:', error);
-            return;
-        }
-        
-        const notificationSetting = userRealm?.realm_notifications || 'all';
-        const notificationRadios = document.querySelectorAll('input[name="realmNotificationSetting"]');
-        
-        notificationRadios.forEach(radio => {
-            radio.checked = radio.value === notificationSetting;
-        });
-    } catch (error) {
-        console.log('Error loading realm notification settings:', error);
-    }
-}
-
-async function saveRealmSettings() {
-    try {
-        if (!state.currentRealm || !state.supabase) return;
-        
-        const isCreator = state.currentRealm.created_by === state.currentUser.id;
-        
-        if (isCreator) {
-            const nameInput = document.getElementById('realmSettingsName');
-            const descriptionInput = document.getElementById('realmSettingsDescription');
-            const announcementInput = document.getElementById('realmSettingsAnnouncement');
-            const isPublicInput = document.getElementById('realmSettingsPublic');
-            
-            if (!nameInput || !descriptionInput || !announcementInput || !isPublicInput) return;
-            
-            const name = nameInput.value.trim();
-            const description = descriptionInput.value.trim();
-            const announcement = announcementInput.value.trim();
-            const isPublic = isPublicInput.checked;
-            
-            if (!name) {
-                showToast('Error', 'Please enter a realm name', 'error');
-                return;
-            }
-            
-            // Validate no spaces in name for slug generation
-            const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]+/g, '');
-            
-            // Get icon preview
-            const iconPreview = document.getElementById('realmSettingsIconPreview');
-            let icon_url = null;
-            if (iconPreview && iconPreview.style.backgroundImage && iconPreview.style.backgroundImage !== 'none') {
-                // Extract URL from backgroundImage style
-                const match = iconPreview.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
-                if (match) {
-                    icon_url = match[1];
-                }
-            } else if (iconPreview && iconPreview.textContent.trim()) {
-                // Use emoji
-                icon_url = iconPreview.textContent.trim();
-            }
-            
-            const { error } = await state.supabase
-                .from('realms')
-                .update({
-                    name: name,
-                    description: description,
-                    announcement_message: announcement,
-                    is_public: isPublic,
-                    icon_url: icon_url
-                })
-                .eq('id', state.currentRealm.id);
-                
-            if (error) {
-                console.log('Error saving realm settings:', error);
-                showToast('Error', 'Failed to save realm settings', 'error');
-                return;
-            }
-            
-            // Update current realm data
-            state.currentRealm.name = name;
-            state.currentRealm.description = description;
-            state.currentRealm.announcement_message = announcement;
-            state.currentRealm.is_public = isPublic;
-            state.currentRealm.icon_url = icon_url;
-            
-            // Update UI
-            const currentRealmName = document.getElementById('currentRealmName');
-            if (currentRealmName) currentRealmName.textContent = name;
-            const realmIcon = document.querySelector('.realm-icon');
-            if (realmIcon) {
-                if (icon_url && icon_url.startsWith('http')) {
-                    realmIcon.style.backgroundImage = `url(${icon_url})`;
-                    realmIcon.textContent = '';
-                    realmIcon.style.backgroundSize = 'cover';
-                    realmIcon.style.backgroundPosition = 'center';
-                } else {
-                    realmIcon.style.backgroundImage = 'none';
-                    realmIcon.textContent = icon_url || '🏰';
-                }
-            }
-        }
-        
-        // Save notification settings for all users
-        const notificationRadios = document.querySelectorAll('input[name="realmNotificationSetting"]');
-        let selectedNotification = 'all';
-        notificationRadios.forEach(radio => {
-            if (radio.checked) {
-                selectedNotification = radio.value;
-            }
-        });
-        
-        const { error: notificationError } = await state.supabase
-            .from('user_realms')
-            .update({ realm_notifications: selectedNotification })
-            .eq('user_id', state.currentUser.id)
-            .eq('realm_id', state.currentRealm.id);
-            
-        if (notificationError) {
-            console.log('Error saving notification settings:', notificationError);
-        }
-        
-        showToast('Success', 'Realm settings saved', 'success');
-        const realmSettingsModal = document.getElementById('realmSettingsModal');
-        if (realmSettingsModal) realmSettingsModal.style.display = 'none';
-    } catch (error) {
-        console.log('Error saving realm settings:', error);
-        showToast('Error', 'Failed to save realm settings', 'error');
-    }
-}
-
-async function shareRealm() {
-    try {
-        if (!state.currentRealm) return;
-        
-        const realmSlug = state.currentRealm.slug || state.currentRealm.id;
-        const shareUrl = `${window.location.origin}${window.location.pathname}#${realmSlug}`;
-        
-        await navigator.clipboard.writeText(shareUrl);
-        showToast('Success', 'Realm link copied to clipboard!', 'success');
-    } catch (error) {
-        console.log('Error sharing realm:', error);
-        showToast('Error', 'Failed to copy realm link', 'error');
     }
 }
 
@@ -4192,8 +3979,6 @@ async function loadCoAdmins() {
         }
         
         const coAdminsList = document.getElementById('realmCoAdminsList');
-        if (!coAdminsList) return;
-        
         coAdminsList.innerHTML = '';
         
         if (coAdmins.length === 0) {
@@ -4215,12 +4000,9 @@ async function loadCoAdmins() {
             
             coAdminsList.appendChild(adminElement);
             
-            const removeBtn = adminElement.querySelector('.remove-co-admin-btn');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', async function() {
-                    await removeCoAdmin(admin.id);
-                });
-            }
+            adminElement.querySelector('.remove-co-admin-btn').addEventListener('click', async function() {
+                await removeCoAdmin(admin.id);
+            });
         });
     } catch (error) {
         console.log('Error loading co-admins:', error);
@@ -4230,8 +4012,6 @@ async function loadCoAdmins() {
 async function addCoAdmin() {
     try {
         const searchInput = document.getElementById('realmCoAdminSearch');
-        if (!searchInput) return;
-        
         const username = searchInput.value.trim();
         
         if (!username || !state.currentRealm || !state.supabase) return;
@@ -4277,8 +4057,7 @@ async function addCoAdmin() {
             .from('notifications')
             .insert({
                 user_id: user.id,
-                title: 'Co-Admin Added',
-                message: `You have been added as a co-admin to the realm "${state.currentRealm.name}"`,
+                content: `You have been added as a co-admin to the realm "${state.currentRealm.name}"`,
                 type: 'admin_added'
             });
             
@@ -4337,8 +4116,6 @@ async function loadChannelsForDragAndDrop() {
         }
         
         const channelList = document.getElementById('channelDragList');
-        if (!channelList) return;
-        
         channelList.innerHTML = '';
         
         if (channels.length === 0) {
@@ -4452,6 +4229,81 @@ async function updateChannelPositions() {
     }
 }
 
+async function saveRealmSettings() {
+    try {
+        if (!state.currentRealm || !state.supabase || state.currentRealm.created_by !== state.currentUser.id) return;
+        
+        const name = document.getElementById('realmSettingsName').value.trim();
+        const description = document.getElementById('realmSettingsDescription').value.trim();
+        const announcement = document.getElementById('realmSettingsAnnouncement').value.trim();
+        const isPublic = document.getElementById('realmSettingsPublic').checked;
+        
+        if (!name) {
+            showToast('Error', 'Please enter a realm name', 'error');
+            return;
+        }
+        
+        // Get icon preview
+        const iconPreview = document.getElementById('realmSettingsIconPreview');
+        let icon_url = null;
+        if (iconPreview.style.backgroundImage && iconPreview.style.backgroundImage !== 'none') {
+            // Extract URL from backgroundImage style
+            const match = iconPreview.style.backgroundImage.match(/url\(['"]?([^'"]+)['"]?\)/);
+            if (match) {
+                icon_url = match[1];
+            }
+        } else if (iconPreview.textContent.trim()) {
+            // Use emoji
+            icon_url = iconPreview.textContent.trim();
+        }
+        
+        const { error } = await state.supabase
+            .from('realms')
+            .update({
+                name: name,
+                description: description,
+                announcement_message: announcement,
+                is_public: isPublic,
+                icon_url: icon_url
+            })
+            .eq('id', state.currentRealm.id);
+            
+        if (error) {
+            console.log('Error saving realm settings:', error);
+            showToast('Error', 'Failed to save realm settings', 'error');
+            return;
+        }
+        
+        // Update current realm data
+        state.currentRealm.name = name;
+        state.currentRealm.description = description;
+        state.currentRealm.announcement_message = announcement;
+        state.currentRealm.is_public = isPublic;
+        state.currentRealm.icon_url = icon_url;
+        
+        // Update UI with actual realm icon
+        document.getElementById('currentRealmName').textContent = name;
+        const realmIcon = document.querySelector('.realm-icon');
+        if (realmIcon) {
+            if (icon_url && icon_url.startsWith('http')) {
+                realmIcon.style.backgroundImage = `url(${icon_url})`;
+                realmIcon.textContent = '';
+                realmIcon.style.backgroundSize = 'cover';
+                realmIcon.style.backgroundPosition = 'center';
+            } else {
+                realmIcon.style.backgroundImage = 'none';
+                realmIcon.textContent = icon_url || '🏰';
+            }
+        }
+        
+        showToast('Success', 'Realm settings saved', 'success');
+        document.getElementById('realmSettingsModal').style.display = 'none';
+    } catch (error) {
+        console.log('Error saving realm settings:', error);
+        showToast('Error', 'Failed to save realm settings', 'error');
+    }
+}
+
 function showRealmIconEmojiPicker() {
     try {
         const emojiPicker = document.createElement('div');
@@ -4464,8 +4316,6 @@ function showRealmIconEmojiPicker() {
         emojiPicker.style.zIndex = '1000';
         emojiPicker.style.maxHeight = '200px';
         emojiPicker.style.overflowY = 'auto';
-        emojiPicker.style.overflowY = 'scroll';
-        emojiPicker.style.webkitOverflowScrolling = 'touch';
         
         const emojis = ['🏰', '🏯', '🗼', '🏛️', '🏟️', '🎪', '🕌', '🕍', '⛪', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼', '🗽', '🌄', '🌅', '🌆', '🌇', '🌉', '🎠', '🎡', '🎢', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🚚', '🚛', '🚜', '🚲', '🛴', '🛵', '🚏', '🛣️', '🛤️', '⛽', '🚨', '🚥', '🚦', '🚧', '🛑', '⚓', '⛵', '🚤', '🛳️', '⛴️', '🛶', '🚁', '🛩️', '✈️', '🛫', '🛬', '💺', '🚀', '🛰️', '🛸', '🛎️', '🧳', '⌛', '⏳', '⌚', '⏰', '⏱️', '⏲️', '🕰️', '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘', '🌙', '🌚', '🌛', '🌜', '🌡️', '☀️', '🌝', '🌞', '⭐', '🌟', '🌠', '🌌', '☁️', '⛅', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌀', '🌈', '🌂', '☂️', '☔', '⛱️', '⚡', '❄️', '☃️', '⛄', '☄️', '🔥', '💧', '🌊'];
         
@@ -4476,8 +4326,6 @@ function showRealmIconEmojiPicker() {
         document.body.appendChild(emojiPicker);
         
         const btn = document.getElementById('realmSettingsChooseEmojiBtn');
-        if (!btn) return;
-        
         const rect = btn.getBoundingClientRect();
         emojiPicker.style.left = `${rect.left}px`;
         emojiPicker.style.top = `${rect.bottom + 5}px`;
@@ -4486,19 +4334,15 @@ function showRealmIconEmojiPicker() {
             btn.addEventListener('click', async function() {
                 const emoji = this.textContent;
                 const iconPreview = document.getElementById('realmSettingsIconPreview');
-                if (iconPreview) {
-                    iconPreview.textContent = emoji;
-                    iconPreview.style.backgroundImage = 'none';
-                }
+                iconPreview.textContent = emoji;
+                iconPreview.style.backgroundImage = 'none';
                 document.body.removeChild(emojiPicker);
             });
         });
         
         document.addEventListener('click', function closePicker(e) {
             if (!emojiPicker.contains(e.target) && e.target !== btn) {
-                if (emojiPicker.parentNode) {
-                    document.body.removeChild(emojiPicker);
-                }
+                document.body.removeChild(emojiPicker);
                 document.removeEventListener('click', closePicker);
             }
         });
@@ -4553,12 +4397,10 @@ async function handleRealmIconUpload(event) {
         }
         
         const iconPreview = document.getElementById('realmSettingsIconPreview');
-        if (iconPreview) {
-            iconPreview.style.backgroundImage = `url(${publicUrl})`;
-            iconPreview.textContent = '';
-            iconPreview.style.backgroundSize = 'cover';
-            iconPreview.style.backgroundPosition = 'center';
-        }
+        iconPreview.style.backgroundImage = `url(${publicUrl})`;
+        iconPreview.textContent = '';
+        iconPreview.style.backgroundSize = 'cover';
+        iconPreview.style.backgroundPosition = 'center';
         
         showToast('Success', 'Realm icon updated', 'success');
         event.target.value = '';
@@ -4629,37 +4471,38 @@ async function deleteRealm() {
     try {
         if (!state.currentRealm || !state.supabase || state.currentRealm.created_by !== state.currentUser.id) return;
         
-        const confirmationModal = document.getElementById('confirmationModal');
-        if (confirmationModal) confirmationModal.style.display = 'flex';
-        
-        const confirmationIcon = document.getElementById('confirmationIcon');
-        if (confirmationIcon) confirmationIcon.textContent = '🗑️';
-        
-        const confirmationTitle = document.getElementById('confirmationTitle');
-        if (confirmationTitle) confirmationTitle.textContent = 'Delete Realm';
-        
-        const confirmationMessage = document.getElementById('confirmationMessage');
-        if (confirmationMessage) confirmationMessage.textContent = 'This will permanently delete the realm and all its contents. This action cannot be undone. Are you sure?';
+        document.getElementById('confirmationModal').style.display = 'flex';
+        document.getElementById('confirmationIcon').textContent = '🗑️';
+        document.getElementById('confirmationTitle').textContent = 'Delete Realm';
+        document.getElementById('confirmationMessage').textContent = 'This will permanently delete the realm and all its contents. This action cannot be undone. Are you sure?';
         
         const confirmBtn = document.getElementById('confirmationConfirm');
         const cancelBtn = document.getElementById('confirmationCancel');
         
         const handleConfirm = async () => {
             try {
-                // Soft delete: set deleted_at
                 const { error } = await state.supabase
                     .from('realms')
                     .update({ 
+                        is_public: false,
                         deleted_at: new Date().toISOString()
                     })
                     .eq('id', state.currentRealm.id);
                     
                 if (error) throw error;
                 
+                const { error: deleteError } = await state.supabase
+                    .from('user_realms')
+                    .delete()
+                    .eq('realm_id', state.currentRealm.id);
+                    
+                if (deleteError) {
+                    console.log('Error removing users from realm:', deleteError);
+                }
+                
                 showToast('Success', 'Realm deleted', 'success');
-                if (confirmationModal) confirmationModal.style.display = 'none';
-                const realmSettingsModal = document.getElementById('realmSettingsModal');
-                if (realmSettingsModal) realmSettingsModal.style.display = 'none';
+                document.getElementById('confirmationModal').style.display = 'none';
+                document.getElementById('realmSettingsModal').style.display = 'none';
                 
                 state.joinedRealms = await loadJoinedRealmsFast();
                 renderRealmDropdown();
@@ -4669,50 +4512,39 @@ async function deleteRealm() {
                 } else {
                     state.currentRealm = null;
                     state.currentChannel = null;
-                    const currentRealmName = document.getElementById('currentRealmName');
-                    if (currentRealmName) currentRealmName.textContent = 'No Realm';
-                    const channelList = document.getElementById('channelList');
-                    if (channelList) {
-                        channelList.innerHTML = `
-                            <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
-                                Select a realm to view channels
-                            </div>
-                        `;
-                    }
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    if (messagesContainer) {
-                        messagesContainer.innerHTML = `
-                            <div class="empty-state" id="emptyState">
-                                Select a realm and channel to view messages
-                            </div>
-                        `;
-                    }
-                    const messageInput = document.getElementById('messageInput');
-                    if (messageInput) {
-                        messageInput.placeholder = 'Select a channel to start messaging...';
-                        messageInput.disabled = true;
-                    }
-                    const sendBtn = document.getElementById('sendBtn');
-                    if (sendBtn) sendBtn.disabled = true;
+                    document.getElementById('currentRealmName').textContent = 'No Realm';
+                    document.getElementById('channelList').innerHTML = `
+                        <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
+                            Select a realm to view channels
+                        </div>
+                    `;
+                    document.getElementById('messagesContainer').innerHTML = `
+                        <div class="empty-state" id="emptyState">
+                            Select a realm and channel to view messages
+                        </div>
+                    `;
+                    document.getElementById('messageInput').placeholder = 'Select a channel to start messaging...';
+                    document.getElementById('messageInput').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
                 }
             } catch (error) {
                 console.log('Error deleting realm:', error);
                 showToast('Error', 'Failed to delete realm', 'error');
-                if (confirmationModal) confirmationModal.style.display = 'none';
+                document.getElementById('confirmationModal').style.display = 'none';
             }
             
-            if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-            if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
         };
         
         const handleCancel = () => {
-            if (confirmationModal) confirmationModal.style.display = 'none';
-            if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-            if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
+            document.getElementById('confirmationModal').style.display = 'none';
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
         };
         
-        if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
-        if (cancelBtn) cancelBtn.addEventListener('click', handleCancel);
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
     } catch (error) {
         console.log('Error in deleteRealm:', error);
         showToast('Error', 'Failed to delete realm', 'error');
@@ -4722,12 +4554,11 @@ async function deleteRealm() {
 async function performGlobalSearch(query) {
     try {
         if (!query.trim() || !state.supabase) {
-            const globalSearchResults = document.getElementById('globalSearchResults');
-            if (globalSearchResults) globalSearchResults.innerHTML = '';
+            document.getElementById('globalSearchResults').innerHTML = '';
             return;
         }
         
-        const includePrivate = document.getElementById('globalSearchPrivateToggle')?.checked || false;
+        const includePrivate = document.getElementById('globalSearchPrivateToggle').checked;
         
         // Search profiles
         const { data: profiles, error: profilesError } = await state.supabase
@@ -4804,8 +4635,6 @@ async function performGlobalSearch(query) {
         }
         
         const resultsContainer = document.getElementById('globalSearchResults');
-        if (!resultsContainer) return;
-        
         resultsContainer.innerHTML = '';
         
         if ((!profiles || profiles.length === 0) && 
@@ -4831,7 +4660,7 @@ async function performGlobalSearch(query) {
                 resultItem.className = 'search-result';
                 resultItem.innerHTML = `
                     <div class="search-result-header">
-                        <img src="${profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : ''}" alt="${profile.username}" onerror="this.style.display='none';" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;">
+                        <img src="${profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : ''}" alt="${profile.username}" onerror="this.style.display='none';">
                         <div>
                             <div class="search-result-name">${escapeHtml(profile.username)}</div>
                             <div class="search-result-context">User Profile</div>
@@ -4841,8 +4670,7 @@ async function performGlobalSearch(query) {
                 
                 resultItem.addEventListener('click', async () => {
                     showUserProfile(profile.id);
-                    const globalSearchModal = document.getElementById('globalSearchModal');
-                    if (globalSearchModal) globalSearchModal.style.display = 'none';
+                    document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
                 section.appendChild(resultItem);
@@ -4862,7 +4690,7 @@ async function performGlobalSearch(query) {
                 resultItem.innerHTML = `
                     <div class="search-result-header">
                         <div style="width: 40px; height: 40px; border-radius: 6px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-                            ${realm.icon_url ? `<img src="${realm.icon_url}" style="width: 30px; height: 30px; border-radius: 4px;">` : '🏰'}
+                            ${realm.icon_url && realm.icon_url.startsWith('http') ? `<img src="${realm.icon_url}" style="width: 30px; height: 30px; border-radius: 4px;">` : realm.icon_url || '🏰'}
                         </div>
                         <div>
                             <div class="search-result-name">${escapeHtml(realm.name)}</div>
@@ -4873,8 +4701,7 @@ async function performGlobalSearch(query) {
                 
                 resultItem.addEventListener('click', async () => {
                     await switchRealm(realm.id);
-                    const globalSearchModal = document.getElementById('globalSearchModal');
-                    if (globalSearchModal) globalSearchModal.style.display = 'none';
+                    document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
                 section.appendChild(resultItem);
@@ -4911,8 +4738,7 @@ async function performGlobalSearch(query) {
                             selectChannel(channel.id);
                         }, 500);
                     }
-                    const globalSearchModal = document.getElementById('globalSearchModal');
-                    if (globalSearchModal) globalSearchModal.style.display = 'none';
+                    document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
                 section.appendChild(resultItem);
@@ -4931,7 +4757,7 @@ async function performGlobalSearch(query) {
                 resultItem.className = 'search-result';
                 resultItem.innerHTML = `
                     <div class="search-result-header">
-                        <img src="${message.profiles?.avatar_url ? message.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${message.profiles?.username}" onerror="this.style.display='none';" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;">
+                        <img src="${message.profiles?.avatar_url ? message.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${message.profiles?.username}" onerror="this.style.display='none';">
                         <div>
                             <div class="search-result-name">${escapeHtml(message.profiles?.username || 'User')}</div>
                             <div class="search-result-context">${escapeHtml(message.channels?.realms?.name || '')} / ${escapeHtml(message.channels?.name || '')}</div>
@@ -4952,8 +4778,7 @@ async function performGlobalSearch(query) {
                             }, 500);
                         }, 500);
                     }
-                    const globalSearchModal = document.getElementById('globalSearchModal');
-                    if (globalSearchModal) globalSearchModal.style.display = 'none';
+                    document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
                 section.appendChild(resultItem);
@@ -4983,8 +4808,6 @@ async function loadAllNotifications() {
         }
         
         const container = document.getElementById('notificationsListFull');
-        if (!container) return;
-        
         container.innerHTML = '';
         
         if (notifications.length === 0) {
@@ -4999,24 +4822,36 @@ async function loadAllNotifications() {
         notifications.forEach(notification => {
             const notificationElement = document.createElement('div');
             notificationElement.className = 'notification-item';
-            
-            const time = new Date(notification.created_at);
-            const timeStr = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-            
             notificationElement.innerHTML = `
-                <div class="notification-title">${escapeHtml(notification.title || 'Notification')}</div>
-                <div class="notification-content">${escapeHtml(notification.message || notification.content)}</div>
-                <div class="notification-time">${timeStr}</div>
+                <div class="notification-content">${escapeHtml(notification.content)}</div>
+                <div class="notification-time">${new Date(notification.created_at).toLocaleString()}</div>
             `;
-            
-            notificationElement.addEventListener('click', () => {
-                viewNotificationDetails(notification);
-            });
-            
             container.appendChild(notificationElement);
         });
     } catch (error) {
         console.log('Error loading all notifications:', error);
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        if (!state.supabase) return;
+        
+        const { error } = await state.supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('user_id', state.currentUser.id)
+            .eq('read', false);
+            
+        if (error) {
+            console.log('Error marking notifications as read:', error);
+            return;
+        }
+        
+        document.getElementById('notificationDot').style.display = 'none';
+        showToast('Success', 'All notifications marked as read', 'success');
+    } catch (error) {
+        console.log('Error marking notifications as read:', error);
     }
 }
 
@@ -5042,102 +4877,88 @@ async function showUserProfile(userId, profileData = null) {
             profile = fetchedProfile;
         }
         
-        // Guard against null/undefined
-        profile = profile || {};
-        
-        const publicProfileAvatar = document.getElementById('publicProfileAvatar');
-        if (publicProfileAvatar) {
+        document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
+        document.getElementById('publicProfileAvatar').onclick = function() {
             if (profile.avatar_url) {
-                publicProfileAvatar.src = profile.avatar_url + '?t=' + Date.now();
-                publicProfileAvatar.onclick = function() {
-                    if (profile.avatar_url) {
-                        openAvatarFullscreen(profile.avatar_url);
-                    }
-                };
-            } else {
-                publicProfileAvatar.style.display = 'none';
+                openAvatarFullscreen(profile.avatar_url);
             }
-        }
+        };
         
-        const publicProfileName = document.getElementById('publicProfileName');
-        if (publicProfileName) publicProfileName.textContent = profile.username || 'User';
+        document.getElementById('publicProfileName').textContent = profile.username || 'User';
         
         const isStealth = profile.stealth_mode === true;
         const status = isStealth ? 'offline' : (profile.status || 'offline');
+        document.getElementById('publicProfileStatusText').textContent = status === 'online' ? 'Online' : 'Offline';
+        document.getElementById('publicProfileStatusDot').className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
         
-        const publicProfileStatusText = document.getElementById('publicProfileStatusText');
-        if (publicProfileStatusText) publicProfileStatusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        
-        const publicProfileStatusDot = document.getElementById('publicProfileStatusDot');
-        if (publicProfileStatusDot) publicProfileStatusDot.className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
-        
-        const publicProfileBio = document.getElementById('publicProfileBio');
-        if (publicProfileBio) publicProfileBio.textContent = profile.bio || 'No bio provided';
-        
-        // Add streak and message count
-        const publicProfileStreak = document.getElementById('publicProfileStreak');
-        const publicProfileMessageCount = document.getElementById('publicProfileMessageCount');
-        
-        if (publicProfileStreak) publicProfileStreak.textContent = profile.streak_count || 0;
-        if (publicProfileMessageCount) publicProfileMessageCount.textContent = profile.message_count || 0;
+        document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
         
         const socialLinks = profile.social_links || {};
         const socialContainer = document.getElementById('publicProfileSocialLinks');
-        if (socialContainer) {
-            socialContainer.innerHTML = '';
-            
-            if (socialLinks.twitter) {
-                socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
-            }
-            if (socialLinks.instagram) {
-                socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
-            }
-            if (socialLinks.website) {
-                socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
-            }
-            if (socialLinks.other) {
-                socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
-            }
+        socialContainer.innerHTML = '';
+        
+        if (socialLinks.twitter) {
+            socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
+        }
+        if (socialLinks.instagram) {
+            socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
+        }
+        if (socialLinks.website) {
+            socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
+        }
+        if (socialLinks.other) {
+            socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
         }
         
-        const publicProfileSocialSection = document.getElementById('publicProfileSocialSection');
-        if (publicProfileSocialSection) {
-            publicProfileSocialSection.style.display = socialContainer?.innerHTML ? 'block' : 'none';
+        document.getElementById('publicProfileSocialSection').style.display = socialContainer.innerHTML ? 'block' : 'none';
+        
+        // Add streak and total messages
+        const streakCount = profile.streak_count || 0;
+        const totalMessages = profile.total_messages_sent || 0;
+        
+        const statsContainer = document.getElementById('publicProfileStats');
+        if (statsContainer) {
+            statsContainer.innerHTML = `
+                <div class="profile-stat">
+                    <span>🔥</span>
+                    <span>${streakCount} Day Streak</span>
+                </div>
+                <div class="profile-stat">
+                    <span>💬</span>
+                    <span>${totalMessages} Messages Sent</span>
+                </div>
+            `;
+            document.getElementById('publicProfileStatsSection').style.display = 'block';
         }
         
         const realmsData = await loadOtherUserRealms(profile.id);
         const realmsContainer = document.getElementById('publicProfileRealms');
         
-        if (realmsContainer) {
-            if (realmsData.show_realms === false) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
-            } else if (realmsData.realms.length === 0) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
-            } else {
-                realmsContainer.innerHTML = realmsData.realms.map(realm => {
-                    let iconHtml = '';
-                    if (realm.icon_url) {
-                        iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
-                    } else {
-                        iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
-                    }
-                    return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
-                }).join('');
-            }
-        }
-        
-        const publicProfileRealmsSection = document.getElementById('publicProfileRealmsSection');
-        if (publicProfileRealmsSection) {
-            publicProfileRealmsSection.style.display = 'block';
+        if (realmsData.show_realms === false) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else if (realmsData.realms.length === 0) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else {
+            // Update to show realm icons
+            realmsContainer.innerHTML = realmsData.realms.map(realm => {
+                let iconHtml = '';
+                if (realm.icon_url && realm.icon_url.startsWith('http')) {
+                    iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
+                } else {
+                    iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
+                }
+                return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
+            }).join('');
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
         }
         
         state.selectedUserForProfile = profile.id;
-        const publicProfileModal = document.getElementById('publicProfileModal');
-        if (publicProfileModal) {
-            publicProfileModal.style.display = 'flex';
-            publicProfileModal.style.alignItems = 'center';
-            publicProfileModal.style.justifyContent = 'center';
-        }
+        document.getElementById('publicProfileModal').style.display = 'flex';
+        // Center the modal
+        document.getElementById('publicProfileModal').style.alignItems = 'center';
+        document.getElementById('publicProfileModal').style.justifyContent = 'center';
     } catch (error) {
         console.log('Error showing user profile:', error);
         showToast('Error', 'Failed to load user profile', 'error');
@@ -5147,20 +4968,19 @@ async function showUserProfile(userId, profileData = null) {
 async function showAllRealmsModal() {
     try {
         if (!state.supabase) return;        
-        const allRealmsModal = document.getElementById('allRealmsModal');
-        if (allRealmsModal) allRealmsModal.style.display = 'flex';
-        const realmSearchInput = document.getElementById('realmSearchInput');
-        if (realmSearchInput) realmSearchInput.value = '';
+        document.getElementById('allRealmsModal').style.display = 'flex';
+        document.getElementById('realmSearchInput').value = '';
         const { data: allRealms, error } = await state.supabase
             .from('realms')
             .select('*, profiles:created_by(username)')
-            .is('deleted_at', null) // Only show non-deleted realms
             .order('name', { ascending: true });            
         if (error) {
             console.log('Error loading all realms:', error);
             showToast('Error', 'Failed to load realms', 'error');
             return;
         }        
+        const realmsList = document.getElementById('allRealmsList');
+        if (!realmsList) return;        
         renderRealmsList(allRealms);       
     } catch (error) {
         console.log('Error showing all realms modal:', error);
@@ -5185,9 +5005,9 @@ function renderRealmsList(realms) {
             const realmItem = document.createElement('div');
             realmItem.className = 'realm-item';
             
-            // Add realm icon
+            // Add realm icon with actual realm icon
             let iconHtml = '';
-            if (realm.icon_url) {
+            if (realm.icon_url && realm.icon_url.startsWith('http')) {
                 iconHtml = `<img src="${realm.icon_url}" style="width: 40px; height: 40px; border-radius: 8px; margin-right: 12px; object-fit: cover;">`;
             } else {
                 iconHtml = `<div style="width: 40px; height: 40px; border-radius: 8px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 20px;">${realm.icon_url || '🏰'}</div>`;
@@ -5220,21 +5040,17 @@ function renderRealmsList(realms) {
             if (isJoined) {
                 if (!isProtected) {
                     const leaveBtn = realmItem.querySelector('.leave-realm-btn');
-                    if (leaveBtn) {
-                        leaveBtn.addEventListener('click', async function(e) {
-                            e.stopPropagation();
-                            await leaveRealm(realm.id);
-                        });
-                    }
+                    leaveBtn.addEventListener('click', async function(e) {
+                        e.stopPropagation();
+                        await leaveRealm(realm.id);
+                    });
                 }
             } else {
                 const joinBtn = realmItem.querySelector('.join-realm-btn');
-                if (joinBtn) {
-                    joinBtn.addEventListener('click', async function(e) {
-                        e.stopPropagation();
-                        await joinRealm(realm.id);
-                    });
-                }
+                joinBtn.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    await joinRealm(realm.id);
+                });
             }
         });       
     } catch (error) {
@@ -5250,7 +5066,6 @@ async function filterRealms(searchTerm) {
             const { data: allRealms } = await state.supabase
                 .from('realms')
                 .select('*, profiles:created_by(username)')
-                .is('deleted_at', null)
                 .order('name', { ascending: true });
             renderRealmsList(allRealms || []);
             return;
@@ -5260,7 +5075,6 @@ async function filterRealms(searchTerm) {
             .from('realms')
             .select('*, profiles:created_by(username)')
             .ilike('name', `%${searchTerm}%`)
-            .is('deleted_at', null)
             .order('name', { ascending: true });
             
         renderRealmsList(filteredRealms || []);
@@ -5290,8 +5104,7 @@ async function joinRealm(realmId) {
             state.joinedRealms = await loadJoinedRealmsFast();
             renderRealmDropdown();
             setTimeout(() => {
-                const allRealmsModal = document.getElementById('allRealmsModal');
-                if (allRealmsModal) allRealmsModal.style.display = 'none';
+                document.getElementById('allRealmsModal').style.display = 'none';
             }, 1000);
         }
     } catch (error) {
@@ -5303,35 +5116,11 @@ async function joinRealm(realmId) {
 async function leaveRealm(realmId) {
     try {
         if (!state.currentUser || !state.supabase) return;
-        
-        // Check if user is the sole admin
-        const { data: realmAdmins } = await state.supabase
-            .from('realm_roles')
-            .select('user_id')
-            .eq('realm_id', realmId)
-            .eq('role', 'admin');
-            
-        const isCreator = state.currentRealm?.created_by === state.currentUser.id;
-        const isOnlyAdmin = isCreator && (!realmAdmins || realmAdmins.length === 0);
-        
-        if (isOnlyAdmin) {
-            showToast('Error', 'Cannot leave realm as sole admin. Add another admin first.', 'error');
-            return;
-        }
-        
         const isCurrentRealm = state.currentRealm && state.currentRealm.id === realmId;
-        const confirmationModal = document.getElementById('confirmationModal');
-        if (confirmationModal) confirmationModal.style.display = 'flex';
-        
-        const confirmationIcon = document.getElementById('confirmationIcon');
-        if (confirmationIcon) confirmationIcon.textContent = '🚪';
-        
-        const confirmationTitle = document.getElementById('confirmationTitle');
-        if (confirmationTitle) confirmationTitle.textContent = 'Leave Realm';
-        
-        const confirmationMessage = document.getElementById('confirmationMessage');
-        if (confirmationMessage) confirmationMessage.textContent = `Are you sure you want to leave this realm? You'll need to be re-invited to join again.`;
-        
+        document.getElementById('confirmationModal').style.display = 'flex';
+        document.getElementById('confirmationIcon').textContent = '🚪';
+        document.getElementById('confirmationTitle').textContent = 'Leave Realm';
+        document.getElementById('confirmationMessage').textContent = `Are you sure you want to leave this realm? You'll need to be re-invited to join again.`;
         const confirmBtn = document.getElementById('confirmationConfirm');
         const cancelBtn = document.getElementById('confirmationCancel');        
         const handleConfirm = async () => {
@@ -5350,50 +5139,38 @@ async function leaveRealm(realmId) {
                 } else if (isCurrentRealm) {
                     state.currentRealm = null;
                     state.currentChannel = null;
-                    const currentRealmName = document.getElementById('currentRealmName');
-                    if (currentRealmName) currentRealmName.textContent = 'No Realm';
-                    const channelList = document.getElementById('channelList');
-                    if (channelList) {
-                        channelList.innerHTML = `
-                            <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
-                                Select a realm to view channels
-                            </div>
-                        `;
-                    }
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    if (messagesContainer) {
-                        messagesContainer.innerHTML = `
-                            <div class="empty-state" id="emptyState">
-                                Select a realm and channel to view messages
-                            </div>
-                        `;
-                    }
-                    const messageInput = document.getElementById('messageInput');
-                    if (messageInput) {
-                        messageInput.placeholder = 'Select a channel to start messaging...';
-                        messageInput.disabled = true;
-                    }
-                    const sendBtn = document.getElementById('sendBtn');
-                    if (sendBtn) sendBtn.disabled = true;
+                    document.getElementById('currentRealmName').textContent = 'No Realm';
+                    document.getElementById('channelList').innerHTML = `
+                        <div class="channel-item" style="color: var(--text-secondary); text-align: center;">
+                            Select a realm to view channels
+                        </div>
+                    `;
+                    document.getElementById('messagesContainer').innerHTML = `
+                        <div class="empty-state" id="emptyState">
+                            Select a realm and channel to view messages
+                        </div>
+                    `;
+                    document.getElementById('messageInput').placeholder = 'Select a channel to start messaging...';
+                    document.getElementById('messageInput').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
                 }
-                if (confirmationModal) confirmationModal.style.display = 'none';
-                const allRealmsModal = document.getElementById('allRealmsModal');
-                if (allRealmsModal) allRealmsModal.style.display = 'none';               
+                document.getElementById('confirmationModal').style.display = 'none';
+                document.getElementById('allRealmsModal').style.display = 'none';               
             } catch (error) {
                 console.log('Error leaving realm:', error);
                 showToast('Error', 'Failed to leave realm', 'error');
-                if (confirmationModal) confirmationModal.style.display = 'none';
+                document.getElementById('confirmationModal').style.display = 'none';
             }
-            if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-            if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
         };        
         const handleCancel = () => {
-            if (confirmationModal) confirmationModal.style.display = 'none';
-            if (confirmBtn) confirmBtn.removeEventListener('click', handleConfirm);
-            if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
+            document.getElementById('confirmationModal').style.display = 'none';
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
         };        
-        if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
-        if (cancelBtn) cancelBtn.addEventListener('click', handleCancel);       
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);       
     } catch (error) {
         console.log('Error in leaveRealm:', error);
         showToast('Error', 'Failed to leave realm', 'error');
@@ -5414,8 +5191,7 @@ async function createRealmModal() {
             nameInput.focus();
             return;
         }       
-        // Replace spaces with underscores for slug
-        const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]+/g, '');        
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');        
         const { data: newRealm, error } = await state.supabase
             .from('realms')
             .insert([{
@@ -5427,8 +5203,7 @@ async function createRealmModal() {
                 is_featured: false,
                 show_creator: showCreator,
                 is_public: true,
-                announcement_message: null,
-                deleted_at: null
+                announcement_message: null
             }])
             .select()
             .single();           
@@ -5454,8 +5229,7 @@ async function createRealmModal() {
         state.joinedRealms = await loadJoinedRealmsFast();
         renderRealmDropdown();        
         switchRealm(newRealm.id);
-        const createRealmModal = document.getElementById('createRealmModal');
-        if (createRealmModal) createRealmModal.style.display = 'none';        
+        document.getElementById('createRealmModal').style.display = 'none';        
     } catch (error) {
         console.log('Error creating realm:', error);
         showToast('Error', 'Failed to create realm', 'error');
@@ -5534,10 +5308,10 @@ async function saveSocialLinks() {
     try {
         if (!state.currentUser || !state.supabase) return;
         const socialLinks = {
-            twitter: document.getElementById('socialTwitter')?.value.trim() || null,
-            instagram: document.getElementById('socialInstagram')?.value.trim() || null,
-            website: document.getElementById('socialWebsite')?.value.trim() || null,
-            other: document.getElementById('socialOther')?.value.trim() || null
+            twitter: document.getElementById('socialTwitter').value.trim() || null,
+            instagram: document.getElementById('socialInstagram').value.trim() || null,
+            website: document.getElementById('socialWebsite').value.trim() || null,
+            other: document.getElementById('socialOther').value.trim() || null
         };
         Object.keys(socialLinks).forEach(key => {
             if (!socialLinks[key]) delete socialLinks[key];
@@ -5573,25 +5347,22 @@ function initializePWA() {
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('beforeinstallprompt event fired');
             e.preventDefault();
-            state.deferredPrompt = e;
+            deferredPrompt = e;
             console.log('PWA install prompt available - relying on native browser install');
             // Show custom install button
-            const installPWAButton = document.getElementById('installPWAButton');
-            if (installPWAButton) installPWAButton.style.display = 'flex';
+            document.getElementById('installPWAButton').style.display = 'flex';
         });
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed successfully');
-            state.deferredPrompt = null;
+            deferredPrompt = null;
             console.log('PWA installed successfully via native browser install');
-            const installPWAButton = document.getElementById('installPWAButton');
-            if (installPWAButton) installPWAButton.style.display = 'none';
+            document.getElementById('installPWAButton').style.display = 'none';
         });
         // Check for iOS
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         if (isIOS) {
             // Show iOS install tooltip
-            const iosInstallTooltip = document.getElementById('iosInstallTooltip');
-            if (iosInstallTooltip) iosInstallTooltip.style.display = 'block';
+            document.getElementById('iosInstallTooltip').style.display = 'block';
         }
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/sw.js')
@@ -5635,13 +5406,10 @@ async function subscribeToPushNotifications() {
             userVisibleOnly: true,
             applicationServerKey: 'BDizcBGIv3G_5PqGAFYr19qiEX2o0kZaKlFUDXQMX5xrgvCk0PNFf14WDPZezmmewMguw07DHkHs4FSdCT07I-A'
         });
-        // Save subscription object to jsonb column
+        // Save subscription to profiles.push_notifications
         const { error } = await state.supabase
             .from('profiles')
-            .update({ 
-                push_notifications: subscription,
-                push_subscription: subscription // Save the full subscription object
-            })
+            .update({ push_notifications: subscription })
             .eq('id', state.currentUser.id);
         if (error) {
             console.log('Error saving push subscription:', error);
@@ -5673,8 +5441,8 @@ async function handleAvatarUpload(event) {
         }        
         const progressBar = document.getElementById('avatarUploadProgressBar');
         const progressContainer = document.getElementById('avatarUploadProgress');
-        if (progressContainer) progressContainer.style.display = 'block';
-        if (progressBar) progressBar.style.width = '0%';
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
         const filePath = `avatars/${state.currentUser.id}/avatar.png`;
         const { error: uploadError } = await state.supabase.storage
             .from('avatars')
@@ -5684,13 +5452,13 @@ async function handleAvatarUpload(event) {
                 cacheControl: '3600',
                 onUploadProgress: (progress) => {
                     const percentage = (progress.loaded / progress.total) * 100;
-                    if (progressBar) progressBar.style.width = `${percentage}%`;
+                    progressBar.style.width = `${percentage}%`;
                 }
             });            
         if (uploadError) {
             console.log('Avatar upload error:', uploadError);
             showToast('Error', 'Failed to upload avatar', 'error');
-            if (progressContainer) progressContainer.style.display = 'none';
+            progressContainer.style.display = 'none';
             return;
         }
         const { data: { publicUrl } } = state.supabase.storage
@@ -5703,18 +5471,17 @@ async function handleAvatarUpload(event) {
         if (updateError) {
             console.log('Profile update error:', updateError);
             showToast('Error', 'Failed to update profile', 'error');
-            if (progressContainer) progressContainer.style.display = 'none';
+            progressContainer.style.display = 'none';
             return;
         }
         await fetchAndUpdateProfile(true);
-        if (progressContainer) progressContainer.style.display = 'none';
+        progressContainer.style.display = 'none';
         showToast('Success', 'Avatar updated successfully', 'success');
         event.target.value = '';        
     } catch (error) {
         console.log('Error in handleAvatarUpload:', error);
         showToast('Error', 'Failed to upload avatar', 'error');
-        const progressContainer = document.getElementById('avatarUploadProgress');
-        if (progressContainer) progressContainer.style.display = 'none';
+        document.getElementById('avatarUploadProgress').style.display = 'none';
     }
 }
 
@@ -5724,26 +5491,20 @@ function openMediaFullscreen(url, type) {
         const img = document.getElementById('mediaFullscreenImg');
         const video = document.getElementById('mediaFullscreenVideo');        
         if (type === 'image') {
-            if (img) {
-                img.src = url;
-                img.style.display = 'block';
-            }
-            if (video) {
-                video.style.display = 'none';
-                video.pause();
-                video.src = '';
-            }
+            img.src = url;
+            img.style.display = 'block';
+            video.style.display = 'none';
+            video.pause();
+            video.src = '';
             state.mediaFullscreenElement = img;
         } else if (type === 'video') {
-            if (video) {
-                video.src = url;
-                video.style.display = 'block';
-                state.mediaFullscreenElement = video;
-                video.load();
-            }
-            if (img) img.style.display = 'none';
+            video.src = url;
+            video.style.display = 'block';
+            img.style.display = 'none';
+            state.mediaFullscreenElement = video;
+            video.load();
         }        
-        if (modal) modal.style.display = 'flex';        
+        modal.style.display = 'flex';        
     } catch (error) {
         console.log('Error opening media fullscreen:', error);
     }
@@ -5753,8 +5514,8 @@ function openEnhancedMedia(embedUrl) {
     try {
         const modal = document.getElementById('enhancedMediaModal');
         const iframe = document.getElementById('enhancedMediaIframe');
-        if (iframe) iframe.src = embedUrl;
-        if (modal) modal.style.display = 'flex';
+        iframe.src = embedUrl;
+        modal.style.display = 'flex';
     } catch (error) {
         console.log('Error opening enhanced media:', error);
     }
@@ -5764,8 +5525,8 @@ function openAvatarFullscreen(avatarUrl) {
     try {
         const modal = document.getElementById('avatarFullscreenModal');
         const img = document.getElementById('avatarFullscreenImg');
-        if (img) img.src = avatarUrl;
-        if (modal) modal.style.display = 'flex';
+        img.src = avatarUrl;
+        modal.style.display = 'flex';
     } catch (error) {
         console.log('Error opening avatar fullscreen:', error);
     }
@@ -5776,6 +5537,14 @@ function openUserProfile(userId) {
         showUserProfile(userId);
     } catch (error) {
         console.log('Error opening user profile:', error);
+    }
+}
+
+function openDMUserProfile(userId) {
+    try {
+        showUserProfile(userId);
+    } catch (error) {
+        console.log('Error opening DM user profile:', error);
     }
 }
 
@@ -5798,9 +5567,6 @@ async function displayUserProfile(profileOrUserId) {
             profile = profileOrUserId;
         }
         
-        // Guard against null
-        profile = profile || {};
-        
         const modal = document.getElementById('quickProfileModal');
         const avatar = document.getElementById('quickProfileAvatar');
         const name = document.getElementById('quickProfileName');
@@ -5814,84 +5580,94 @@ async function displayUserProfile(profileOrUserId) {
         
         if (profile.avatar_url) {
             const timestamp = Date.now();
-            if (avatar) {
-                avatar.src = `${profile.avatar_url}?t=${timestamp}`;
-                avatar.onclick = function() {
-                    openAvatarFullscreen(profile.avatar_url);
+            avatar.src = `${profile.avatar_url}?t=${timestamp}`;
+            avatar.onclick = function() {
+                openAvatarFullscreen(profile.avatar_url);
+            };
+            avatar.onerror = function() {
+                const initials = (profile.username || 'U').charAt(0).toUpperCase();
+                this.style.display = 'none';
+                const fallback = document.createElement('div');
+                fallback.style.width = '80px';
+                fallback.style.height = '80px';
+                fallback.style.borderRadius = '50%';
+                fallback.style.background = 'var(--color-gold-transparent)';
+                fallback.style.color = 'var(--color-gold)';
+                fallback.style.display = 'flex';
+                fallback.style.alignItems = 'center';
+                fallback.style.justifyContent = 'center';
+                fallback.style.fontSize = '24px';
+                fallback.style.fontWeight = '500';
+                fallback.style.margin = '0 auto 16px';
+                fallback.style.cursor = 'pointer';
+                fallback.textContent = initials;
+                fallback.onclick = function() {
+                    if (profile.avatar_url) {
+                        openAvatarFullscreen(profile.avatar_url);
+                    }
                 };
-                avatar.onerror = function() {
-                    const initials = (profile.username || 'U').charAt(0).toUpperCase();
-                    this.style.display = 'none';
-                    const fallback = document.createElement('div');
-                    fallback.style.width = '80px';
-                    fallback.style.height = '80px';
-                    fallback.style.borderRadius = '50%';
-                    fallback.style.background = 'var(--color-gold-transparent)';
-                    fallback.style.color = 'var(--color-gold)';
-                    fallback.style.display = 'flex';
-                    fallback.style.alignItems = 'center';
-                    fallback.style.justifyContent = 'center';
-                    fallback.style.fontSize = '24px';
-                    fallback.style.fontWeight = '500';
-                    fallback.style.margin = '0 auto 16px';
-                    fallback.style.cursor = 'pointer';
-                    fallback.textContent = initials;
-                    fallback.onclick = function() {
-                        if (profile.avatar_url) {
-                            openAvatarFullscreen(profile.avatar_url);
-                        }
-                    };
-                    avatar.parentNode.insertBefore(fallback, avatar);
-                };
-            }
+                avatar.parentNode.insertBefore(fallback, avatar);
+            };
         } else {
-            if (avatar) avatar.style.display = 'none';
+            const initials = (profile.username || 'U').charAt(0).toUpperCase();
+            avatar.style.display = 'none';
+            const fallback = document.createElement('div');
+            fallback.style.width = '80px';
+            fallback.style.height = '80px';
+            fallback.style.borderRadius = '50%';
+            fallback.style.background = 'var(--color-gold-transparent)';
+            fallback.style.color = 'var(--color-gold)';
+            fallback.style.display = 'flex';
+            fallback.style.alignItems = 'center';
+            fallback.style.justifyContent = 'center';
+            fallback.style.fontSize = '24px';
+            fallback.style.fontWeight = '500';
+            fallback.style.margin = '0 auto 16px';
+            fallback.style.cursor = 'default';
+            fallback.textContent = initials;
+            avatar.parentNode.insertBefore(fallback, avatar);
         }
         
-        if (name) name.textContent = profile.username || 'User';
+        name.textContent = profile.username || 'User';
         const isStealth = profile.stealth_mode === true;
         const status = isStealth ? 'offline' : (profile.status || 'offline');       
-        if (statusText) statusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        if (statusDot) statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        statusText.textContent = status === 'online' ? 'Online' : 'Offline';
+        statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
         
-        if (emailEl) {
-            if (profile.id === state.currentUser.id || profile.show_realms) {
-                emailEl.textContent = profile.email || '';
-            } else {
-                emailEl.textContent = '';
-            }
+        if (profile.id === state.currentUser.id || profile.show_realms) {
+            emailEl.textContent = profile.email || '';
+        } else {
+            emailEl.textContent = '';
         }
         
-        if (bioEl) bioEl.textContent = profile.bio || 'No bio provided';
+        bioEl.textContent = profile.bio || 'No bio provided';
         
         const socialLinksData = profile.social_links || {};
         if (Object.keys(socialLinksData).length > 0) {
-            if (socialContainer) socialContainer.style.display = 'block';
-            if (socialLinks) {
-                socialLinks.innerHTML = '';
-                if (socialLinksData.twitter) {
-                    socialLinks.innerHTML += `<a href="${socialLinksData.twitter}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Twitter</a>`;
-                }
-                if (socialLinksData.instagram) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.instagram}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Instagram</a>`;
-                }
-                if (socialLinksData.website) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.website}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Website</a>`;
-                }
-                if (socialLinksData.other) {
-                    if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                    socialLinks.innerHTML += `<a href="${socialLinksData.other}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Other</a>`;
-                }
+            socialContainer.style.display = 'block';
+            socialLinks.innerHTML = '';
+            if (socialLinksData.twitter) {
+                socialLinks.innerHTML += `<a href="${socialLinksData.twitter}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Twitter</a>`;
+            }
+            if (socialLinksData.instagram) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.instagram}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Instagram</a>`;
+            }
+            if (socialLinksData.website) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.website}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Website</a>`;
+            }
+            if (socialLinksData.other) {
+                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
+                socialLinks.innerHTML += `<a href="${socialLinksData.other}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Other</a>`;
             }
         } else {
-            if (socialContainer) socialContainer.style.display = 'none';
+            socialContainer.style.display = 'none';
         }
         
         if (realmsContainer) {
             realmsContainer.innerHTML = '<div style="color: var(--text-secondary); font-style: italic;">Loading realms...</div>';            
-            const realmsData = await loadOtherUserRealms(profile.id);           
+ const realmsData = await loadOtherUserRealms(profile.id);           
             if (realmsData.show_realms === false) {
                 realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
             } else if (realmsData.realms.length === 0) {
@@ -5899,7 +5675,7 @@ async function displayUserProfile(profileOrUserId) {
             } else {
                 realmsContainer.innerHTML = realmsData.realms.map(realm => {
                     let iconHtml = '';
-                    if (realm.icon_url) {
+                    if (realm.icon_url && realm.icon_url.startsWith('http')) {
                         iconHtml = `<img src="${realm.icon_url}" style="width: 16px; height: 16px; border-radius: 3px; margin-right: 6px; object-fit: cover;">`;
                     } else {
                         iconHtml = `<span style="margin-right: 6px;">${realm.icon_url || '🏰'}</span>`;
@@ -5910,7 +5686,7 @@ async function displayUserProfile(profileOrUserId) {
         }
         
         state.selectedUserForProfile = profile.id;
-        if (modal) modal.style.display = 'flex';        
+        modal.style.display = 'flex';        
     } catch (error) {
         console.log('Error displaying user profile:', error);
     }
@@ -5922,150 +5698,109 @@ async function createOrOpenDM(otherUserId) {
         const isSelf = otherUserId === state.currentUser.id;
         
         if (isSelf) {
-            const username = state.userSettings?.username || state.currentUser.email?.split('@')[0];
-            const channelName = `${username}_${username}`;
+            // Switch to Notes channel
             const dmRealm = state.joinedRealms.find(r => r.slug === 'direct-messages');
             if (!dmRealm) {
                 showToast('Error', 'Direct Messages realm not found', 'error');
                 return;
             }
             
-            const { data: existingChannels } = await state.supabase
-                .from('channels')
+            // Find Notes channel
+            const { data: notesChannel, error } = await state.supabase
+                .from('dm_channels')
                 .select('*')
-                .eq('name', channelName)
-                .eq('realm_id', dmRealm.id)
-                .eq('is_public', false)
-                .single();            
+                .eq('user1_id', state.currentUser.id)
+                .is('user2_id', null)
+                .eq('name', 'Notes')
+                .single();
                 
-            if (existingChannels) {
-                if (state.currentRealm?.id !== dmRealm.id) {
-                    await switchRealm(dmRealm.id);
-                }
-                state.currentChannel = existingChannels;
-                selectChannel(existingChannels.id);
-                showToast('Info', 'Opened Notes', 'info');
+            if (error || !notesChannel) {
+                showToast('Error', 'Notes channel not found', 'error');
                 return;
             }
             
-            const { data: newChannel, error } = await state.supabase
-                .from('channels')
-                .insert([{
-                    name: channelName,
-                    description: `Private notes for ${username}`,
-                    realm_id: dmRealm.id,
-                    created_by: state.currentUser.id,
-                    is_public: false,
-                    is_writable: true,
-                    position: 999
-                }])
-                .select()
-                .single();           
-            if (error) {
-                console.log('Error creating notes channel:', error);
-                showToast('Error', 'Failed to create notes', 'error');
-                return;
-            }
-            
+            // Switch to DM realm and select Notes channel
             if (state.currentRealm?.id !== dmRealm.id) {
                 await switchRealm(dmRealm.id);
             }
-            state.currentChannel = newChannel;
-            selectChannel(newChannel.id);        
-            showToast('Success', 'Notes created', 'success');
+            await selectDMChannel(notesChannel.id);
+            showToast('Info', 'Opened Notes', 'info');
             return;
         }
         
-        const { data: currentUserProfile } = await state.supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', state.currentUser.id)
-            .single();            
-        const { data: otherUserProfile } = await state.supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', otherUserId)
-            .single();            
-        if (!currentUserProfile || !otherUserProfile) {
-            showToast('Error', 'Failed to load user profiles', 'error');
-            return;
+        // For 1:1 DM with another user
+        const u1 = state.currentUser.id < otherUserId ? state.currentUser.id : otherUserId;
+        const u2 = state.currentUser.id < otherUserId ? otherUserId : state.currentUser.id;
+        
+        // Check for existing DM channel
+        const { data: existingChannel, error: searchError } = await state.supabase
+            .from('dm_channels')
+            .select('*')
+            .or(`and(user1_id.eq.${u1},user2_id.eq.${u2}),and(user1_id.eq.${u2},user2_id.eq.${u1})`)
+            .single();
+            
+        let channelId;
+        
+        if (searchError || !existingChannel) {
+            // Create new DM channel
+            const { data: newChannel, error: createError } = await state.supabase
+                .from('dm_channels')
+                .insert([{
+                    user1_id: u1,
+                    user2_id: u2,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }])
+                .select()
+                .single();
+                
+            if (createError) {
+                console.log('Error creating DM channel:', createError);
+                showToast('Error', 'Failed to create conversation', 'error');
+                return;
+            }
+            
+            channelId = newChannel.id;
+            
+            // Add participants
+            await state.supabase
+                .from('dm_participants')
+                .insert([
+                    { channel_id: channelId, user_id: state.currentUser.id, joined_at: new Date().toISOString() },
+                    { channel_id: channelId, user_id: otherUserId, joined_at: new Date().toISOString() }
+                ]);
+                
+            // Add DM settings
+            await state.supabase
+                .from('dm_settings')
+                .insert([
+                    { channel_id: channelId, user_id: state.currentUser.id, notifications: 'all' },
+                    { channel_id: channelId, user_id: otherUserId, notifications: 'all' }
+                ]);
+                
+        } else {
+            channelId = existingChannel.id;
         }
-        const usernames = [currentUserProfile.username, otherUserProfile.username].sort();
-        const channelName = `${usernames[0]}_${usernames[1]}`;
+        
+        // Switch to DM realm and select channel
         const dmRealm = state.joinedRealms.find(r => r.slug === 'direct-messages');
         if (!dmRealm) {
             showToast('Error', 'Direct Messages realm not found', 'error');
             return;
         }
         
-        // Check for existing DM channel
-        const { data: existingChannels, error: searchError } = await state.supabase
-            .from('channels')
-            .select('*')
-            .eq('realm_id', dmRealm.id)
-            .eq('is_public', false)
-            .or(`name.eq.${channelName},name.eq.${usernames[1]}_${usernames[0]}`);
-            
-        if (searchError) {
-            console.log('Error searching for DM channels:', searchError);
-        }
-        
-        let existingChannel = null;
-        if (existingChannels && existingChannels.length > 0) {
-            existingChannel = existingChannels[0];
-        }
-        
-        if (existingChannel) {
-            if (state.currentRealm?.id !== dmRealm.id) {
-                await switchRealm(dmRealm.id);
-            }
-            state.currentChannel = existingChannel;
-            selectChannel(existingChannel.id);
-            showToast('Info', 'Opened existing conversation', 'info');
-            return;
-        }
-        
-        // Create new DM channel
-        const { data: newChannel, error } = await state.supabase
-            .from('channels')
-            .insert([{
-                name: channelName,
-                description: `Private conversation between ${usernames[0]} and ${usernames[1]}`,
-                realm_id: dmRealm.id,
-                created_by: state.currentUser.id,
-                is_public: false,
-                is_writable: true,
-                position: 999
-            }])
-            .select()
-            .single();           
-        if (error) {
-            console.log('Error creating DM channel:', error);
-            showToast('Error', 'Failed to create conversation', 'error');
-            return;
-        }
-        
-        // Also create dm_channels row for tracking
-        await state.supabase
-            .from('dm_channels')
-            .insert({
-                channel_id: newChannel.id,
-                user1_id: state.currentUser.id,
-                user2_id: otherUserId,
-                created_at: new Date().toISOString()
-            })
-            .onConflict('channel_id')
-            .ignore();
-        
         if (state.currentRealm?.id !== dmRealm.id) {
             await switchRealm(dmRealm.id);
         }
-        state.currentChannel = newChannel;
-        selectChannel(newChannel.id);
         
-        loadChannels();
+        // Reload DM channels to ensure the new one is in the list
+        await loadDMChannels();
         
-        showToast('Success', 'Conversation created', 'success');      
+        // Select the channel
+        await selectDMChannel(channelId);
+        
+        showToast('Success', 'Conversation opened', 'success');
+        
     } catch (error) {
         console.log('Error creating/opening DM:', error);
         showToast('Error', 'Failed to create conversation', 'error');
@@ -6170,8 +5905,7 @@ function showEmojiPicker() {
             emojiPicker.appendChild(btn);
         });
         
-        const emojiPickerModal = document.getElementById('emojiPickerModal');
-        if (emojiPickerModal) emojiPickerModal.style.display = 'flex';       
+        document.getElementById('emojiPickerModal').style.display = 'flex';       
     } catch (error) {
         console.log('Error showing emoji picker:', error);
     }
@@ -6223,8 +5957,7 @@ async function addReaction(emoji) {
         }
         
         showToast('Reaction', `${existingIndex > -1 ? 'Removed' : 'Added'} ${emoji}`, 'success');
-        const emojiPickerModal = document.getElementById('emojiPickerModal');
-        if (emojiPickerModal) emojiPickerModal.style.display = 'none';
+        document.getElementById('emojiPickerModal').style.display = 'none';
         state.selectedMessageForReaction = null;        
     } catch (error) {
         console.log('Error adding reaction:', error);
@@ -6235,158 +5968,27 @@ async function addReaction(emoji) {
 function showStartConversationModal(forMention = false) {
     try {
         state.mentionSearchActive = forMention;
-        const startConversationModal = document.getElementById('startConversationModal');
-        if (startConversationModal) startConversationModal.style.display = 'flex';
-        const userSearchInput = document.getElementById('userSearchInput');
-        if (userSearchInput) userSearchInput.value = '';
-        const userSearchResults = document.getElementById('userSearchResults');
-        if (userSearchResults) userSearchResults.style.display = 'none';
-        if (userSearchInput) userSearchInput.focus();
+        document.getElementById('startConversationModal').style.display = 'flex';
+        document.getElementById('userSearchInput').value = '';
+        document.getElementById('userSearchResults').style.display = 'none';
+        document.getElementById('userSearchInput').focus();
     } catch (error) {
         console.log('Error showing start conversation modal:', error);
         showToast('Error', 'Failed to open search', 'error');
     }
 }
 
-function showMentionModal() {
-    try {
-        state.mentionSearchActive = true;
-        const startConversationModal = document.getElementById('startConversationModal');
-        if (startConversationModal) startConversationModal.style.display = 'flex';
-        const userSearchInput = document.getElementById('userSearchInput');
-        if (userSearchInput) userSearchInput.value = '';
-        const userSearchResults = document.getElementById('userSearchResults');
-        if (userSearchResults) userSearchResults.style.display = 'none';
-        if (userSearchInput) userSearchInput.focus();
-    } catch (error) {
-        console.log('Error showing mention modal:', error);
-    }
-}
-
-async function showChannelMentionModal() {
-    try {
-        if (!state.supabase || !state.currentRealm) return;
-        
-        const { data: channels, error } = await state.supabase
-            .from('channels')
-            .select('id, name')
-            .eq('realm_id', state.currentRealm.id)
-            .eq('is_public', true)
-            .order('position', { ascending: true });
-            
-        if (error) {
-            console.log('Error loading channels for mention:', error);
-            return;
-        }
-        
-        const modal = document.getElementById('channelMentionModal');
-        const list = document.getElementById('channelMentionList');
-        
-        if (!modal || !list) return;
-        
-        list.innerHTML = '';
-        
-        if (channels.length === 0) {
-            list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No channels available</div>';
-        } else {
-            channels.forEach(channel => {
-                const item = document.createElement('div');
-                item.className = 'mention-item';
-                item.textContent = `#${channel.name}`;
-                item.addEventListener('click', () => {
-                    insertChannelMention(channel.name);
-                    modal.style.display = 'none';
-                });
-                list.appendChild(item);
-            });
-        }
-        
-        modal.style.display = 'flex';
-    } catch (error) {
-        console.log('Error showing channel mention modal:', error);
-    }
-}
-
-async function showRealmMentionModal() {
-    try {
-        if (!state.supabase) return;
-        
-        const { data: realms, error } = await state.supabase
-            .from('realms')
-            .select('id, name')
-            .order('name', { ascending: true });
-            
-        if (error) {
-            console.log('Error loading realms for mention:', error);
-            return;
-        }
-        
-        const modal = document.getElementById('realmMentionModal');
-        const list = document.getElementById('realmMentionList');
-        
-        if (!modal || !list) return;
-        
-        list.innerHTML = '';
-        
-        if (realms.length === 0) {
-            list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No realms available</div>';
-        } else {
-            realms.forEach(realm => {
-                const item = document.createElement('div');
-                item.className = 'mention-item';
-                item.textContent = `$${realm.name}`;
-                item.addEventListener('click', () => {
-                    insertRealmMention(realm.name);
-                    modal.style.display = 'none';
-                });
-                list.appendChild(item);
-            });
-        }
-        
-        modal.style.display = 'flex';
-    } catch (error) {
-        console.log('Error showing realm mention modal:', error);
-    }
-}
-
-function insertChannelMention(channelName) {
-    const messageInput = document.getElementById('messageInput');
-    if (!messageInput) return;
-    
-    const cursorPos = messageInput.selectionStart;
-    const textBefore = messageInput.value.substring(0, cursorPos);
-    const textAfter = messageInput.value.substring(cursorPos);
-    messageInput.value = textBefore + '#' + channelName + ' ' + textAfter;
-    messageInput.focus();
-    messageInput.selectionStart = cursorPos + channelName.length + 2;
-    messageInput.selectionEnd = cursorPos + channelName.length + 2;
-}
-
-function insertRealmMention(realmName) {
-    const messageInput = document.getElementById('messageInput');
-    if (!messageInput) return;
-    
-    const cursorPos = messageInput.selectionStart;
-    const textBefore = messageInput.value.substring(0, cursorPos);
-    const textAfter = messageInput.value.substring(cursorPos);
-    messageInput.value = textBefore + '$' + realmName + ' ' + textAfter;
-    messageInput.focus();
-    messageInput.selectionStart = cursorPos + realmName.length + 2;
-    messageInput.selectionEnd = cursorPos + realmName.length + 2;
-}
-
 async function searchUsers(searchTerm) {
     try {
         if (!state.supabase || !searchTerm.trim()) {
-            const userSearchResults = document.getElementById('userSearchResults');
-            if (userSearchResults) userSearchResults.style.display = 'none';
+            document.getElementById('userSearchResults').style.display = 'none';
             return;
         }
         
         const { data: users, error } = await state.supabase
             .from('profiles')
-            .select('id, username, avatar_url')
-            .ilike('username', `%${searchTerm}%`)
+            .select('id, username, avatar_url, status, stealth_mode')
+            .or(`username.ilike.%${searchTerm}%,search_vector.ilike.%${searchTerm}%`)
             .neq('id', state.currentUser.id)
             .limit(10);
             
@@ -6396,8 +5998,6 @@ async function searchUsers(searchTerm) {
         }
         
         const resultsContainer = document.getElementById('userSearchResults');
-        if (!resultsContainer) return;
-        
         resultsContainer.innerHTML = '';
         
         if (users.length === 0) {
@@ -6411,31 +6011,48 @@ async function searchUsers(searchTerm) {
         }
         
         users.forEach(user => {
+            const isOnline = user.status === 'online' && !user.stealth_mode;
             const resultItem = document.createElement('div');
             resultItem.className = 'search-result';
             resultItem.innerHTML = `
-                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;">
+                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
                 <div class="search-result-info">
                     <div class="search-result-name">${escapeHtml(user.username)}</div>
+                    <div class="search-result-status ${isOnline ? 'online' : ''}">${isOnline ? 'Online' : 'Offline'}</div>
                 </div>
             `;
             
             resultItem.addEventListener('click', async () => {
                 if (state.mentionSearchActive) {
                     insertMention(user.username);
-                    const startConversationModal = document.getElementById('startConversationModal');
-                    if (startConversationModal) startConversationModal.style.display = 'none';
-                    const userSearchInput = document.getElementById('userSearchInput');
-                    if (userSearchInput) userSearchInput.value = '';
+                    document.getElementById('startConversationModal').style.display = 'none';
+                    document.getElementById('userSearchInput').value = '';
                     resultsContainer.style.display = 'none';
                     state.mentionSearchActive = false;
                 } else {
-                    await createOrOpenDM(user.id);
-                    const startConversationModal = document.getElementById('startConversationModal');
-                    if (startConversationModal) startConversationModal.style.display = 'none';
-                    const userSearchInput = document.getElementById('userSearchInput');
-                    if (userSearchInput) userSearchInput.value = '';
-                    resultsContainer.style.display = 'none';
+                    // Show confirmation modal for starting DM
+                    document.getElementById('confirmationModal').style.display = 'flex';
+                    document.getElementById('confirmationIcon').textContent = '💬';
+                    document.getElementById('confirmationTitle').textContent = 'Start Conversation';
+                    document.getElementById('confirmationMessage').textContent = `Create a direct message conversation with @${user.username}?`;
+                    
+                    const confirmBtn = document.getElementById('confirmationConfirm');
+                    const cancelBtn = document.getElementById('confirmationCancel');
+                    
+                    const handleConfirm = async () => {
+                        await createOrOpenDM(user.id);
+                        document.getElementById('confirmationModal').style.display = 'none';
+                        document.getElementById('startConversationModal').style.display = 'none';
+                        document.getElementById('userSearchInput').value = '';
+                        resultsContainer.style.display = 'none';
+                    };
+                    
+                    const handleCancel = () => {
+                        document.getElementById('confirmationModal').style.display = 'none';
+                    };
+                    
+                    confirmBtn.addEventListener('click', handleConfirm);
+                    cancelBtn.addEventListener('click', handleCancel);
                 }
             });
             
@@ -6450,8 +6067,6 @@ async function searchUsers(searchTerm) {
 
 function insertMention(username) {
     const messageInput = document.getElementById('messageInput');
-    if (!messageInput) return;
-    
     const cursorPos = messageInput.selectionStart;
     const textBefore = messageInput.value.substring(0, cursorPos);
     const textAfter = messageInput.value.substring(cursorPos);
@@ -6474,16 +6089,12 @@ async function createChannel() {
             showToast('Error', 'Please enter a channel name', 'error');
             nameInput.focus();
             return;
-        }
-        
-        // Replace spaces with underscores
-        const channelName = name.replace(/\s+/g, '_');
-        
+        }       
         const position = state.channels.length;        
         const { data: newChannel, error } = await state.supabase
             .from('channels')
             .insert([{
-                name: channelName,
+                name: name,
                 description: description,
                 realm_id: state.currentRealm.id,
                 created_by: state.currentUser.id,
@@ -6503,8 +6114,7 @@ async function createChannel() {
         writableCheckbox.checked = true;        
         loadChannels();        
         selectChannel(newChannel.id);
-        const createChannelModal = document.getElementById('createChannelModal');
-        if (createChannelModal) createChannelModal.style.display = 'none';        
+        document.getElementById('createChannelModal').style.display = 'none';        
     } catch (error) {
         console.log('Error creating channel:', error);
         showToast('Error', 'Failed to create channel', 'error');
@@ -6515,18 +6125,12 @@ function showDeleteChannelConfirmation(channel) {
     try {
         state.pendingChannelDelete = channel;
         state.channelDeleteStep = 1;
-        const deleteChannelName = document.getElementById('deleteChannelName');
-        if (deleteChannelName) deleteChannelName.textContent = `#${channel.name}`;
-        const deleteChannelModal = document.getElementById('deleteChannelModal');
-        if (deleteChannelModal) deleteChannelModal.style.display = 'flex';
+        document.getElementById('deleteChannelName').textContent = `#${channel.name}`;
+        document.getElementById('deleteChannelModal').style.display = 'flex';
         
-        const deleteStep1 = document.getElementById('deleteStep1');
-        const deleteStep2 = document.getElementById('deleteStep2');
-        const deleteStep3 = document.getElementById('deleteStep3');
-        
-        if (deleteStep1) deleteStep1.style.display = 'block';
-        if (deleteStep2) deleteStep2.style.display = 'none';
-        if (deleteStep3) deleteStep3.style.display = 'none';
+        document.getElementById('deleteStep1').style.display = 'block';
+        document.getElementById('deleteStep2').style.display = 'none';
+        document.getElementById('deleteStep3').style.display = 'none';
     } catch (error) {
         console.log('Error showing delete channel confirmation:', error);
     }
@@ -6535,8 +6139,7 @@ function showDeleteChannelConfirmation(channel) {
 function handleDeleteChannelStep(step, action) {
     try {
         if (action === 'no') {
-            const deleteChannelModal = document.getElementById('deleteChannelModal');
-            if (deleteChannelModal) deleteChannelModal.style.display = 'none';
+            document.getElementById('deleteChannelModal').style.display = 'none';
             state.pendingChannelDelete = null;
             resetDeleteChannelSteps();
             return;
@@ -6544,16 +6147,12 @@ function handleDeleteChannelStep(step, action) {
         
         if (action === 'yes') {
             if (step === 1) {
-                const deleteStep1 = document.getElementById('deleteStep1');
-                const deleteStep2 = document.getElementById('deleteStep2');
-                if (deleteStep1) deleteStep1.style.display = 'none';
-                if (deleteStep2) deleteStep2.style.display = 'block';
+                document.getElementById('deleteStep1').style.display = 'none';
+                document.getElementById('deleteStep2').style.display = 'block';
                 state.channelDeleteStep = 2;
             } else if (step === 2) {
-                const deleteStep2 = document.getElementById('deleteStep2');
-                const deleteStep3 = document.getElementById('deleteStep3');
-                if (deleteStep2) deleteStep2.style.display = 'none';
-                if (deleteStep3) deleteStep3.style.display = 'block';
+                document.getElementById('deleteStep2').style.display = 'none';
+                document.getElementById('deleteStep3').style.display = 'block';
                 state.channelDeleteStep = 3;
             } else if (step === 3) {
                 deleteChannelFinal();
@@ -6567,13 +6166,9 @@ function handleDeleteChannelStep(step, action) {
 function resetDeleteChannelSteps() {
     try {
         state.channelDeleteStep = 1;
-        const deleteStep1 = document.getElementById('deleteStep1');
-        const deleteStep2 = document.getElementById('deleteStep2');
-        const deleteStep3 = document.getElementById('deleteStep3');
-        
-        if (deleteStep1) deleteStep1.style.display = 'block';
-        if (deleteStep2) deleteStep2.style.display = 'none';
-        if (deleteStep3) deleteStep3.style.display = 'none';
+        document.getElementById('deleteStep1').style.display = 'block';
+        document.getElementById('deleteStep2').style.display = 'none';
+        document.getElementById('deleteStep3').style.display = 'none';
     } catch (error) {
         console.log('Error resetting delete channel steps:', error);
     }
@@ -6596,8 +6191,7 @@ async function deleteChannelFinal() {
         }
         
         showToast('Success', 'Channel deleted successfully', 'success');
-        const deleteChannelModal = document.getElementById('deleteChannelModal');
-        if (deleteChannelModal) deleteChannelModal.style.display = 'none';
+        document.getElementById('deleteChannelModal').style.display = 'none';
         state.pendingChannelDelete = null;
         resetDeleteChannelSteps();
         
@@ -6605,6 +6199,260 @@ async function deleteChannelFinal() {
     } catch (error) {
         console.log('Error in deleteChannelFinal:', error);
         showToast('Error', 'Failed to delete channel', 'error');
+    }
+}
+
+async function showDMChannelSettings(channelId) {
+    try {
+        if (!channelId || !state.supabase) return;
+        
+        state.selectedDMChannel = channelId;
+        const channel = state.dmChannels.find(c => c.id === channelId);
+        if (!channel) return;
+        
+        // Load participants
+        const { data: participants, error } = await state.supabase
+            .from('dm_participants')
+            .select(`
+                user_id,
+                profiles:user_id (username, avatar_url, status, stealth_mode)
+            `)
+            .eq('channel_id', channelId);
+            
+        if (error) {
+            console.log('Error loading participants:', error);
+            return;
+        }
+        
+        const currentUserId = state.currentUser.id;
+        const otherParticipants = participants.filter(p => p.user_id !== currentUserId);
+        const isNotes = otherParticipants.length === 0;
+        const isGroup = participants.length > 2;
+        
+        // Load DM settings for current user
+        const { data: dmSettings, error: settingsError } = await state.supabase
+            .from('dm_settings')
+            .select('notifications')
+            .eq('channel_id', channelId)
+            .eq('user_id', currentUserId)
+            .single();
+            
+        if (settingsError && settingsError.code !== 'PGRST116') {
+            console.log('Error loading DM settings:', settingsError);
+        }
+        
+        // Update modal UI
+        document.getElementById('dmChannelSettingsTitle').textContent = isNotes ? 'Notes Settings' : 'Conversation Settings';
+        
+        // Channel name section (only for groups)
+        const channelNameSection = document.getElementById('dmChannelNameSection');
+        if (isGroup) {
+            channelNameSection.style.display = 'block';
+            document.getElementById('dmChannelNameInput').value = channel.name || '';
+        } else {
+            channelNameSection.style.display = 'none';
+        }
+        
+        // Participants section
+        const participantsList = document.getElementById('dmChannelParticipantsList');
+        participantsList.innerHTML = '';
+        
+        participants.forEach(participant => {
+            const participantElement = document.createElement('div');
+            participantElement.className = 'dm-participant-item';
+            participantElement.innerHTML = `
+                <img src="${participant.profiles?.avatar_url ? participant.profiles.avatar_url + '?t=' + Date.now() : ''}" alt="${participant.profiles?.username}" onerror="this.style.display='none';">
+                <div>
+                    <div>${escapeHtml(participant.profiles?.username || 'User')}</div>
+                    <div class="participant-status ${participant.profiles?.status === 'online' && !participant.profiles?.stealth_mode ? 'online' : ''}">
+                        ${participant.profiles?.status === 'online' && !participant.profiles?.stealth_mode ? 'Online' : 'Offline'}
+                    </div>
+                </div>
+            `;
+            participantsList.appendChild(participantElement);
+        });
+        
+        // Add user button (only for groups)
+        const addUserSection = document.getElementById('dmChannelAddUserSection');
+        if (isGroup) {
+            addUserSection.style.display = 'block';
+        } else {
+            addUserSection.style.display = 'none';
+        }
+        
+        // Notifications section
+        const notificationsValue = dmSettings?.notifications || 'all';
+        document.querySelectorAll('.dm-notification-option').forEach(option => {
+            option.classList.remove('active');
+            if (option.dataset.value === notificationsValue) {
+                option.classList.add('active');
+            }
+        });
+        
+        // Leave button (only for groups, not for Notes)
+        const leaveButton = document.getElementById('dmChannelSettingsLeaveBtn');
+        if (isGroup) {
+            leaveButton.style.display = 'block';
+        } else {
+            leaveButton.style.display = 'none';
+        }
+        
+        document.getElementById('dmChannelSettingsModal').style.display = 'flex';
+        
+    } catch (error) {
+        console.log('Error showing DM channel settings:', error);
+    }
+}
+
+async function saveDMChannelSettings() {
+    try {
+        if (!state.selectedDMChannel || !state.supabase) return;
+        
+        const channel = state.dmChannels.find(c => c.id === state.selectedDMChannel);
+        if (!channel) return;
+        
+        // Update channel name for groups
+        const participants = state.dmParticipants[state.selectedDMChannel] || [];
+        const isGroup = participants.length > 2;
+        
+        if (isGroup) {
+            const newName = document.getElementById('dmChannelNameInput').value.trim();
+            if (newName !== channel.name) {
+                const { error } = await state.supabase
+                    .from('dm_channels')
+                    .update({ name: newName || null })
+                    .eq('id', state.selectedDMChannel);
+                    
+                if (error) {
+                    console.log('Error updating channel name:', error);
+                    showToast('Error', 'Failed to update channel name', 'error');
+                } else {
+                    channel.name = newName || null;
+                }
+            }
+        }
+        
+        // Update notifications setting
+        const selectedNotification = document.querySelector('.dm-notification-option.active');
+        if (selectedNotification) {
+            const notificationsValue = selectedNotification.dataset.value;
+            const { error } = await state.supabase
+                .from('dm_settings')
+                .upsert({
+                    channel_id: state.selectedDMChannel,
+                    user_id: state.currentUser.id,
+                    notifications: notificationsValue
+                }, {
+                    onConflict: 'channel_id,user_id'
+                });
+                
+            if (error) {
+                console.log('Error updating notifications:', error);
+                showToast('Error', 'Failed to update notifications', 'error');
+            }
+        }
+        
+        showToast('Success', 'Settings saved', 'success');
+        document.getElementById('dmChannelSettingsModal').style.display = 'none';
+        state.selectedDMChannel = null;
+        
+        // Refresh UI
+        if (state.currentDMChannel?.id === channel.id) {
+            updateDMChatHeader(channel.id);
+        }
+        
+    } catch (error) {
+        console.log('Error saving DM channel settings:', error);
+        showToast('Error', 'Failed to save settings', 'error');
+    }
+}
+
+function showAddUserToDMModal() {
+    showToast('Coming Soon', 'Adding users to group chats will be available in a future update', 'info');
+}
+
+async function leaveDMChannel() {
+    try {
+        if (!state.selectedDMChannel || !state.supabase) return;
+        
+        document.getElementById('confirmationModal').style.display = 'flex';
+        document.getElementById('confirmationIcon').textContent = '🚪';
+        document.getElementById('confirmationTitle').textContent = 'Leave Conversation';
+        document.getElementById('confirmationMessage').textContent = 'Are you sure you want to leave this conversation? You will no longer receive messages from this chat.';
+        
+        const confirmBtn = document.getElementById('confirmationConfirm');
+        const cancelBtn = document.getElementById('confirmationCancel');
+        
+        const handleConfirm = async () => {
+            try {
+                const { error } = await state.supabase
+                    .from('dm_participants')
+                    .delete()
+                    .eq('channel_id', state.selectedDMChannel)
+                    .eq('user_id', state.currentUser.id);
+                    
+                if (error) throw error;
+                
+                // Remove from DM settings
+                await state.supabase
+                    .from('dm_settings')
+                    .delete()
+                    .eq('channel_id', state.selectedDMChannel)
+                    .eq('user_id', state.currentUser.id);
+                    
+                showToast('Success', 'Left conversation', 'success');
+                document.getElementById('confirmationModal').style.display = 'none';
+                document.getElementById('dmChannelSettingsModal').style.display = 'none';
+                
+                // Reload DM channels
+                await loadDMChannels();
+                
+                // If we were in that channel, switch to another
+                if (state.currentDMChannel?.id === state.selectedDMChannel) {
+                    state.currentDMChannel = null;
+                    if (state.dmChannels.length > 0) {
+                        await selectDMChannel(state.dmChannels[0].id);
+                    } else {
+                        // Clear chat UI
+                        const messagesContainer = document.getElementById('messagesContainer');
+                        if (messagesContainer) {
+                            messagesContainer.innerHTML = `
+                                <div class="empty-state" id="emptyState">
+                                    No conversations yet. Click + to start one.
+                                </div>
+                            `;
+                        }
+                        const channelHeader = document.getElementById('channelHeader');
+                        if (channelHeader) {
+                            channelHeader.innerHTML = '<div>Select a conversation</div>';
+                        }
+                    }
+                }
+                
+                state.selectedDMChannel = null;
+                
+            } catch (error) {
+                console.log('Error leaving DM channel:', error);
+                showToast('Error', 'Failed to leave conversation', 'error');
+                document.getElementById('confirmationModal').style.display = 'none';
+            }
+            
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+        
+        const handleCancel = () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+        };
+        
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+        
+    } catch (error) {
+        console.log('Error in leaveDMChannel:', error);
+        showToast('Error', 'Failed to leave conversation', 'error');
     }
 }
 
@@ -6656,10 +6504,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.5602 Beta...');
-    document.title = 'Labyrinth Chat v0.5.5602 Beta';
-    const versionElement = document.querySelector('.version');
-    if (versionElement) versionElement.textContent = 'v0.5.5602 Beta';
+    console.log('Initializing Labyrinth Chat v0.5.560 Beta...');
+    document.title = 'Labyrinth Chat v0.5.560 Beta';
+    document.querySelector('.version').textContent = 'v0.5.560 Beta';
+    document.querySelector('.login-subtitle').textContent = 'v0.5.560 Beta • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 5000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);
@@ -6668,3 +6516,5 @@ window.openMediaFullscreen = openMediaFullscreen;
 window.openEnhancedMedia = openEnhancedMedia;
 window.openAvatarFullscreen = openAvatarFullscreen;
 window.openUserProfile = openUserProfile;
+window.openDMUserProfile = openDMUserProfile;
+window.showDMChannelSettings = showDMChannelSettings;

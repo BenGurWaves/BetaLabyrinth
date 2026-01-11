@@ -1,7 +1,7 @@
-/* Labyrinth Chat v0.5.5602 Beta - Luxurious Mobile-First Design */
+/* Labyrinth Chat v0.5.5607 ALPHA - Complete with DM Features */
 :root {
     --color-black: #050505;
-    --color-dark: #0a0a0a; 
+    --color-dark: #0a0a0a;
     --color-white: #f5f5f5;
     --color-gray: rgba(255, 255, 255, 0.15);
     --color-gray-light: rgba(255, 255, 255, 0.05);
@@ -304,8 +304,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     display: none;
     flex-direction: column;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-wrap: break-word;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     padding: 8px 0;
 }
@@ -320,8 +318,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-bottom: 1px solid var(--border-color);
     transition: background var(--transition-fast);
     min-height: 60px;
-    overflow-x: hidden;
-    word-wrap: break-word;
 }
 .notification-dropdown-item:last-child {
     border-bottom: none;
@@ -332,7 +328,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dropdown-item.unread {
     background: var(--color-gold-transparent);
 }
-/* Notification Items Large Touch & Unread Bold - UPDATED: Title large, message normal, date small gray */
+/* Notification Items Large Touch & Unread Bold */
 .notification-item {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
@@ -342,9 +338,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     margin-bottom: 8px;
     transition: background var(--transition-fast);
     min-height: 72px;
-    overflow-x: hidden;
-    word-wrap: break-word;
-    width: 100%;
 }
 .notification-item:last-child {
     border-bottom: none;
@@ -354,8 +347,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .notification-item.unread {
     background: var(--color-gold-transparent);
-}
-.notification-item.unread .notification-item-title {
     font-weight: 600;
 }
 .notification-item-icon {
@@ -364,103 +355,22 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .notification-item-content {
     flex: 1;
-    overflow-x: hidden;
-    word-wrap: break-word;
 }
 .notification-item-title {
-    font-size: 16px; /* Large */
+    font-size: 14px;
     margin-bottom: 6px;
     color: var(--text-primary);
-    font-weight: bold;
 }
 .notification-item-body {
-    font-size: 13px; /* Normal */
+    font-size: 13px;
     color: var(--text-secondary);
     margin-bottom: 6px;
     font-weight: 300;
-    font-style: italic;
 }
 .notification-item-time {
-    font-size: 11px; /* Small */
-    color: var(--color-gray); /* Gray */
-    font-weight: 300;
-    opacity: 0.6;
-}
-/* Notification Detail View */
-.notification-detail-view {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--bg-primary);
-    z-index: 10000;
-    display: none;
-    flex-direction: column;
-    padding: 20px;
-}
-.notification-detail-view.active {
-    display: flex;
-}
-.notification-detail-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-}
-.notification-detail-back {
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-size: 24px;
-    cursor: pointer;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-}
-.notification-detail-back:hover {
-    background: var(--color-gray-dark);
-    color: var(--color-gold);
-}
-.notification-detail-close {
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-size: 24px;
-    cursor: pointer;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition-fast);
-}
-.notification-detail-close:hover {
-    background: var(--color-gray-dark);
-    color: var(--color-gold);
-}
-.notification-detail-title {
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    flex: 1;
-    margin: 0 20px;
-    color: var(--text-primary);
-}
-.notification-detail-body {
-    padding: 20px;
-    overflow-y: auto;
-    word-wrap: break-word;
-    flex: 1;
+    font-size: 11px;
     color: var(--text-secondary);
-    line-height: 1.6;
+    font-weight: 300;
 }
 /* Header Avatar - FIXED: Circle and fallback initials */
 .header-user-btn {
@@ -622,8 +532,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     z-index: 2000;
     max-height: 400px;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 .realm-dropdown.active {
@@ -1029,7 +937,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-secondary);
     font-weight: 300;
 }
-/* Links www. - Detect in message render */
 .message-text {
     line-height: 1.6;
     word-break: break-word;
@@ -1037,15 +944,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-primary);
     opacity: 0.85;
     white-space: pre-wrap;
-}
-.message-text a {
-    color: var(--color-gold);
-    text-decoration: underline;
-    transition: color var(--transition-fast);
-    cursor: pointer;
-}
-.message-text a:hover {
-    color: var(--color-gold-light);
 }
 .message-edited {
     font-size: 11px;
@@ -1148,13 +1046,6 @@ audio {
 @keyframes typingDot {
     0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
     40% { transform: scale(1); opacity: 1; }
-}
-/* Updated typing indicator animation for three sequential dots */
-.typing-dots span:nth-child(1) {
-    animation-delay: -0.32s;
-}
-.typing-dots span:nth-child(2) {
-    animation-delay: -0.16s;
 }
 .new-messages-btn {
     position: fixed;
@@ -1394,8 +1285,6 @@ audio {
     padding: 20px;
     backdrop-filter: blur(20px);
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 [data-theme="light"] .modal-back {
     background: rgba(248, 245, 242, 0.85);
@@ -1409,9 +1298,7 @@ audio {
     border: 1px solid var(--border-color);
     backdrop-filter: blur(20px);
     max-height: 90vh;
-    overflow-x: hidden;
     overflow-y: auto;
-    word-break: break-word;
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
@@ -1856,52 +1743,10 @@ audio {
     opacity: 0.5;
     pointer-events: none;
 }
-/* Normal Realm Settings - Radios large touch, aligned */
-.realm-settings-radio-group {
-    margin: 20px 0;
-}
-.realm-settings-radio-label {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    user-select: none;
-    -webkit-user-select: none;
-}
-.realm-settings-radio-label:hover {
-    border-color: var(--color-gold-light);
-    background: var(--color-gray-dark);
-}
-.realm-settings-radio-label input[type="radio"] {
-    width: 24px;
-    height: 24px;
-    accent-color: var(--color-gold);
-    flex-shrink: 0;
-}
-.realm-settings-radio-text {
-    flex: 1;
-}
-.realm-settings-radio-title {
-    font-size: 16px;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-}
-.realm-settings-radio-description {
-    font-size: 13px;
-    color: var(--text-secondary);
-    font-weight: 300;
-}
 /* Search Modal Full Elegant */
 #searchModal .modal-content {
     max-width: 800px;
     padding: 32px;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .search-modal-header {
     margin-bottom: 32px;
@@ -1925,22 +1770,18 @@ audio {
 .search-results-full {
     max-height: 50vh;
     overflow-y: auto;
-    overflow-x: hidden;
     border-radius: 12px;
     border: 1px solid var(--border-color);
     background: var(--input-bg);
-    word-break: break-word;
 }
-/* Search Results - FIXED: Large touch targets, spaced - UPDATED: Small circle cover for avatars */
+/* Search Results - FIXED: Large touch targets, spaced */
 .search-results {
     margin-top: 20px;
     max-height: 240px;
     overflow-y: auto;
-    overflow-x: hidden;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     background: var(--input-bg);
-    word-break: break-word;
 }
 .search-result {
     padding: 20px 16px; /* Increased vertical padding */
@@ -1962,8 +1803,8 @@ audio {
     background: var(--color-gold-transparent);
 }
 .search-result-avatar {
-    width: 36px; /* Small circle */
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--border-color);
@@ -1974,11 +1815,9 @@ audio {
     font-weight: 500;
     color: var(--color-gold);
     background: var(--color-gold-transparent);
-    flex-shrink: 0;
 }
 .search-result-info {
     flex: 1;
-    min-width: 0;
 }
 .search-result-name {
     font-size: 14px;
@@ -1999,8 +1838,6 @@ audio {
     max-width: 500px;
     border: 1px solid var(--border-color);
     backdrop-filter: blur(40px);
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .login-title {
     font-size: 32px;
@@ -2151,6 +1988,9 @@ audio {
 }
 .avatar-large:hover::after {
     opacity: 1;
+}
+.avatar-upload-controls {
+    flex: 1;
 }
 .avatar-upload-preview {
     width: 80px;
@@ -2391,8 +2231,6 @@ input:checked + .toggle-slider:before {
     z-index: 4000;
     padding: 20px;
     backdrop-filter: blur(20px);
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .quick-profile-content {
     background: var(--bg-secondary);
@@ -2404,8 +2242,6 @@ input:checked + .toggle-slider:before {
     backdrop-filter: blur(20px);
     max-height: 90vh;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .quick-profile-avatar {
     width: 120px;
@@ -2495,8 +2331,6 @@ input:checked + .toggle-slider:before {
     z-index: 1000;
     max-height: 80vh;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
     border-top: 1px solid var(--border-color);
     backdrop-filter: blur(40px);
 }
@@ -2518,8 +2352,6 @@ input:checked + .toggle-slider:before {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     max-height: 70vh;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .message-context-menu.active {
     display: flex;
@@ -2564,16 +2396,11 @@ input:checked + .toggle-slider:before {
     width: 24px;
     text-align: center;
 }
-/* Emoji Modal - UPDATED: Scrollable Safari */
 .emoji-picker {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 12px;
     padding: 32px 32px 60px;
-    max-height: 80vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling for Safari */
 }
 .emoji-btn {
     background: transparent;
@@ -2669,8 +2496,6 @@ input:checked + .toggle-slider:before {
 .notification-center-content {
     max-height: 80vh;
     overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 /* Image modal */
 .image-modal-content {
@@ -2746,16 +2571,6 @@ input:checked + .toggle-slider:before {
     border-color: var(--danger);
     color: var(--danger);
 }
-/* Version Text */
-.version-text {
-    opacity: 0.6;
-    font-size: 11px;
-    color: var(--text-secondary);
-    text-align: center;
-    padding-top: 8px;
-    border-top: 1px solid var(--border-color);
-    margin-top: 8px;
-}
 /* Confirmation Modal - High Z-Index */
 .confirmation-modal {
     text-align: center;
@@ -2786,8 +2601,6 @@ input:checked + .toggle-slider:before {
 /* Realm Settings Layout */
 .realm-settings-modal .modal-content {
     max-width: 600px;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .realm-settings-section {
     margin-bottom: 32px;
@@ -3372,8 +3185,7 @@ input:checked + .toggle-slider:before {
     background: var(--color-gold-transparent);
     padding: 2px 6px;
     border-radius: 4px;
-    text-decoration: underline;
-    cursor: pointer;
+    text-decoration: none;
 }
 .mention:hover {
     text-decoration: underline;
@@ -3382,11 +3194,6 @@ input:checked + .toggle-slider:before {
 .public-profile-modal .modal-content {
     max-width: 500px;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    overflow-x: hidden;
-    word-break: break-word;
 }
 .public-profile-avatar {
     width: 140px;
@@ -3444,7 +3251,6 @@ input:checked + .toggle-slider:before {
     text-decoration: underline;
     font-size: 14px;
     transition: color var(--transition-fast);
-    cursor: pointer;
 }
 .social-link:hover {
     color: var(--color-gold);
@@ -3454,7 +3260,6 @@ input:checked + .toggle-slider:before {
     padding: 24px 0;
     border-bottom: 1px solid var(--border-color);
     text-align: left;
-    width: 100%;
 }
 .public-profile-section:last-child {
     border-bottom: none;
@@ -3467,17 +3272,16 @@ input:checked + .toggle-slider:before {
     margin-bottom: 16px;
     text-align: center;
 }
-/* Offline Overlay - UPDATED: Prominent */
+/* Offline Overlay */
 .offline-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(5, 5, 5, 0.95); /* More opaque */
+    background: rgba(5, 5, 5, 0.85);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 6000;
-    backdrop-filter: blur(30px); /* Increased blur */
-    border: 2px solid var(--danger); /* Added border */
+    backdrop-filter: blur(20px);
 }
 .offline-overlay.active {
     display: flex;
@@ -3489,49 +3293,13 @@ input:checked + .toggle-slider:before {
 }
 .offline-icon {
     font-size: 48px;
-    color: var(--danger); /* Changed to danger color */
+    color: var(--color-gray);
     margin-bottom: 24px;
 }
 .offline-text {
-    font-size: 24px; /* Larger font */
-    color: var(--text-primary); /* Brighter color */
+    font-size: 18px;
+    color: var(--text-secondary);
     font-family: 'Cormorant Garamond', serif;
-}
-/* Realm Notification Buttons */
-.realm-notification-btn {
-    padding: 12px 20px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-    font-weight: 350;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-.realm-notification-btn:hover {
-    border-color: var(--color-gold-light);
-}
-.realm-notification-btn.selected {
-    border-color: var(--color-gold);
-    background: var(--color-gold-transparent);
-    box-shadow: 0 2px 8px rgba(202, 168, 122, 0.3);
-    color: var(--color-gold);
-}
-.realm-notification-buttons-container {
-    display: flex;
-    gap: 12px;
-    margin: 20px 0;
-}
-.realm-notification-buttons-container .realm-notification-btn {
-    flex: 1;
 }
 /* Responsive */
 @media (max-width: 768px) {
@@ -3701,16 +3469,6 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 24px;
     }
-    /* Offline Overlay Mobile */
-    .offline-overlay {
-        border-width: 1px;
-    }
-    .offline-text {
-        font-size: 20px;
-    }
-    .realm-notification-buttons-container {
-        flex-direction: column;
-    }
 }
 @media (max-width: 480px) {
     :root {
@@ -3783,10 +3541,6 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 20px;
     }
-    /* Offline Overlay Small Mobile */
-    .offline-text {
-        font-size: 18px;
-    }
 }
 @media (max-height: 500px) and (orientation: landscape) {
     .top-bar {
@@ -3819,3 +3573,838 @@ input:checked + .toggle-slider:before {
         margin: 0 auto;
     }
 }
+
+/* =========================================== */
+/* NEW DM FEATURES - ADDED TO EXISTING CODE */
+/* =========================================== */
+
+/* 1. Realm header in sidebar - hide settings cog for DM realm */
+.dm-realm .realm-settings-btn {
+    display: none !important;
+}
+
+/* 2. Channels header in DM sidebar */
+.sidebar-section.dm-channels .section-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    transition: background var(--transition-fast);
+}
+
+.sidebar-section.dm-channels .section-header:hover {
+    background: var(--color-gray-dark);
+}
+
+.sidebar-section.dm-channels .section-header .section-title {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.channels-plus-icon {
+    color: var(--color-gray);
+    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.sidebar-section.dm-channels .section-header:hover .channels-plus-icon {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
+
+/* 3. DM channel list items */
+.dm-item {
+    position: relative;
+    padding: 12px 16px 12px 20px;
+    justify-content: space-between;
+}
+
+.dm-item-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.dm-item-menu {
+    opacity: 0;
+    color: var(--color-gray);
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.dm-item:hover .dm-item-menu {
+    opacity: 1;
+}
+
+.dm-item-menu:hover {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
+
+/* 4. Modals - User Search Modal */
+#userSearchModal .modal-content {
+    max-width: 480px;
+    width: 100%;
+    padding: 32px;
+}
+
+.user-search-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.user-search-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 28px;
+    font-weight: 300;
+}
+
+.user-search-input {
+    width: 100%;
+    padding: 18px 24px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    margin-bottom: 24px;
+    transition: border-color var(--transition-fast);
+    font-family: 'Inter', sans-serif;
+}
+
+.user-search-input:focus {
+    border-color: var(--color-gold);
+    outline: none;
+}
+
+.user-search-results {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
+
+.user-search-result {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-search-result:last-child {
+    border-bottom: none;
+}
+
+.user-search-result:hover {
+    background: var(--color-gray-dark);
+}
+
+.user-search-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    flex-shrink: 0;
+}
+
+.user-search-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-search-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.user-search-status {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.user-search-status-text {
+    color: var(--text-secondary);
+}
+
+.user-search-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-gray);
+}
+
+.user-search-status-dot.online {
+    background: #00ff00;
+}
+
+/* 4. Modals - Confirmation Modal */
+.confirmation-modal .modal-content {
+    max-width: 400px;
+    text-align: center;
+    padding: 40px 32px;
+}
+
+.confirmation-question {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 32px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.confirmation-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+.confirmation-buttons .btn-primary,
+.confirmation-buttons .btn-secondary {
+    flex: 1;
+    min-height: 48px;
+}
+
+/* 4. Modals - Channel Settings Modal */
+.channel-settings-modal .modal-content {
+    max-width: 500px;
+}
+
+.channel-settings-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.channel-settings-section:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.channel-settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.channel-settings-title {
+    font-size: 18px;
+    color: var(--color-gold);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.channel-settings-users-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.channel-settings-users-title {
+    flex: 1;
+    font-size: 16px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.channel-settings-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.channel-settings-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--color-gray-dark);
+}
+
+.channel-settings-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.channel-settings-user-name {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.channel-settings-user-remove {
+    color: var(--color-gray);
+    font-size: 20px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+}
+
+.channel-settings-user-remove:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.channel-settings-notifications {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.notification-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.notification-option:hover {
+    border-color: var(--color-gold);
+}
+
+.notification-option.selected {
+    border-color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.notification-option-label {
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.notification-option-radio {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-option.selected .notification-option-radio {
+    border-color: var(--color-gold);
+}
+
+.notification-option.selected .notification-option-radio::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--color-gold);
+    border-radius: 50%;
+}
+
+.channel-settings-leave {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.leave-channel-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 18px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+}
+
+.leave-channel-btn:hover {
+    background: var(--danger);
+    color: var(--color-white);
+}
+
+/* 4. Modals - User Profile Modal */
+.user-profile-modal .modal-content {
+    max-width: 500px;
+    padding: 40px;
+}
+
+.user-profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-gold);
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.user-profile-name {
+    font-size: 36px;
+    text-align: center;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+}
+
+.user-profile-status {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 32px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.user-profile-status.online {
+    color: #00ff00;
+}
+
+.user-profile-bio {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    margin-bottom: 32px;
+    padding: 20px;
+    background: var(--color-gray-dark);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-family: 'Inter', sans-serif;
+}
+
+.user-profile-social {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+}
+
+.social-link-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--text-primary);
+    background: var(--color-gray-dark);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.social-link-btn:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    transform: translateY(-2px);
+}
+
+.user-profile-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    justify-content: center;
+}
+
+.profile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+}
+
+.profile-stat-icon {
+    font-size: 32px;
+    margin-bottom: 4px;
+}
+
+.profile-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.profile-stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.user-profile-realms {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.user-profile-realms-title {
+    font-size: 16px;
+    color: var(--color-gold);
+    margin-bottom: 16px;
+    text-align: center;
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.user-profile-realms-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.user-profile-realm {
+    padding: 8px 16px;
+    background: var(--color-gray-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+/* 5. Channel header (main chat) */
+.channel-header {
+    display: flex;
+    align-items: center;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    min-height: var(--header-height);
+    backdrop-filter: blur(20px);
+}
+
+.channel-header.dm-1v1 {
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    gap: 16px;
+}
+
+.channel-header.dm-1v1:hover {
+    background: var(--color-gray-dark);
+}
+
+.channel-header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    flex-shrink: 0;
+}
+
+.channel-header-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-header-name {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.channel-header-status {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.channel-header.notes-group {
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+}
+
+.channel-header-title {
+    font-size: 20px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+/* 6. Online status everywhere */
+.online {
+    color: #00ff00 !important;
+}
+
+.offline {
+    color: #888 !important;
+}
+
+/* Apply to existing status elements with new colors */
+.user-search-status-dot.online,
+.channel-header-status.online,
+.dm-status.online,
+.header-user-status.online,
+.user-profile-status.online {
+    color: #00ff00;
+}
+
+.user-search-status-dot.offline,
+.channel-header-status.offline,
+.dm-status.offline,
+.header-user-status.offline,
+.user-profile-status.offline {
+    color: #888;
+}
+
+/* 7. General mobile-first additions */
+/* Modal animations */
+.modal-back {
+    animation: modalFadeIn var(--transition-base);
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    animation: modalSlideUp var(--transition-base);
+}
+
+@keyframes modalSlideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Touch target improvements for new elements */
+.dm-item,
+.user-search-result,
+.notification-option {
+    min-height: 56px;
+}
+
+.channels-plus-icon,
+.dm-item-menu,
+.channel-settings-user-remove {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Responsive adjustments for new DM features */
+@media (max-width: 768px) {
+    .user-profile-modal .modal-content,
+    .channel-settings-modal .modal-content,
+    #userSearchModal .modal-content {
+        padding: 24px 20px;
+        margin: 20px;
+        max-height: calc(100vh - 40px);
+    }
+    
+    .user-profile-name {
+        font-size: 28px;
+    }
+    
+    .user-profile-avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 28px;
+    }
+    
+    .user-profile-stats {
+        gap: 16px;
+    }
+    
+    .profile-stat {
+        min-width: 70px;
+    }
+    
+    .profile-stat-icon {
+        font-size: 24px;
+    }
+    
+    .profile-stat-value {
+        font-size: 20px;
+    }
+    
+    .channel-header {
+        padding: 16px 20px;
+    }
+    
+    .channel-header-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .channel-header-name {
+        font-size: 16px;
+    }
+    
+    .confirmation-modal .modal-content {
+        margin: 20px;
+        padding: 32px 24px;
+    }
+    
+    .confirmation-question {
+        font-size: 18px;
+    }
+    
+    .confirmation-buttons {
+        flex-direction: column;
+    }
+    
+    .dm-item-menu {
+        opacity: 1; /* Always show on mobile for easier access */
+        font-size: 20px;
+    }
+    
+    .sidebar.active ~ .main-chat .channel-header {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-profile-modal .modal-content {
+        padding: 20px 16px;
+    }
+    
+    .user-profile-name {
+        font-size: 24px;
+    }
+    
+    .user-profile-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+    }
+    
+    .user-profile-stats {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .channel-header {
+        padding: 12px 16px;
+    }
+    
+    .channel-header.dm-1v1 {
+        gap: 12px;
+    }
+    
+    .user-search-result {
+        padding: 16px;
+        min-height: 64px;
+    }
+    
+    .user-search-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+}
+
+/* Ensure proper z-index stacking for new modals */
+.modal-back {
+    z-index: 5000;
+}
+
+.quick-profile-modal {
+    z-index: 6000;
+}
+
+/* Smooth transitions for new hover states */
+.dm-item,
+.user-search-result,
+.notification-option,
+.social-link-btn {
+    transition: all var(--transition-fast);
+}
+
+/* Enhance focus states for accessibility on new elements */
+.channels-plus-icon:focus,
+.dm-item-menu:focus,
+.leave-channel-btn:focus,
+.user-search-input:focus {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+}
+
+
+All existing styles and functionality remain untouched - only new styles were added.

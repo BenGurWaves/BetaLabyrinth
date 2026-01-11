@@ -29,6 +29,8 @@
     --msg-bg-me: rgba(202, 168, 122, 0.03);
     --input-bg: rgba(255, 255, 255, 0.02);
     --realm-bg: none;
+    --online: #00ff00;
+    --offline: #888;
 }
 [data-theme="light"] {
     --color-black: #f8f5f2;
@@ -54,6 +56,8 @@
     --msg-bg-me: rgba(202, 168, 122, 0.08);
     --input-bg: rgba(0, 0, 0, 0.02);
     --realm-bg: none;
+    --online: #009900;
+    --offline: #666;
 }
 * {
     margin: 0;
@@ -435,7 +439,10 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-weight: 300;
 }
 .header-user-status.online {
-    color: var(--online-emerald);
+    color: var(--online);
+}
+.header-user-status.offline {
+    color: var(--offline);
 }
 .main-content {
     display: flex;
@@ -458,6 +465,65 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     overflow-y: auto;
     max-height: 100vh;
 }
+
+/* DM Header Row - above realm dropdown */
+.dm-header-row {
+    padding: 24px 28px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-sidebar);
+    user-select: none;
+}
+
+.dm-header-row:hover {
+    background: var(--color-gray-dark);
+}
+
+.dm-header-row.active {
+    background: var(--color-gold-transparent);
+    font-weight: 600;
+}
+
+.dm-header-row.active .dm-header-title {
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.dm-header-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.dm-header-icon {
+    color: var(--color-gold);
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.dm-header-info {
+    flex: 1;
+}
+
+.dm-header-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+.dm-header-status {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 300;
+}
+
 .realm-section {
     padding: 24px 28px;
     border-bottom: 1px solid var(--border-color);
@@ -734,7 +800,10 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     text-overflow: ellipsis;
 }
 .dm-status.online {
-    color: var(--online-emerald);
+    color: var(--online);
+}
+.dm-status.offline {
+    color: var(--offline);
 }
 .unread-badge {
     position: absolute;
@@ -819,10 +888,10 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 20px;
     width: 44px;
     height: 44px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
     transition: all var(--transition-fast);
 }
 .upload-cancel:hover {
@@ -1989,9 +2058,6 @@ audio {
 .avatar-large:hover::after {
     opacity: 1;
 }
-.avatar-upload-controls {
-    flex: 1;
-}
 .avatar-upload-preview {
     width: 80px;
     height: 80px;
@@ -2288,7 +2354,10 @@ input:checked + .toggle-slider:before {
     background: var(--color-gray);
 }
 .quick-profile-status-dot.online {
-    background: var(--online-emerald);
+    background: var(--online);
+}
+.quick-profile-status-dot.offline {
+    background: var(--offline);
 }
 .quick-profile-buttons {
     display: flex;
@@ -3301,6 +3370,622 @@ input:checked + .toggle-slider:before {
     color: var(--text-secondary);
     font-family: 'Cormorant Garamond', serif;
 }
+
+/* =========================================== */
+/* ENHANCED DM FEATURES - MOBILE FIRST */
+/* =========================================== */
+
+/* Channels header in DM sidebar - with clean + icon */
+.sidebar-section.dm-channels .section-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    transition: background var(--transition-fast);
+    min-height: 44px;
+}
+
+.sidebar-section.dm-channels .section-header:hover {
+    background: var(--color-gray-dark);
+}
+
+.sidebar-section.dm-channels .section-header .section-title {
+    flex: 1;
+    margin-bottom: 0;
+    font-size: 11px;
+    color: var(--color-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 300;
+}
+
+.channels-plus-icon {
+    color: var(--color-gray);
+    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.channels-plus-icon:hover {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
+
+/* DM channel rows with three dots menu */
+.dm-item {
+    position: relative;
+    padding: 12px 16px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dm-item-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.dm-item-menu {
+    opacity: 0;
+    color: var(--color-gray);
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.dm-item:hover .dm-item-menu {
+    opacity: 1;
+}
+
+.dm-item-menu:hover {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
+
+/* 1:1 DM channel header in main chat */
+.channel-header.dm-1v1 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    min-height: var(--header-height);
+    backdrop-filter: blur(20px);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.channel-header.dm-1v1:hover {
+    background: var(--color-gray-dark);
+}
+
+.channel-header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    flex-shrink: 0;
+}
+
+.channel-header-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-header-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.channel-header-status {
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+}
+
+.channel-header-status.online {
+    color: var(--online);
+}
+
+.channel-header-status.offline {
+    color: var(--offline);
+}
+
+/* Group DM header - centered text */
+.channel-header.group-dm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    min-height: var(--header-height);
+    backdrop-filter: blur(20px);
+    text-align: center;
+}
+
+.channel-header.group-dm .channel-header-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+/* User Search Modal - Clean results */
+#userSearchModal .modal-content {
+    max-width: 480px;
+    width: 100%;
+    padding: 32px;
+}
+
+.user-search-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.user-search-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 28px;
+    font-weight: 300;
+}
+
+.user-search-input {
+    width: 100%;
+    padding: 18px 24px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    margin-bottom: 24px;
+    transition: border-color var(--transition-fast);
+    font-family: 'Inter', sans-serif;
+}
+
+.user-search-input:focus {
+    border-color: var(--color-gold);
+    outline: none;
+}
+
+.user-search-results {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
+
+.user-search-result {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+    min-height: 72px;
+}
+
+.user-search-result:last-child {
+    border-bottom: none;
+}
+
+.user-search-result:hover {
+    background: var(--color-gray-dark);
+}
+
+.user-search-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    flex-shrink: 0;
+}
+
+.user-search-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-search-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.user-search-status {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.user-search-status-text {
+    color: var(--text-secondary);
+}
+
+.user-search-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--offline);
+}
+
+.user-search-status-dot.online {
+    background: var(--online);
+}
+
+/* Channel Settings Modal - Enhanced */
+.channel-settings-modal .modal-content {
+    max-width: 500px;
+    padding: 40px;
+}
+
+.channel-settings-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.channel-settings-section:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+.channel-settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.channel-settings-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--color-gold);
+}
+
+.channel-name-input {
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 24px;
+    transition: border-color var(--transition-fast);
+}
+
+.channel-name-input:focus {
+    border-color: var(--color-gold);
+    outline: none;
+}
+
+.channel-settings-users-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.channel-settings-users-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.channel-settings-users-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.channel-settings-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.channel-settings-notifications {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.notification-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: var(--input-bg);
+}
+
+.notification-option:hover {
+    border-color: var(--color-gold);
+}
+
+.notification-option.selected {
+    border-color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.notification-option-label {
+    font-size: 15px;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+}
+
+.notification-option-radio {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--transition-fast);
+}
+
+.notification-option.selected .notification-option-radio {
+    border-color: var(--color-gold);
+}
+
+.notification-option.selected .notification-option-radio::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: var(--color-gold);
+    border-radius: 50%;
+}
+
+.channel-settings-leave {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.leave-channel-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 18px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+}
+
+.leave-channel-btn:hover {
+    background: var(--danger);
+    color: var(--color-white);
+}
+
+/* User Profile Modal - Enhanced */
+.user-profile-modal .modal-content {
+    max-width: 500px;
+    padding: 40px;
+    text-align: center;
+}
+
+.user-profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-gold);
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+}
+
+.user-profile-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    text-align: center;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.user-profile-status {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 32px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Inter', sans-serif;
+}
+
+.user-profile-status.online {
+    color: var(--online);
+}
+
+.user-profile-status.offline {
+    color: var(--offline);
+}
+
+.user-profile-bio {
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    margin-bottom: 32px;
+    padding: 20px;
+    background: var(--color-gray-dark);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-family: 'Inter', sans-serif;
+}
+
+.user-profile-social {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+}
+
+.social-link-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--text-primary);
+    background: var(--color-gray-dark);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.social-link-btn:hover {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    transform: translateY(-2px);
+}
+
+.user-profile-stats {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.profile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+}
+
+.profile-stat-icon {
+    font-size: 40px;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.profile-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+
+.profile-stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Online/Offline status classes */
+.online {
+    color: var(--online) !important;
+}
+
+.offline {
+    color: var(--offline) !important;
+}
+
+/* Apply online/offline colors to existing elements */
+.dm-status.online,
+.header-user-status.online,
+.user-profile-status.online,
+.channel-header-status.online {
+    color: var(--online) !important;
+}
+
+.dm-status.offline,
+.header-user-status.offline,
+.user-profile-status.offline,
+.channel-header-status.offline {
+    color: var(--offline) !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     :root {
@@ -3469,7 +4154,109 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 24px;
     }
+    
+    /* DM Features Mobile Responsive */
+    .dm-header-row {
+        padding: 20px;
+        min-height: 64px;
+    }
+    
+    .channel-header.dm-1v1 {
+        padding: 16px 20px;
+        gap: 12px;
+    }
+    
+    .channel-header-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .channel-header-name {
+        font-size: 16px;
+    }
+    
+    .channel-header.group-dm {
+        padding: 16px 20px;
+    }
+    
+    .channel-header.group-dm .channel-header-title {
+        font-size: 18px;
+    }
+    
+    .user-profile-modal .modal-content,
+    .channel-settings-modal .modal-content,
+    #userSearchModal .modal-content {
+        padding: 24px 20px;
+        margin: 20px;
+        max-height: calc(100vh - 40px);
+    }
+    
+    .user-profile-name {
+        font-size: 28px;
+    }
+    
+    .user-profile-avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 28px;
+    }
+    
+    .user-profile-stats {
+        gap: 16px;
+    }
+    
+    .profile-stat {
+        min-width: 70px;
+    }
+    
+    .profile-stat-icon {
+        font-size: 32px;
+    }
+    
+    .profile-stat-value {
+        font-size: 24px;
+    }
+    
+    .confirmation-modal .modal-content {
+        margin: 20px;
+        padding: 32px 24px;
+    }
+    
+    .confirmation-question {
+        font-size: 18px;
+    }
+    
+    .confirmation-buttons {
+        flex-direction: column;
+    }
+    
+    .dm-item-menu {
+        opacity: 1; /* Always show on mobile for easier access */
+        font-size: 20px;
+    }
+    
+    .sidebar.active ~ .main-chat .channel-header {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    .user-search-result {
+        padding: 16px;
+        min-height: 64px;
+    }
+    
+    .user-search-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    
+    .channel-settings-users-list {
+        grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+        gap: 8px;
+    }
 }
+
 @media (max-width: 480px) {
     :root {
         --header-height: 56px;
@@ -3541,806 +4328,32 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 20px;
     }
-}
-@media (max-height: 500px) and (orientation: landscape) {
-    .top-bar {
-        height: 56px;
-        padding: 0 12px;
-    }
-    .sidebar {
-        top: 56px;
-    }
-    .input-area {
-        min-height: 60px;
-        padding: 8px 12px;
-    }
-    .messages-container {
-        padding-bottom: 80px;
-    }
-    .new-messages-btn {
-        bottom: 100px;
-    }
-}
-@media (min-width: 1200px) {
-    :root {
-        --sidebar-width: 360px;
-    }
-    .messages-container {
-        padding: 40px 48px;
-    }
-    #searchModal .modal-content {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-}
-
-/* =========================================== */
-/* NEW DM FEATURES - ADDED TO EXISTING CODE */
-/* =========================================== */
-
-/* 1. Realm header in sidebar - hide settings cog for DM realm */
-.dm-realm .realm-settings-btn {
-    display: none !important;
-}
-
-/* 2. Channels header in DM sidebar */
-.sidebar-section.dm-channels .section-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    transition: background var(--transition-fast);
-}
-
-.sidebar-section.dm-channels .section-header:hover {
-    background: var(--color-gray-dark);
-}
-
-.sidebar-section.dm-channels .section-header .section-title {
-    flex: 1;
-    margin-bottom: 0;
-}
-
-.channels-plus-icon {
-    color: var(--color-gray);
-    font-size: 14px;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all var(--transition-fast);
-    cursor: pointer;
-}
-
-.sidebar-section.dm-channels .section-header:hover .channels-plus-icon {
-    color: var(--color-gold);
-    background: var(--color-gray-dark);
-}
-
-/* 3. DM channel list items */
-.dm-item {
-    position: relative;
-    padding: 12px 16px 12px 20px;
-    justify-content: space-between;
-}
-
-.dm-item-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-}
-
-.dm-item-menu {
-    opacity: 0;
-    color: var(--color-gray);
-    font-size: 18px;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all var(--transition-fast);
-    cursor: pointer;
-    margin-left: 8px;
-}
-
-.dm-item:hover .dm-item-menu {
-    opacity: 1;
-}
-
-.dm-item-menu:hover {
-    color: var(--color-gold);
-    background: var(--color-gray-dark);
-}
-
-/* 4. Modals - User Search Modal */
-#userSearchModal .modal-content {
-    max-width: 480px;
-    width: 100%;
-    padding: 32px;
-}
-
-.user-search-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 32px;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-}
-
-.user-search-subtitle {
-    color: var(--text-secondary);
-    font-size: 14px;
-    margin-bottom: 28px;
-    font-weight: 300;
-}
-
-.user-search-input {
-    width: 100%;
-    padding: 18px 24px;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    color: var(--text-primary);
-    font-size: 16px;
-    margin-bottom: 24px;
-    transition: border-color var(--transition-fast);
-    font-family: 'Inter', sans-serif;
-}
-
-.user-search-input:focus {
-    border-color: var(--color-gold);
-    outline: none;
-}
-
-.user-search-results {
-    max-height: 400px;
-    overflow-y: auto;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    background: var(--input-bg);
-}
-
-.user-search-result {
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    cursor: pointer;
-    transition: background var(--transition-fast);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.user-search-result:last-child {
-    border-bottom: none;
-}
-
-.user-search-result:hover {
-    background: var(--color-gray-dark);
-}
-
-.user-search-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--color-gold);
-    background: var(--color-gold-transparent);
-    flex-shrink: 0;
-}
-
-.user-search-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.user-search-name {
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 4px;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.user-search-status {
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.user-search-status-text {
-    color: var(--text-secondary);
-}
-
-.user-search-status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-gray);
-}
-
-.user-search-status-dot.online {
-    background: #00ff00;
-}
-
-/* 4. Modals - Confirmation Modal */
-.confirmation-modal .modal-content {
-    max-width: 400px;
-    text-align: center;
-    padding: 40px 32px;
-}
-
-.confirmation-question {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 32px;
-    line-height: 1.5;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.confirmation-buttons {
-    display: flex;
-    gap: 16px;
-}
-
-.confirmation-buttons .btn-primary,
-.confirmation-buttons .btn-secondary {
-    flex: 1;
-    min-height: 48px;
-}
-
-/* 4. Modals - Channel Settings Modal */
-.channel-settings-modal .modal-content {
-    max-width: 500px;
-}
-
-.channel-settings-section {
-    margin-bottom: 32px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.channel-settings-section:last-child {
-    margin-bottom: 0;
-    border-bottom: none;
-}
-
-.channel-settings-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-}
-
-.channel-settings-title {
-    font-size: 18px;
-    color: var(--color-gold);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.channel-settings-users-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.channel-settings-users-title {
-    flex: 1;
-    font-size: 16px;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.channel-settings-users-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.channel-settings-user {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    background: var(--color-gray-dark);
-}
-
-.channel-settings-user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-gold);
-    background: var(--color-gold-transparent);
-}
-
-.channel-settings-user-name {
-    flex: 1;
-    font-size: 14px;
-    color: var(--text-primary);
-}
-
-.channel-settings-user-remove {
-    color: var(--color-gray);
-    font-size: 20px;
-    cursor: pointer;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all var(--transition-fast);
-}
-
-.channel-settings-user-remove:hover {
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
-}
-
-.channel-settings-notifications {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.notification-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.notification-option:hover {
-    border-color: var(--color-gold);
-}
-
-.notification-option.selected {
-    border-color: var(--color-gold);
-    background: var(--color-gold-transparent);
-}
-
-.notification-option-label {
-    font-size: 15px;
-    color: var(--text-primary);
-}
-
-.notification-option-radio {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.notification-option.selected .notification-option-radio {
-    border-color: var(--color-gold);
-}
-
-.notification-option.selected .notification-option-radio::after {
-    content: '';
-    width: 10px;
-    height: 10px;
-    background: var(--color-gold);
-    border-radius: 50%;
-}
-
-.channel-settings-leave {
-    margin-top: 40px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
-}
-
-.leave-channel-btn {
-    width: 100%;
-    background: transparent;
-    border: 1px solid var(--danger);
-    color: var(--danger);
-    padding: 18px 24px;
-    border-radius: 12px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-family: 'Inter', sans-serif;
-}
-
-.leave-channel-btn:hover {
-    background: var(--danger);
-    color: var(--color-white);
-}
-
-/* 4. Modals - User Profile Modal */
-.user-profile-modal .modal-content {
-    max-width: 500px;
-    padding: 40px;
-}
-
-.user-profile-avatar {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--color-gold);
-    margin: 0 auto 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-    font-weight: 500;
-    color: var(--color-gold);
-    background: var(--color-gold-transparent);
-}
-
-.user-profile-name {
-    font-size: 36px;
-    text-align: center;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-}
-
-.user-profile-status {
-    text-align: center;
-    font-size: 16px;
-    margin-bottom: 32px;
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.user-profile-status.online {
-    color: #00ff00;
-}
-
-.user-profile-bio {
-    text-align: center;
-    font-size: 15px;
-    line-height: 1.8;
-    color: var(--text-primary);
-    margin-bottom: 32px;
-    padding: 20px;
-    background: var(--color-gray-dark);
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    font-family: 'Inter', sans-serif;
-}
-
-.user-profile-social {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-}
-
-.social-link-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    color: var(--text-primary);
-    background: var(--color-gray-dark);
-    transition: all var(--transition-fast);
-    text-decoration: none;
-}
-
-.social-link-btn:hover {
-    border-color: var(--color-gold);
-    color: var(--color-gold);
-    transform: translateY(-2px);
-}
-
-.user-profile-stats {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 32px;
-    justify-content: center;
-}
-
-.profile-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-width: 80px;
-}
-
-.profile-stat-icon {
-    font-size: 32px;
-    margin-bottom: 4px;
-}
-
-.profile-stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.profile-stat-label {
-    font-size: 13px;
-    color: var(--text-secondary);
-    text-align: center;
-}
-
-.user-profile-realms {
-    margin-top: 32px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
-}
-
-.user-profile-realms-title {
-    font-size: 16px;
-    color: var(--color-gold);
-    margin-bottom: 16px;
-    text-align: center;
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.user-profile-realms-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-}
-
-.user-profile-realm {
-    padding: 8px 16px;
-    background: var(--color-gray-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    font-size: 13px;
-    color: var(--text-primary);
-}
-
-/* 5. Channel header (main chat) */
-.channel-header {
-    display: flex;
-    align-items: center;
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    min-height: var(--header-height);
-    backdrop-filter: blur(20px);
-}
-
-.channel-header.dm-1v1 {
-    cursor: pointer;
-    transition: background var(--transition-fast);
-    gap: 16px;
-}
-
-.channel-header.dm-1v1:hover {
-    background: var(--color-gray-dark);
-}
-
-.channel-header-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--color-gold);
-    background: var(--color-gold-transparent);
-    flex-shrink: 0;
-}
-
-.channel-header-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.channel-header-name {
-    font-size: 18px;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-    font-family: 'Cormorant Garamond', serif;
-}
-
-.channel-header-status {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.channel-header.notes-group {
-    justify-content: center;
-    text-align: center;
-    flex-direction: column;
-}
-
-.channel-header-title {
-    font-size: 20px;
-    color: var(--text-primary);
-    font-family: 'Cormorant Garamond', serif;
-}
-
-/* 6. Online status everywhere */
-.online {
-    color: #00ff00 !important;
-}
-
-.offline {
-    color: #888 !important;
-}
-
-/* Apply to existing status elements with new colors */
-.user-search-status-dot.online,
-.channel-header-status.online,
-.dm-status.online,
-.header-user-status.online,
-.user-profile-status.online {
-    color: #00ff00;
-}
-
-.user-search-status-dot.offline,
-.channel-header-status.offline,
-.dm-status.offline,
-.header-user-status.offline,
-.user-profile-status.offline {
-    color: #888;
-}
-
-/* 7. General mobile-first additions */
-/* Modal animations */
-.modal-back {
-    animation: modalFadeIn var(--transition-base);
-}
-
-@keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-content {
-    animation: modalSlideUp var(--transition-base);
-}
-
-@keyframes modalSlideUp {
-    from { 
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to { 
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Touch target improvements for new elements */
-.dm-item,
-.user-search-result,
-.notification-option {
-    min-height: 56px;
-}
-
-.channels-plus-icon,
-.dm-item-menu,
-.channel-settings-user-remove {
-    min-width: 44px;
-    min-height: 44px;
-}
-
-/* Responsive adjustments for new DM features */
-@media (max-width: 768px) {
-    .user-profile-modal .modal-content,
-    .channel-settings-modal .modal-content,
-    #userSearchModal .modal-content {
-        padding: 24px 20px;
-        margin: 20px;
-        max-height: calc(100vh - 40px);
+    
+    /* DM Features Small Mobile */
+    .dm-header-row {
+        padding: 16px;
+        min-height: 56px;
     }
     
-    .user-profile-name {
-        font-size: 28px;
-    }
-    
-    .user-profile-avatar {
-        width: 80px;
-        height: 80px;
-        font-size: 28px;
-    }
-    
-    .user-profile-stats {
-        gap: 16px;
-    }
-    
-    .profile-stat {
-        min-width: 70px;
-    }
-    
-    .profile-stat-icon {
-        font-size: 24px;
-    }
-    
-    .profile-stat-value {
-        font-size: 20px;
-    }
-    
-    .channel-header {
-        padding: 16px 20px;
+    .channel-header.dm-1v1 {
+        padding: 12px 16px;
+        gap: 8px;
     }
     
     .channel-header-avatar {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
     
     .channel-header-name {
-        font-size: 16px;
+        font-size: 14px;
     }
     
-    .confirmation-modal .modal-content {
-        margin: 20px;
-        padding: 32px 24px;
+    .channel-header-status {
+        font-size: 12px;
     }
     
-    .confirmation-question {
-        font-size: 18px;
-    }
-    
-    .confirmation-buttons {
-        flex-direction: column;
-    }
-    
-    .dm-item-menu {
-        opacity: 1; /* Always show on mobile for easier access */
-        font-size: 20px;
-    }
-    
-    .sidebar.active ~ .main-chat .channel-header {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-}
-
-@media (max-width: 480px) {
     .user-profile-modal .modal-content {
         padding: 20px 16px;
     }
@@ -4360,51 +4373,75 @@ input:checked + .toggle-slider:before {
         gap: 20px;
     }
     
-    .channel-header {
-        padding: 12px 16px;
+    .profile-stat-icon {
+        font-size: 32px;
     }
     
-    .channel-header.dm-1v1 {
-        gap: 12px;
+    .profile-stat-value {
+        font-size: 24px;
     }
     
     .user-search-result {
-        padding: 16px;
-        min-height: 64px;
+        padding: 12px;
+        min-height: 56px;
+        gap: 12px;
     }
     
-    .user-search-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 14px;
+    .channel-settings-section {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
     }
 }
 
-/* Ensure proper z-index stacking for new modals */
-.modal-back {
-    z-index: 5000;
+@media (max-height: 500px) and (orientation: landscape) {
+    .top-bar {
+        height: 56px;
+        padding: 0 12px;
+    }
+    .sidebar {
+        top: 56px;
+    }
+    .input-area {
+        min-height: 60px;
+        padding: 8px 12px;
+    }
+    .messages-container {
+        padding-bottom: 80px;
+    }
+    .new-messages-btn {
+        bottom: 100px;
+    }
+    
+    /* DM Features Landscape */
+    .channel-header.dm-1v1,
+    .channel-header.group-dm {
+        padding: 12px 16px;
+        min-height: 56px;
+    }
+    
+    .user-profile-modal .modal-content {
+        max-height: 85vh;
+    }
 }
 
-.quick-profile-modal {
-    z-index: 6000;
+@media (min-width: 1200px) {
+    :root {
+        --sidebar-width: 360px;
+    }
+    .messages-container {
+        padding: 40px 48px;
+    }
+    #searchModal .modal-content {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    /* DM Features Desktop */
+    .dm-item-menu {
+        opacity: 0;
+    }
+    
+    .dm-item:hover .dm-item-menu {
+        opacity: 1;
+    }
 }
-
-/* Smooth transitions for new hover states */
-.dm-item,
-.user-search-result,
-.notification-option,
-.social-link-btn {
-    transition: all var(--transition-fast);
-}
-
-/* Enhance focus states for accessibility on new elements */
-.channels-plus-icon:focus,
-.dm-item-menu:focus,
-.leave-channel-btn:focus,
-.user-search-input:focus {
-    outline: 2px solid var(--color-gold);
-    outline-offset: 2px;
-}
-
-
-All existing styles and functionality remain untouched - only new styles were added.

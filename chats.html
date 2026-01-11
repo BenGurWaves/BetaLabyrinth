@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-<title>Labyrinth Chat v0.5.5602 Beta</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Labyrinth Chat v0.5.560 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,9 +14,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="style.css">
-<style>
-.version { opacity: 0.6; }
-</style>
 </head>
 <body>
 <div class="grain-overlay"></div>
@@ -197,11 +194,35 @@
     <div class="loading-spinner"></div>
     <div style="color: var(--text-secondary); font-size: 14px;">Entering the Labyrinth...</div>
 </div>
+<div class="modal-back" id="loginOverlay" role="dialog" aria-modal="true">
+    <div class="login-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
+            <div>
+                <h1 class="login-title">Welcome to the Labyrinth</h1>
+                <div class="login-subtitle">v0.5.560 Beta • Fully Functional</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <input id="loginEmail" class="form-input" placeholder="Email" autocomplete="email" />
+        </div>
+        <div class="form-group">
+            <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" />
+        </div>
+        <div class="action-row">
+            <div style="flex:1">
+                <button id="signInBtn" class="btn-primary">Sign in</button>
+            </div>
+            <div style="flex:1">
+                <button id="signUpBtn" class="btn-secondary">Create account</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="app" style="display: none;">
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.5602 Beta</span>
+            <span class="version">v0.5.560 Beta</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -217,13 +238,8 @@
                     <button id="markAllReadBtn">Mark all read</button>
                 </div>
                 <div class="notifications-list" id="notificationsList">
-                    <div class="notification-item">
-                        <div class="notification-avatar" style="background-image: url('');"></div>
-                        <div class="notification-content">
-                            <div class="notification-title"><strong>Notification Title</strong></div>
-                            <div class="notification-message">Notification message text here</div>
-                            <div class="notification-date">Just now</div>
-                        </div>
+                    <div class="loading-placeholder">
+                        <div class="loading-spinner"></div>
                     </div>
                 </div>
                 <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
@@ -241,7 +257,7 @@
         <div class="sidebar" id="sidebar">
             <div class="realm-section" id="realmSection">
                 <div class="realm-section-content" id="realmSelector">
-                    <div class="realm-icon">🏰</div>
+                    <div class="realm-icon" id="currentRealmIcon">🏰</div>
                     <div class="realm-info">
                         <div class="realm-title" id="currentRealmName">Loading...</div>
                         <div class="realm-members" id="realmMembers"></div>
@@ -258,7 +274,10 @@
             <div class="sidebar-section">
                 <div class="section-header" id="channelsHeader">
                     <div class="section-title">Channels</div>
-                    <button class="collapse-toggle" id="collapseChannels">−</button>
+                    <div class="section-actions">
+                        <button class="channel-add-btn" id="dmChannelAddBtn" style="display: none;" title="Start a Conversation">+</button>
+                        <button class="collapse-toggle" id="collapseChannels">−</button>
+                    </div>
                 </div>
                 <div class="category-content" id="channelsContent">
                     <div class="channel-list" id="channelList">
@@ -289,6 +308,9 @@
             </div>
         </div>
         <div class="main-chat">
+            <div class="channel-header" id="channelHeader" style="display: none;">
+                <!-- Will be populated for DM channels -->
+            </div>
             <div id="pinnedMessageContainer" style="display: none;"></div>
             <div class="messages-container" id="messagesContainer">
                 <div class="empty-state" id="emptyState">
@@ -464,7 +486,7 @@
                 <label class="toggle">
                     <input type="checkbox" id="settingsSendWithEnter" checked>
                     <span class="toggle-slider"></span>
-                </label>
+                    </label>
             </div>
             <div class="toggle-switch">
                 <span class="toggle-label">Open Links In App</span>
@@ -484,15 +506,7 @@
             </div>
             
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-                <button class="btn-secondary" id="installAppBtn" style="width: 100%; margin-bottom: 16px;">
-                    <span>📱</span>
-                    <span>Download App</span>
-                </button>
-                <button class="btn-secondary" id="checkUpdatesBtn" style="width: 100%; margin-bottom: 16px;">
-                    <span>🔄</span>
-                    <span>Check For Updates</span>
-                </button>
-                <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%;">
+                <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%; margin-bottom: 16px;">
                     <span>↻</span>
                     <span>Force Refresh</span>
                 </button>
@@ -516,19 +530,7 @@
             <span class="toggle-label">Include private messages</span>
         </div>
         <div id="globalSearchResults" class="search-results" style="max-height: 400px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
-            <div class="search-result-list">
-                <div class="search-result-item">
-                    <div class="search-result-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
-                    <div class="search-result-content">
-                        <div class="search-result-header">
-                            <span class="search-result-user">Username</span>
-                            <span class="search-result-channel">#channel</span>
-                            <span class="search-result-time">12:34</span>
-                        </div>
-                        <div class="search-result-text">Message preview text here...</div>
-                    </div>
-                </div>
-            </div>
+            <div class="search-result-list"></div>
         </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="globalSearchCloseBtn" class="btn-secondary">Close</button>
@@ -540,42 +542,17 @@
         <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
         <h2 class="modal-title">Notifications</h2>
         <div class="modal-subtitle">Your recent notifications</div>
-        
-        <div class="notifications-list-container" id="notificationsListContainer">
-            <div id="notificationsListFull" class="notifications-list-full">
-                <div class="notification-item-full">
-                    <div class="notification-avatar-full" style="width: 48px; height: 48px; border-radius: 50%; background-size: cover; background-position: center; flex-shrink: 0;"></div>
-                    <div class="notification-content-full">
-                        <div class="notification-title-full"><strong>Notification Title Bold</strong></div>
-                        <div class="notification-message-full">Notification message text here that describes what happened in detail</div>
-                        <div class="notification-date-full" style="font-size: 12px; color: var(--color-gray);">2 hours ago</div>
-                    </div>
-                </div>
+        <div id="notificationsListFull" class="notifications-list-full">
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
             </div>
         </div>
-        
-        <div class="notification-detail-container" id="notificationDetailContainer" style="display: none;">
-            <div class="notification-detail-header">
-                <button class="notification-detail-back" id="notificationDetailBack">
-                    <span>←</span>
-                    <span>Back</span>
-                </button>
-                <button class="modal-close-btn notification-detail-close" id="notificationDetailClose">×</button>
-            </div>
-            <div class="notification-detail-content">
-                <h2 class="notification-detail-title" id="notificationDetailTitle">Notification Title</h2>
-                <div class="notification-detail-body" id="notificationDetailBody">
-                    Detailed notification message here...
-                </div>
-                <div class="notification-detail-time" id="notificationDetailTime">2 hours ago</div>
-            </div>
-        </div>
-        
         <div class="action-row" style="margin-top: 32px;">
             <button id="notificationsCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>
+<!-- Enhanced User Profile Modal -->
 <div class="modal-back" id="publicProfileModal" style="display: none;">
     <div class="modal-content scrollable-modal">
         <button class="modal-close-btn" id="publicProfileModalCloseBtn">×</button>
@@ -589,6 +566,19 @@
             <div class="public-profile-status" style="text-align: center; margin-bottom: 24px;">
                 <div class="public-profile-status-dot" id="publicProfileStatusDot" style="background-color: var(--color-green);"></div>
                 <span id="publicProfileStatusText" style="color: var(--color-green); font-size: 14px;">Online</span>
+            </div>
+            <!-- Streak and Messages Stats -->
+            <div class="public-profile-stats" style="display: flex; justify-content: center; gap: 32px; margin-bottom: 24px;">
+                <div class="public-profile-stat" style="text-align: center;">
+                    <div class="public-profile-stat-icon" style="font-size: 24px; margin-bottom: 8px;">🔥</div>
+                    <div class="public-profile-stat-value" id="publicProfileStreak" style="font-size: 20px; font-weight: bold; color: var(--color-gold);">0</div>
+                    <div class="public-profile-stat-label" style="font-size: 12px; color: var(--text-secondary);">Day Streak</div>
+                </div>
+                <div class="public-profile-stat" style="text-align: center;">
+                    <div class="public-profile-stat-icon" style="font-size: 24px; margin-bottom: 8px;">💬</div>
+                    <div class="public-profile-stat-value" id="publicProfileTotalMessages" style="font-size: 20px; font-weight: bold; color: var(--color-gold);">0</div>
+                    <div class="public-profile-stat-label" style="font-size: 12px; color: var(--text-secondary);">Messages Sent</div>
+                </div>
             </div>
         </div>
         <div class="public-profile-content" style="overflow-y: auto; max-height: 60vh;">
@@ -795,6 +785,91 @@
         </div>
     </div>
 </div>
+<!-- DM Create Confirmation Modal -->
+<div class="modal-back" id="dmCreateConfirmationModal" style="display: none;">
+    <div class="modal-content confirmation-modal">
+        <div class="confirmation-icon">💬</div>
+        <h2 class="modal-title" id="dmCreateConfirmationTitle">Create DM</h2>
+        <div class="confirmation-message" id="dmCreateConfirmationMessage">Are you sure you want to create a DM?</div>
+        <div class="confirmation-actions">
+            <button id="dmCreateConfirmationCancel" class="btn-secondary">Cancel</button>
+            <button id="dmCreateConfirmationConfirm" class="btn-primary">Create DM</button>
+        </div>
+    </div>
+</div>
+<!-- DM Channel Settings Modal -->
+<div class="modal-back" id="dmChannelSettingsModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="dmChannelSettingsModalCloseBtn">×</button>
+        <h2 class="modal-title">Channel Settings</h2>
+        <div class="modal-subtitle" id="dmChannelSettingsSubtitle">Settings for this conversation</div>
+        
+        <!-- Channel name input (only for group chats) -->
+        <div class="form-group" id="dmChannelNameGroup" style="display: none;">
+            <label class="form-label">Channel Name</label>
+            <input type="text" id="dmChannelNameInput" class="form-input" placeholder="Enter a name for this group chat" />
+        </div>
+        
+        <!-- Users section -->
+        <div class="users-section">
+            <div class="users-section-header">
+                <h3>Users</h3>
+                <button class="btn-secondary" id="dmChannelAddUserBtn">+ Add User</button>
+            </div>
+            <div class="users-list" id="dmChannelUsersList">
+                <!-- List of current users will be inserted here -->
+                <div class="loading-placeholder">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notifications section -->
+        <div class="notifications-section">
+            <h3>Notifications</h3>
+            <div class="notification-options">
+                <label class="notification-option">
+                    <input type="radio" name="dmChannelNotifications" value="all" checked>
+                    <span class="notification-label">Allow All</span>
+                    <span class="notification-desc">Notify on every message</span>
+                </label>
+                <label class="notification-option">
+                    <input type="radio" name="dmChannelNotifications" value="mention">
+                    <span class="notification-label">Only When Mentioned</span>
+                    <span class="notification-desc">Only notify when mentioned</span>
+                </label>
+                <label class="notification-option">
+                    <input type="radio" name="dmChannelNotifications" value="mute">
+                    <span class="notification-label">Mute</span>
+                    <span class="notification-desc">No notifications</span>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Leave Group Chat button (only for group chats) -->
+        <button class="btn-delete" id="dmChannelLeaveBtn" style="width: 100%; margin-top: 24px; display: none;">Leave Group Chat</button>
+        
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="dmChannelSettingsCancelBtn" class="btn-secondary">Cancel</button>
+            <button id="dmChannelSettingsSaveBtn" class="btn-primary">Save Settings</button>
+        </div>
+    </div>
+</div>
+<!-- Add User to DM Modal -->
+<div class="modal-back" id="dmAddUserModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="dmAddUserModalCloseBtn">×</button>
+        <h2 class="modal-title">Add User</h2>
+        <div class="modal-subtitle">Search for users to add to this conversation</div>
+        <div class="form-group">
+            <input type="text" id="dmAddUserSearchInput" class="form-input" placeholder="Search by username..." />
+        </div>
+        <div class="search-results" id="dmAddUserSearchResults" style="display: none;"></div>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="dmAddUserCancelBtn" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
 <!-- Message Context Menu -->
 <div class="context-menu" id="messageContextMenu" style="display: none;">
     <div class="context-menu-item" data-action="react">
@@ -805,14 +880,6 @@
         <span>👤</span>
         <span>View Profile</span>
     </div>
-    <div class="context-menu-item" data-action="pin" style="display: none;">
-        <span>📌</span>
-        <span>Pin Message</span>
-    </div>
-    <div class="context-menu-item" data-action="unpin" style="display: none;">
-        <span>📌</span>
-        <span>Unpin Message</span>
-    </div>
     <div class="context-menu-item" data-action="edit" style="display: none;">
         <span>✏️</span>
         <span>Edit</span>
@@ -820,10 +887,6 @@
     <div class="context-menu-item" data-action="delete" style="display: none;">
         <span>🗑️</span>
         <span>Delete</span>
-    </div>
-    <div class="context-menu-item" data-action="share">
-        <span>↗️</span>
-        <span>Share Message</span>
     </div>
     <div class="context-menu-item" data-action="report">
         <span>⚠️</span>
@@ -833,57 +896,11 @@
 <!-- Mention Helper Modal -->
 <div class="modal-back mention-helper-modal" id="mentionHelperModal" style="display: none;">
     <div class="modal-content">
-        <h3 class="modal-title">Search for a user to mention</h3>
-        <div class="modal-subtitle">Search users to mention</div>
+        <h3 class="modal-title">Mention User</h3>
+        <div class="modal-subtitle">Select a user to mention</div>
         <div class="mention-search-results" id="mentionSearchResults"></div>
         <div class="action-row" style="margin-top: 16px;">
             <button id="closeMentionHelperBtn" class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-</div>
-<!-- Channel Link Modal -->
-<div class="modal-back channel-link-modal" id="channelLinkModal" style="display: none;">
-    <div class="modal-content">
-        <h3 class="modal-title">Search for a channel to link</h3>
-        <div class="modal-subtitle">Search channels to link</div>
-        <div class="channel-link-search-results" id="channelLinkSearchResults"></div>
-        <div class="action-row" style="margin-top: 16px;">
-            <button id="closeChannelLinkBtn" class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-</div>
-<!-- Realm Link Modal -->
-<div class="modal-back realm-link-modal" id="realmLinkModal" style="display: none;">
-    <div class="modal-content">
-        <h3 class="modal-title">Search for a realm to link</h3>
-        <div class="modal-subtitle">Search realms to link</div>
-        <div class="realm-link-search-results" id="realmLinkSearchResults"></div>
-        <div class="action-row" style="margin-top: 16px;">
-            <button id="closeRealmLinkBtn" class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-</div>
-<!-- Public Realm Modal -->
-<div class="modal-back public-realm-modal" id="publicRealmModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="publicRealmModalCloseBtn">×</button>
-        <div class="public-realm-header">
-            <div class="public-realm-icon" id="publicRealmIcon" style="width: 80px; height: 80px; border-radius: 50%; font-size: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; background: var(--color-gray-dark);">
-                🏰
-            </div>
-            <div class="public-realm-name" id="publicRealmName" style="font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 8px;">
-                Realm Name
-            </div>
-            <div class="public-realm-creator" id="publicRealmCreator" style="font-size: 14px; color: var(--color-gray); text-align: center; margin-bottom: 16px;">
-                Created by Username
-            </div>
-            <div class="public-realm-description" id="publicRealmDescription" style="text-align: center; padding: 16px; background: var(--color-gray-dark); border-radius: 8px; margin-bottom: 24px;">
-                Realm description goes here...
-            </div>
-        </div>
-        <div class="action-row">
-            <button id="publicRealmJoinBtn" class="btn-primary">Join Realm</button>
-            <button id="publicRealmCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>

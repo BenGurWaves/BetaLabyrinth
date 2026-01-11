@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.560 Beta</title>
+<title>Labyrinth Chat v0.5.5607 Alpha</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -199,7 +199,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.5.560 Beta • Fully Functional</div>
+                <div class="login-subtitle">v0.5.5607 Alpha • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -222,7 +222,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.560 Beta</span>
+            <span class="version">v0.5.5607 Alpha</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -263,6 +263,7 @@
                         <div class="realm-members" id="realmMembers"></div>
                     </div>
                     <button class="realm-dropdown-btn" id="realmDropdownBtn">▼</button>
+                    <!-- Settings button will be hidden for DM realm via JS -->
                     <button class="realm-settings-btn" id="realmSettingsBtn">⚙️</button>
                 </div>
                 <div class="realm-dropdown" id="realmDropdown">
@@ -274,9 +275,10 @@
             <div class="sidebar-section">
                 <div class="section-header" id="channelsHeader">
                     <div class="section-title">Channels</div>
-                    <div class="section-actions">
-                        <button class="channel-add-btn" id="dmChannelAddBtn" style="display: none;" title="Start a Conversation">+</button>
+                    <div class="section-header-right">
                         <button class="collapse-toggle" id="collapseChannels">−</button>
+                        <!-- Plus button for DM realm (shown only for DM) -->
+                        <button class="dm-add-conversation-btn" id="dmAddConversationBtn" style="display: none;" title="Start a conversation">+</button>
                     </div>
                 </div>
                 <div class="category-content" id="channelsContent">
@@ -291,13 +293,6 @@
                             <span>Create Channel</span>
                         </button>
                     </div>
-                    <!-- DM Realm + Button -->
-                    <div id="dmAddConversationContainer" style="display: none;">
-                        <button class="channel-item" id="dmAddConversationBtn" style="color: var(--color-gold-light); justify-content: center;">
-                            <span>+</span>
-                            <span>New Conversation</span>
-                        </button>
-                    </div>
                 </div>
             </div>
             <div class="sidebar-footer">
@@ -308,8 +303,18 @@
             </div>
         </div>
         <div class="main-chat">
+            <!-- Channel Header (visible for DMs) -->
             <div class="channel-header" id="channelHeader" style="display: none;">
-                <!-- Will be populated for DM channels -->
+                <div class="channel-header-left">
+                    <div class="channel-avatar-container" id="channelAvatarContainer">
+                        <img class="channel-avatar" id="channelAvatar" src="" alt="User avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    </div>
+                    <div class="channel-info">
+                        <div class="channel-title" id="channelTitle">Loading...</div>
+                        <div class="channel-status" id="channelStatus">Offline</div>
+                    </div>
+                </div>
+                <!-- Three dots menu for DM channels will be added via JS -->
             </div>
             <div id="pinnedMessageContainer" style="display: none;"></div>
             <div class="messages-container" id="messagesContainer">
@@ -486,7 +491,7 @@
                 <label class="toggle">
                     <input type="checkbox" id="settingsSendWithEnter" checked>
                     <span class="toggle-slider"></span>
-                    </label>
+                </label>
             </div>
             <div class="toggle-switch">
                 <span class="toggle-label">Open Links In App</span>
@@ -552,56 +557,53 @@
         </div>
     </div>
 </div>
-<!-- Enhanced User Profile Modal -->
-<div class="modal-back" id="publicProfileModal" style="display: none;">
+<!-- Enhanced User Profile Modal for 1:1 DMs -->
+<div class="modal-back" id="dmUserProfileModal" style="display: none;">
     <div class="modal-content scrollable-modal">
-        <button class="modal-close-btn" id="publicProfileModalCloseBtn">×</button>
-        <div class="public-profile-header">
-            <div class="public-profile-avatar-container" id="publicProfileAvatarContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
-                <div class="public-profile-avatar-large" id="publicProfileAvatarLarge" style="width: 140px; height: 140px; border-radius: 50%; background-color: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; overflow: hidden;">
-                    <!-- Avatar will be inserted here -->
-                </div>
+        <button class="modal-close-btn" id="dmUserProfileModalCloseBtn">×</button>
+        <div class="dm-user-profile-header">
+            <div class="dm-user-avatar-container">
+                <img class="dm-user-avatar-large" id="dmUserAvatarLarge" src="" alt="User avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin: 0 auto 20px; display: block;">
             </div>
-            <div class="public-profile-name" id="publicProfileName" style="text-align: center; font-size: 24px; margin-bottom: 8px;">Loading...</div>
-            <div class="public-profile-status" style="text-align: center; margin-bottom: 24px;">
-                <div class="public-profile-status-dot" id="publicProfileStatusDot" style="background-color: var(--color-green);"></div>
-                <span id="publicProfileStatusText" style="color: var(--color-green); font-size: 14px;">Online</span>
-            </div>
-            <!-- Streak and Messages Stats -->
-            <div class="public-profile-stats" style="display: flex; justify-content: center; gap: 32px; margin-bottom: 24px;">
-                <div class="public-profile-stat" style="text-align: center;">
-                    <div class="public-profile-stat-icon" style="font-size: 24px; margin-bottom: 8px;">🔥</div>
-                    <div class="public-profile-stat-value" id="publicProfileStreak" style="font-size: 20px; font-weight: bold; color: var(--color-gold);">0</div>
-                    <div class="public-profile-stat-label" style="font-size: 12px; color: var(--text-secondary);">Day Streak</div>
-                </div>
-                <div class="public-profile-stat" style="text-align: center;">
-                    <div class="public-profile-stat-icon" style="font-size: 24px; margin-bottom: 8px;">💬</div>
-                    <div class="public-profile-stat-value" id="publicProfileTotalMessages" style="font-size: 20px; font-weight: bold; color: var(--color-gold);">0</div>
-                    <div class="public-profile-stat-label" style="font-size: 12px; color: var(--text-secondary);">Messages Sent</div>
-                </div>
+            <div class="dm-user-name" id="dmUserName" style="text-align: center; font-size: 28px; margin-bottom: 8px; font-weight: 600;">Username</div>
+            <div class="dm-user-status" style="text-align: center; margin-bottom: 24px;">
+                <div class="dm-user-status-dot" id="dmUserStatusDot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: middle; background-color: var(--color-gray);"></div>
+                <span id="dmUserStatusText" style="color: var(--color-gray); font-size: 14px; vertical-align: middle;">Offline</span>
             </div>
         </div>
-        <div class="public-profile-content" style="overflow-y: auto; max-height: 60vh;">
-            <div class="public-profile-section">
+        <div class="dm-user-profile-content">
+            <div class="dm-user-section">
                 <h3>Bio</h3>
-                <div class="public-profile-bio" id="publicProfileBio">No bio provided</div>
+                <div class="dm-user-bio" id="dmUserBio" style="padding: 16px; background: var(--color-gray-dark); border-radius: 8px; font-size: 15px; line-height: 1.6; color: var(--text-primary);">No bio provided</div>
             </div>
-            <div class="public-profile-section" id="publicProfileSocialSection" style="display: none;">
+            <div class="dm-user-section" id="dmUserSocialSection" style="display: none; margin-top: 24px;">
                 <h3>Social Links</h3>
-                <div class="public-profile-social-links" id="publicProfileSocialLinks">
+                <div class="dm-user-social-links" id="dmUserSocialLinks" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
                     <!-- Social links will be added here -->
                 </div>
             </div>
-            <div class="public-profile-section" id="publicProfileRealmsSection" style="display: none; border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 20px;">
+            <div class="dm-user-section" id="dmUserRealmsSection" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
                 <h3>Realms</h3>
-                <div class="public-profile-realms" id="publicProfileRealms">
+                <div class="dm-user-realms" id="dmUserRealms" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
                     <!-- Realms will be added here -->
+                </div>
+            </div>
+            <div class="dm-user-stats" style="display: flex; gap: 20px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                <div class="dm-user-stat" style="flex: 1; text-align: center; padding: 16px; background: var(--color-gray-dark); border-radius: 12px;">
+                    <div class="dm-user-stat-icon" style="font-size: 24px; margin-bottom: 8px;">🔥</div>
+                    <div class="dm-user-stat-value" id="dmUserStreak" style="font-size: 28px; font-weight: 700; color: var(--color-gold);">0</div>
+                    <div class="dm-user-stat-label" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Day Streak</div>
+                </div>
+                <div class="dm-user-stat" style="flex: 1; text-align: center; padding: 16px; background: var(--color-gray-dark); border-radius: 12px;">
+                    <div class="dm-user-stat-icon" style="font-size: 24px; margin-bottom: 8px;">💬</div>
+                    <div class="dm-user-stat-value" id="dmUserTotalMessages" style="font-size: 28px; font-weight: 700; color: var(--color-gold);">0</div>
+                    <div class="dm-user-stat-label" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Messages Sent</div>
                 </div>
             </div>
         </div>
         <div class="action-row" style="margin-top: 32px;">
-            <button id="publicProfileContactBtn" class="btn-primary">Contact</button>
-            <button id="publicProfileCloseBtn" class="btn-secondary">Close</button>
+            <button id="dmUserContactBtn" class="btn-primary" style="display: none;">Message</button>
+            <button id="dmUserProfileCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>
@@ -647,6 +649,18 @@
         <div class="confirmation-actions">
             <button id="confirmationCancel" class="btn-secondary">Cancel</button>
             <button id="confirmationConfirm" class="btn-primary">Confirm</button>
+        </div>
+    </div>
+</div>
+<!-- DM Confirmation Modal -->
+<div class="modal-back" id="dmConfirmationModal" style="display: none;">
+    <div class="modal-content confirmation-modal">
+        <div class="confirmation-icon" id="dmConfirmationIcon">💬</div>
+        <h2 class="modal-title" id="dmConfirmationTitle">Create DM with @username?</h2>
+        <div class="confirmation-message" id="dmConfirmationMessage">Start a private conversation with this user.</div>
+        <div class="confirmation-actions">
+            <button id="dmConfirmationCancel" class="btn-secondary">Cancel</button>
+            <button id="dmConfirmationConfirm" class="btn-primary">Start Conversation</button>
         </div>
     </div>
 </div>
@@ -771,7 +785,8 @@
         </div>
     </div>
 </div>
-<div class="modal-back" id="startConversationModal">
+<!-- Enhanced Start Conversation Modal -->
+<div class="modal-back" id="startConversationModal" style="display: none;">
     <div class="modal-content">
         <button class="modal-close-btn" id="startConversationModalCloseBtn">×</button>
         <h2 class="modal-title">Start a Conversation</h2>
@@ -779,75 +794,71 @@
         <div class="form-group">
             <input type="text" id="userSearchInput" class="form-input" placeholder="Search by username..." />
         </div>
-        <div class="search-results" id="userSearchResults" style="display: none;"></div>
+        <div class="user-search-results" id="userSearchResults" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
+            <!-- User search results will be added here -->
+        </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="cancelStartConversationBtn" class="btn-secondary">Cancel</button>
         </div>
     </div>
 </div>
-<!-- DM Create Confirmation Modal -->
-<div class="modal-back" id="dmCreateConfirmationModal" style="display: none;">
-    <div class="modal-content confirmation-modal">
-        <div class="confirmation-icon">💬</div>
-        <h2 class="modal-title" id="dmCreateConfirmationTitle">Create DM</h2>
-        <div class="confirmation-message" id="dmCreateConfirmationMessage">Are you sure you want to create a DM?</div>
-        <div class="confirmation-actions">
-            <button id="dmCreateConfirmationCancel" class="btn-secondary">Cancel</button>
-            <button id="dmCreateConfirmationConfirm" class="btn-primary">Create DM</button>
-        </div>
-    </div>
-</div>
 <!-- DM Channel Settings Modal -->
 <div class="modal-back" id="dmChannelSettingsModal" style="display: none;">
-    <div class="modal-content">
+    <div class="modal-content scrollable-modal">
         <button class="modal-close-btn" id="dmChannelSettingsModalCloseBtn">×</button>
-        <h2 class="modal-title">Channel Settings</h2>
-        <div class="modal-subtitle" id="dmChannelSettingsSubtitle">Settings for this conversation</div>
+        <h2 class="modal-title">Conversation Settings</h2>
+        <div class="modal-subtitle" id="dmChannelSettingsSubtitle">Manage your conversation</div>
         
-        <!-- Channel name input (only for group chats) -->
-        <div class="form-group" id="dmChannelNameGroup" style="display: none;">
-            <label class="form-label">Channel Name</label>
-            <input type="text" id="dmChannelNameInput" class="form-input" placeholder="Enter a name for this group chat" />
+        <!-- Channel Name (only for group chats) -->
+        <div class="form-group" id="dmChannelNameSection" style="display: none;">
+            <label class="form-label">Group Name</label>
+            <input type="text" id="dmChannelNameInput" class="form-input" placeholder="Enter group name" />
+            <div style="color: var(--color-gray); font-size: 12px; margin-top: 4px;">Only visible to group members</div>
         </div>
         
-        <!-- Users section -->
-        <div class="users-section">
-            <div class="users-section-header">
-                <h3>Users</h3>
-                <button class="btn-secondary" id="dmChannelAddUserBtn">+ Add User</button>
+        <!-- Users Section -->
+        <div class="dm-channel-users-section">
+            <div class="section-header" style="margin: 24px 0 16px;">
+                <div class="section-title">Users</div>
+                <button class="dm-add-user-btn" id="dmAddUserBtn" title="Add user">+</button>
             </div>
-            <div class="users-list" id="dmChannelUsersList">
-                <!-- List of current users will be inserted here -->
+            <div class="dm-channel-users-list" id="dmChannelUsersList">
+                <!-- Users will be added here -->
                 <div class="loading-placeholder">
                     <div class="loading-spinner"></div>
                 </div>
             </div>
         </div>
         
-        <!-- Notifications section -->
-        <div class="notifications-section">
-            <h3>Notifications</h3>
-            <div class="notification-options">
+        <!-- Notifications Section -->
+        <div class="dm-channel-notifications-section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+            <h3 class="section-title">Notifications</h3>
+            <div class="dm-notification-options" style="margin-top: 16px;">
                 <label class="notification-option">
-                    <input type="radio" name="dmChannelNotifications" value="all" checked>
+                    <input type="radio" name="dmNotifications" value="all" checked>
                     <span class="notification-label">Allow All</span>
                     <span class="notification-desc">Notify on every message</span>
                 </label>
                 <label class="notification-option">
-                    <input type="radio" name="dmChannelNotifications" value="mention">
+                    <input type="radio" name="dmNotifications" value="mention">
                     <span class="notification-label">Only When Mentioned</span>
                     <span class="notification-desc">Only notify when mentioned</span>
                 </label>
                 <label class="notification-option">
-                    <input type="radio" name="dmChannelNotifications" value="mute">
+                    <input type="radio" name="dmNotifications" value="mute">
                     <span class="notification-label">Mute</span>
                     <span class="notification-desc">No notifications</span>
                 </label>
             </div>
         </div>
         
-        <!-- Leave Group Chat button (only for group chats) -->
-        <button class="btn-delete" id="dmChannelLeaveBtn" style="width: 100%; margin-top: 24px; display: none;">Leave Group Chat</button>
+        <!-- Leave Group Chat Button (only for group chats) -->
+        <div id="dmLeaveGroupSection" style="display: none; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+            <button id="dmLeaveGroupBtn" class="btn-delete" style="width: 100%;">
+                <span>🚪</span>
+                <span>Leave Group Chat</span>
+            </button>
+        </div>
         
         <div class="action-row" style="margin-top: 32px;">
             <button id="dmChannelSettingsCancelBtn" class="btn-secondary">Cancel</button>
@@ -855,16 +866,18 @@
         </div>
     </div>
 </div>
-<!-- Add User to DM Modal -->
+<!-- Add User Modal (for group chats) -->
 <div class="modal-back" id="dmAddUserModal" style="display: none;">
     <div class="modal-content">
         <button class="modal-close-btn" id="dmAddUserModalCloseBtn">×</button>
-        <h2 class="modal-title">Add User</h2>
+        <h2 class="modal-title">Add User to Group</h2>
         <div class="modal-subtitle">Search for users to add to this conversation</div>
         <div class="form-group">
             <input type="text" id="dmAddUserSearchInput" class="form-input" placeholder="Search by username..." />
         </div>
-        <div class="search-results" id="dmAddUserSearchResults" style="display: none;"></div>
+        <div class="dm-add-user-results" id="dmAddUserResults" style="display: none; max-height: 300px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
+            <!-- Add user results will be added here -->
+        </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="dmAddUserCancelBtn" class="btn-secondary">Cancel</button>
         </div>
@@ -891,6 +904,21 @@
     <div class="context-menu-item" data-action="report">
         <span>⚠️</span>
         <span>Report</span>
+    </div>
+</div>
+<!-- Channel Context Menu (for DM channels) -->
+<div class="context-menu" id="channelContextMenu" style="display: none;">
+    <div class="context-menu-item" data-action="dmSettings">
+        <span>⚙️</span>
+        <span>Conversation Settings</span>
+    </div>
+    <div class="context-menu-item" data-action="markRead">
+        <span>📭</span>
+        <span>Mark as Read</span>
+    </div>
+    <div class="context-menu-item" data-action="leave">
+        <span>🚪</span>
+        <span>Leave Conversation</span>
     </div>
 </div>
 <!-- Mention Helper Modal -->
@@ -920,6 +948,19 @@
                 <a class="attachment-download" href="" download>Download</a>
             </div>
         </div>
+    </div>
+</template>
+<!-- User Search Result Template -->
+<template id="userSearchResultTemplate">
+    <div class="user-search-result" data-user-id="">
+        <div class="user-search-avatar-container">
+            <img class="user-search-avatar" src="" alt="Avatar">
+        </div>
+        <div class="user-search-info">
+            <div class="user-search-username">Username</div>
+            <div class="user-search-status online">Online</div>
+        </div>
+        <button class="user-search-select-btn">Select</button>
     </div>
 </template>
 <script src="script.js" defer></script>

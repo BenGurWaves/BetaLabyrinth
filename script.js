@@ -1,8 +1,8 @@
 const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
 const STORAGE_BUCKET = 'avatars';
-const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves'];
-const ADMIN_USERNAME = 'TheRealBenGurWaves'; 
+const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves', 'direct-messages'];
+const ADMIN_USERNAME = 'TheRealBenGurWaves';
 
 let state = {
     supabase: null,
@@ -43,10 +43,6 @@ let state = {
     channelDeleteStep: 1,
     systemThemeListener: null
 };
-
-// DM MODE VARIABLES
-let isDmMode = false;
-let currentDmChannel = null;
 
 function hideLoader() {
     try {
@@ -149,7 +145,7 @@ async function fetchAndUpdateProfile(immediate = false) {
         console.log('Fetching latest profile from Supabase...');        
         const { data: profile, error } = await state.supabase
             .from('profiles')
-            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, streak_count, last_streak_date, total_messages_count')
+            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts')
             .eq('id', state.currentUser.id)
             .single();            
         if (error) {
@@ -170,9 +166,6 @@ async function fetchAndUpdateProfile(immediate = false) {
             state.userSettings.send_with_enter = profile.send_with_enter !== false;
             state.userSettings.open_links_in_app = profile.open_links_in_app === true;
             state.userSettings.send_read_receipts = profile.send_read_receipts !== false;
-            state.userSettings.streak_count = profile.streak_count || 1;
-            state.userSettings.last_streak_date = profile.last_streak_date;
-            state.userSettings.total_messages_count = profile.total_messages_count || 0;
         }
         updateHeaderUserButton();
         updateProfileModal();        
@@ -254,10 +247,7 @@ async function loadUserProfile() {
                 send_read_receipts: true,
                 bio: '',
                 social_links: {},
-                show_realms: true,
-                streak_count: 1,
-                last_streak_date: null,
-                total_messages_count: 0
+                show_realms: true
             };
         }        
         console.log('Loading user profile from Supabase...');        
@@ -288,10 +278,7 @@ async function loadUserProfile() {
                 send_read_receipts: true,
                 bio: '',
                 social_links: {},
-                show_realms: true,
-                streak_count: 1,
-                last_streak_date: null,
-                total_messages_count: 0
+                show_realms: true
             };
         }
         const defaultProfile = {
@@ -310,10 +297,7 @@ async function loadUserProfile() {
             send_read_receipts: profile.send_read_receipts !== false,
             bio: profile.bio || '',
             social_links: profile.social_links || {},
-            show_realms: profile.show_realms !== false,
-            streak_count: profile.streak_count || 1,
-            last_streak_date: profile.last_streak_date || null,
-            total_messages_count: profile.total_messages_count || 0
+            show_realms: profile.show_realms !== false
         };        
         console.log('User profile loaded from Supabase');
         return defaultProfile;
@@ -335,10 +319,7 @@ async function loadUserProfile() {
             send_read_receipts: true,
             bio: '',
             social_links: {},
-            show_realms: true,
-            streak_count: 1,
-            last_streak_date: null,
-            total_messages_count: 0
+            show_realms: true
         };
     }
 }
@@ -526,14 +507,7 @@ async function loadJoinedRealmsFast() {
 
 async function switchRealm(realmId) {
     try {
-        if (!state.supabase) return;
-        
-        // Reset DM mode when switching to a realm
-        isDmMode = false;
-        currentDmChannel = null;
-        document.getElementById('dm-header').classList.remove('active');
-        document.getElementById('add-dm-button').style.display = 'none';
-        
+        if (!state.supabase) return;        
         console.log('Switching to realm:', realmId);        
         const realm = state.joinedRealms.find(r => r.id === realmId);
         if (!realm) {
@@ -645,7 +619,7 @@ function renderRealmDropdown() {
         sortedRealms.forEach(realm => {
             const option = document.createElement('button');
             option.className = 'realm-option';
-            if (state.currentRealm && realm.id === state.currentRealm.id && !isDmMode) {
+            if (state.currentRealm && realm.id === state.currentRealm.id) {
                 option.classList.add('active');
             }
             // Add realm icon
@@ -656,13 +630,21 @@ function renderRealmDropdown() {
                 iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
             }
             
-            let realmText = realm.name;
-            if (realm.show_creator) {
-                const creatorUsername = realm.created_by === state.currentUser?.id ? 'You' : '@' + (realm.created_by_username || '');
-                realmText += ` <span style="font-size: 11px; color: var(--color-gray); font-style: italic;">Created by ${creatorUsername}</span>`;
-            }
-            option.innerHTML = `${iconHtml}${realmText}`;
-            
+            if (realm.slug === 'direct-messages') {
+                option.innerHTML = `${iconHtml} Direct Messages <span id="dmRealmAddBtn" style="margin-left: auto; font-size: 20px; color: var(--color-gold);">+</span>`;
+                const addBtn = option.querySelector('#dmRealmAddBtn');
+                addBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showStartConversationModal();
+                });
+            } else {
+                let realmText = realm.name;
+                if (realm.show_creator) {
+                    const creatorUsername = realm.created_by === state.currentUser?.id ? 'You' : '@' + (realm.created_by_username || '');
+                    realmText += ` <span style="font-size: 11px; color: var(--color-gray); font-style: italic;">Created by ${creatorUsername}</span>`;
+                }
+                option.innerHTML = `${iconHtml}${realmText}`;
+            }            
             option.onclick = function(e) {
                 if (!e.target.closest('#dmRealmAddBtn')) {
                     switchRealm(realm.id);
@@ -690,34 +672,102 @@ async function loadChannels() {
             return;
         }     
         console.log('Loading channels for realm:', state.currentRealm.id, 'Slug:', state.currentRealm.slug);
-        
-        state.supabase
-            .from('channels')
-            .select('*')
-            .eq('realm_id', state.currentRealm.id)
-            .eq('is_public', true)
-            .order('position', { ascending: true })
-            .then(({ data: channels, error }) => {
-                if (error) {
+        if (state.currentRealm.slug === 'direct-messages') {
+            await ensureSelfDMChannel();
+            
+            state.supabase
+                .from('channels')
+                .select('*')
+                .eq('realm_id', state.currentRealm.id)
+                .eq('is_public', false)
+                .order('created_at', { ascending: false })
+                .then(({ data: channels, error }) => {
+                    if (error) {
+                        console.log('Error loading DM channels:', error);
+                        renderChannels();
+                        return;
+                    }                    
+                    state.channels = channels;
+                    renderChannels();
+                    if (channels.length > 0 && !state.currentChannel) {
+                        selectChannel(channels[0].id);
+                    }                    
+                    console.log('Loaded', channels.length, 'DM channels');
+                    updateAddChannelButton();
+                })
+                .catch(error => {
+                    console.log('Error loading DM channels:', error);
+                    renderChannels();
+                });
+        } else {
+            state.supabase
+                .from('channels')
+                .select('*')
+                .eq('realm_id', state.currentRealm.id)
+                .eq('is_public', true)
+                .order('position', { ascending: true })
+                .then(({ data: channels, error }) => {
+                    if (error) {
+                        console.log('Error loading channels:', error);
+                        renderChannels();
+                        return;
+                    }                   
+                    state.channels = channels;
+                    renderChannels();
+                    if (channels.length > 0 && !state.currentChannel) {
+                        selectChannel(channels[0].id);
+                    }                    
+                    console.log('Loaded', channels.length, 'channels');
+                    updateAddChannelButton();
+                })
+                .catch(error => {
                     console.log('Error loading channels:', error);
                     renderChannels();
-                    return;
-                }                   
-                state.channels = channels;
-                renderChannels();
-                if (channels.length > 0 && !state.currentChannel) {
-                    selectChannel(channels[0].id);
-                }                    
-                console.log('Loaded', channels.length, 'channels');
-                updateAddChannelButton();
-            })
-            .catch(error => {
-                console.log('Error loading channels:', error);
-                renderChannels();
-            });
+                });
+        }
     } catch (error) {
         console.log('Error in loadChannels:', error);
         renderChannels();
+    }
+}
+
+async function ensureSelfDMChannel() {
+    try {
+        if (!state.currentUser || !state.supabase || !state.currentRealm) return;
+        if (state.currentRealm.slug !== 'direct-messages') return;
+        
+        const username = state.userSettings?.username || state.currentUser.email?.split('@')[0];
+        const channelName = `${username}_${username}`;
+        
+        const { data: existingChannels } = await state.supabase
+            .from('channels')
+            .select('*')
+            .eq('name', channelName)
+            .eq('realm_id', state.currentRealm.id)
+            .eq('is_public', false)
+            .single();
+            
+        if (!existingChannels) {
+            const { error } = await state.supabase
+                .from('channels')
+                .insert([{
+                    name: channelName,
+                    description: `Private notes for ${username}`,
+                    realm_id: state.currentRealm.id,
+                    created_by: state.currentUser.id,
+                    is_public: false,
+                    is_writable: true,
+                    position: 0
+                }]);
+                
+            if (error) {
+                console.log('Error creating self-DM channel:', error);
+            } else {
+                console.log('Self-DM channel created');
+            }
+        }
+    } catch (error) {
+        console.log('Error ensuring self-DM channel:', error);
     }
 }
 
@@ -728,6 +778,9 @@ function renderChannels() {
         channelList.innerHTML = '';        
         if (state.channels.length === 0) {
             let message = 'No channels in this realm';
+            if (state.currentRealm?.slug === 'direct-messages') {
+                message = 'No direct messages yet';
+            }
             channelList.innerHTML = `
                 <div class="channel-item" style="color: var(--text-secondary); text-align: center; font-style: italic;">
                     ${message}
@@ -742,11 +795,14 @@ function renderChannels() {
                 item.classList.add('active');
             }            
             const isChannelCreator = channel.created_by === state.currentUser?.id;
+            const isDMRealm = state.currentRealm?.slug === 'direct-messages';
+            const username = state.userSettings?.username || state.currentUser?.email?.split('@')[0];
+            const isSelfDM = channel.name === `${username}_${username}`;
             
             item.innerHTML = `
-                <div class="channel-icon">#</div>
-                <div style="flex: 1;">${escapeHtml(channel.name)}</div>
-                ${isChannelCreator ? '<div class="channel-delete-btn" style="color: var(--color-gray); font-size: 12px; padding: 4px; opacity: 0; transition: opacity var(--transition-fast);">🗑️</div>' : ''}
+                <div class="channel-icon">${isDMRealm ? (isSelfDM ? '📝' : '👤') : '#'}</div>
+                <div style="flex: 1;">${isDMRealm && isSelfDM ? 'Notes' : escapeHtml(channel.name)}</div>
+                ${isChannelCreator && !isDMRealm ? '<div class="channel-delete-btn" style="color: var(--color-gray); font-size: 12px; padding: 4px; opacity: 0; transition: opacity var(--transition-fast);">🗑️</div>' : ''}
             `;           
             item.onclick = function(e) {
                 if (!e.target.classList.contains('channel-delete-btn')) {
@@ -757,7 +813,7 @@ function renderChannels() {
                 }
             };
             const deleteBtn = item.querySelector('.channel-delete-btn');
-            if (deleteBtn) {
+            if (deleteBtn && !isDMRealm) {
                 deleteBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     showDeleteChannelConfirmation(channel);
@@ -780,7 +836,7 @@ function updateAddChannelButton() {
     try {
         const addChannelContainer = document.getElementById('addChannelContainer');
         if (!addChannelContainer) return;
-        if (state.currentRealm && state.currentRealm.created_by === state.currentUser?.id) {
+        if (state.currentRealm && state.currentRealm.created_by === state.currentUser?.id && state.currentRealm.slug !== 'direct-messages') {
             addChannelContainer.style.display = 'block';
         } else {
             addChannelContainer.style.display = 'none';
@@ -803,7 +859,8 @@ async function selectChannel(channelId) {
             item.classList.remove('active');
         });
         const activeItem = Array.from(document.querySelectorAll('.channel-item')).find(item => {
-            return item.textContent.includes(channel.name);
+            return item.textContent.includes(channel.name) || 
+                   (channel.name.includes(state.currentUser?.id) && item.textContent.includes('Notes'));
         });        
         if (activeItem) {
             activeItem.classList.add('active');
@@ -823,6 +880,9 @@ function updateMessageInputForChannel() {
         const readOnlyNotice = document.getElementById('readOnlyNotice');        
         if (!state.currentChannel || !messageInput || !sendBtn) return;
         const isWritable = state.currentChannel.is_writable !== false;
+        const isDMRealm = state.currentRealm?.slug === 'direct-messages';
+        const username = state.userSettings?.username || state.currentUser?.email?.split('@')[0];
+        const isSelfDM = isDMRealm && state.currentChannel?.name === `${username}_${username}`;
         
         if (!isWritable) {
             messageInput.disabled = true;
@@ -833,7 +893,10 @@ function updateMessageInputForChannel() {
             readOnlyNotice.classList.add('active');
         } else {
             messageInput.disabled = false;
-            let placeholderText = `Message #${state.currentChannel.name}`;
+            let placeholderText = `Message ${isDMRealm ? (isSelfDM ? '📝' : '👤') : '#'}${state.currentChannel.name}`;
+            if (isSelfDM) {
+                placeholderText = 'Message 📝 Notes';
+            }
             messageInput.placeholder = placeholderText;
             messageInput.style.opacity = "1";
             messageInput.style.pointerEvents = "auto";
@@ -851,11 +914,6 @@ function updateMessageInputForChannel() {
 
 async function loadMessages() {
     try {
-        if (isDmMode && currentDmChannel) {
-            await loadDMMessages();
-            return;
-        }
-        
         if (!state.currentChannel || !state.supabase) {
             console.log('Cannot load messages: no channel selected');
             return;
@@ -913,69 +971,10 @@ async function loadMessages() {
     }
 }
 
-async function loadDMMessages() {
-    try {
-        if (!currentDmChannel || !state.supabase) {
-            console.log('Cannot load DM messages: no DM channel selected');
-            return;
-        }
-        
-        console.log('Loading DM messages for channel:', currentDmChannel.id);
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (messagesContainer) {
-            messagesContainer.innerHTML = '<div class="empty-state" id="emptyState">Loading messages...</div>';
-        }
-        
-        state.supabase
-            .from('dm_messages')
-            .select(`
-                *,
-                profiles (
-                    username,
-                    avatar_url,
-                    status,
-                    stealth_mode
-                )
-            `)
-            .eq('dm_id', currentDmChannel.id)
-            .order('created_at', { ascending: true })
-            .limit(50)
-            .then(({ data: messages, error }) => {
-                if (error) {
-                    console.log('Error loading DM messages:', error);
-                    if (messagesContainer) {
-                        messagesContainer.innerHTML = `
-                            <div class="empty-state" id="emptyState">
-                                Failed to load messages. Try again later.
-                            </div>
-                        `;
-                    }
-                    return;
-                }
-                
-                state.messages = messages;
-                renderMessages();
-                console.log('Loaded', messages.length, 'DM messages');
-                setupDMMessageSubscription();
-            })
-            .catch(error => {
-                console.log('Error loading DM messages:', error);
-                if (messagesContainer) {
-                    messagesContainer.innerHTML = `
-                        <div class="empty-state" id="emptyState">
-                            Failed to load messages. Try again later.
-                        </div>
-                    `;
-                }
-            });
-    } catch (error) {
-        console.log('Error in loadDMMessages:', error);
-    }
-}
-
 async function updateReadReceipts() {
     try {
         if (!state.currentChannel || !state.supabase || !state.userSettings?.send_read_receipts) return;
+        if (state.currentRealm?.slug !== 'direct-messages') return;
         
         const { error } = await state.supabase
             .from('messages')
@@ -1273,7 +1272,7 @@ function setupMessageContextMenu(msgElement, message) {
             { icon: '⚠️', text: 'Report', className: 'report' }
         ];
         
-        if (canPin && !isDmMode) {
+        if (canPin && state.currentRealm?.slug !== 'direct-messages') {
             menuItems.push({ icon: '📌', text: 'Pin Message', className: 'pin' });
         }
         
@@ -1382,7 +1381,7 @@ function setupMessageContextMenu(msgElement, message) {
             removeMenu();
         });
         
-        if (canPin && !isDmMode) {
+        if (canPin && state.currentRealm?.slug !== 'direct-messages') {
             contextMenu.querySelector('.pin').addEventListener('click', (e) => {
                 e.stopPropagation();
                 pinMessage(message.id);
@@ -1467,12 +1466,9 @@ async function saveMessageEdit(messageId, newContent) {
         if (!state.supabase || !newContent || newContent.trim() === '') {
             cancelMessageEdit();
             return;
-        }
-        
-        const tableName = isDmMode ? 'dm_messages' : 'messages';
-        
+        }        
         const { error } = await state.supabase
-            .from(tableName)
+            .from('messages')
             .update({ 
                 content: newContent,
                 edited_at: new Date().toISOString()
@@ -1517,9 +1513,8 @@ async function deleteMessage(message) {
         const cancelBtn = document.getElementById('confirmationCancel');
         const handleConfirm = async () => {
             try {
-                const tableName = isDmMode ? 'dm_messages' : 'messages';
                 const { error } = await state.supabase
-                    .from(tableName)
+                    .from('messages')
                     .delete()
                     .eq('id', message.id);
                 if (error) throw error;                
@@ -1627,11 +1622,6 @@ function renderReactions(reactions) {
 
 function setupMessageSubscription() {
     try {
-        if (isDmMode && currentDmChannel) {
-            setupDMMessageSubscription();
-            return;
-        }
-        
         if (!state.currentChannel || !state.supabase) return;
         if (state.messageSubscription) {
             state.supabase.removeChannel(state.messageSubscription);
@@ -1733,163 +1723,11 @@ function setupMessageSubscription() {
     }
 }
 
-function setupDMMessageSubscription() {
-    try {
-        if (!currentDmChannel || !state.supabase) return;
-        if (state.messageSubscription) {
-            state.supabase.removeChannel(state.messageSubscription);
-        }
-        state.messageSubscription = state.supabase
-            .channel(`dm_messages:${currentDmChannel.id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'dm_messages',
-                filter: `dm_id=eq.${currentDmChannel.id}`
-            }, async (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    if (payload.new.sender_id === state.currentUser.id) return;
-                    const { data: message, error } = await state.supabase
-                        .from('dm_messages')
-                        .select(`
-                            *,
-                            profiles (
-                                username,
-                                avatar_url,
-                                status,
-                                stealth_mode
-                            )
-                        `)
-                        .eq('id', payload.new.id)
-                        .single();                        
-                    if (error || !message) return;                    
-                    state.messages.push(message);
-                    appendMessage(message);
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    if (messagesContainer) {
-                        const scrollBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-                        if (scrollBottom < 200) {
-                            setTimeout(() => {
-                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                            }, 100);
-                        }
-                    }
-                    if (state.userSettings?.in_app_notifications && !document.hasFocus()) {
-                        showToast('New Message', `From ${message.profiles?.username || 'User'}`, 'info');
-                    }
-                } 
-                else if (payload.eventType === 'UPDATE') {
-                    const messageIndex = state.messages.findIndex(m => m.id === payload.new.id);
-                    if (messageIndex !== -1) {
-                        state.messages[messageIndex] = {
-                            ...state.messages[messageIndex],
-                            ...payload.new
-                        };
-                        const msgElement = document.querySelector(`[data-message-id="${payload.new.id}"]`);
-                        if (msgElement) {
-                            const msgBody = msgElement.querySelector('.msg-body');
-                            if (msgBody) {
-                                const messageText = msgBody.querySelector('.message-text');
-                                const messageTime = msgBody.querySelector('.message-time');
-                                const reactionsContainer = msgBody.querySelector('.reactions-container');                                
-                                if (messageText) {
-                                    messageText.innerHTML = formatMessageContent(payload.new.content);
-                                }
-                                if (payload.new.edited_at && !messageTime.innerHTML.includes('(edited)')) {
-                                    messageTime.innerHTML = messageTime.innerHTML.replace(/\s*$/, '') + ' <span class="message-edited">(edited)</span>';
-                                }
-                                if (payload.new.reactions) {
-                                    if (reactionsContainer) {
-                                        reactionsContainer.innerHTML = renderReactions(payload.new.reactions);
-                                    } else if (payload.new.reactions.length > 0) {
-                                        const newReactionsContainer = document.createElement('div');
-                                        newReactionsContainer.className = 'reactions-container';
-                                        newReactionsContainer.innerHTML = renderReactions(payload.new.reactions);
-                                        msgBody.appendChild(newReactionsContainer);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                else if (payload.eventType === 'DELETE') {
-                    state.messages = state.messages.filter(m => m.id !== payload.old.id);
-                    const msgElement = document.querySelector(`[data-message-id="${payload.old.id}"]`);
-                    if (msgElement && msgElement.parentNode) {
-                        msgElement.parentNode.removeChild(msgElement);
-                    }
-                    if (state.messages.length === 0) {
-                        const messagesContainer = document.getElementById('messagesContainer');
-                        if (messagesContainer) {
-                            messagesContainer.innerHTML = `
-                                <div class="empty-state" id="emptyState">
-                                    No messages yet. Start the conversation!
-                                </div>
-                            `;
-                        }
-                    }
-                }
-            })
-            .subscribe();          
-    } catch (error) {
-        console.log('Error setting up DM message subscription:', error);
-    }
-}
-
-async function sendMessage() {
+function sendMessage() {
     try {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();        
-        if (!message || !state.currentUser) return;
-        
-        if (isDmMode && currentDmChannel) {
-            // Send DM message
-            const optimisticMessage = {
-                id: `temp_${Date.now()}`,
-                content: message,
-                dm_id: currentDmChannel.id,
-                sender_id: state.currentUser.id,
-                created_at: new Date().toISOString(),
-                profiles: {
-                    username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
-                    avatar_url: state.userSettings?.avatar_url,
-                    status: state.userSettings?.status || 'online',
-                    stealth_mode: state.userSettings?.stealth_mode || false
-                }
-            };
-            appendMessage(optimisticMessage);
-            input.value = '';
-            input.style.height = 'auto';
-            updateSendButtonState();
-            setTimeout(() => {
-                const container = document.getElementById('messagesContainer');
-                if (container) container.scrollTop = container.scrollHeight;
-            }, 100);
-            
-            // Update total messages count
-            await state.supabase
-                .from('profiles')
-                .update({ total_messages_count: (state.userSettings.total_messages_count || 0) + 1 })
-                .eq('id', state.currentUser.id);
-            
-            state.supabase
-                .from('dm_messages')
-                .insert([{
-                    content: message,
-                    dm_id: currentDmChannel.id,
-                    sender_id: state.currentUser.id
-                }])
-                .then(({ error }) => {
-                    if (error) {
-                        console.log('Error sending DM message:', error);
-                        showToast('Error', 'Failed to send message', 'error');
-                    }
-                });
-            return;
-        }
-        
-        // Original realm message sending
-        if (!state.currentChannel) return;
+        if (!message || !state.currentUser || !state.currentChannel) return;
         if (state.currentChannel.is_writable === false) {
             showToast('Error', 'This channel is read-only', 'error');
             return;
@@ -1915,13 +1753,6 @@ async function sendMessage() {
             const container = document.getElementById('messagesContainer');
             if (container) container.scrollTop = container.scrollHeight;
         }, 100);
-        
-        // Update total messages count
-        await state.supabase
-            .from('profiles')
-            .update({ total_messages_count: (state.userSettings.total_messages_count || 0) + 1 })
-            .eq('id', state.currentUser.id);
-        
         state.supabase
             .from('messages')
             .insert([{
@@ -1995,9 +1826,6 @@ function updateProfileModal() {
         const profileAvatar = document.getElementById('profileAvatar');
         const profileBio = document.getElementById('profileBio');
         const profileShowRealms = document.getElementById('profileShowRealms');
-        const profileStreak = document.getElementById('profileStreak');
-        const profileTotalMessages = document.getElementById('profileTotalMessages');
-        
         if (profileEmail) {
             if (state.emailVisible) {
                 profileEmail.value = state.currentUser.email || 'Not set';
@@ -2033,15 +1861,6 @@ function updateProfileModal() {
         if (profileBio) {
             profileBio.value = state.userSettings?.bio || '';
         }
-        if (profileStreak) {
-            const streakCount = state.userSettings?.streak_count || 1;
-            profileStreak.textContent = `🔥 ${streakCount} Day Streak`;
-        }
-        if (profileTotalMessages) {
-            const totalMessages = state.userSettings?.total_messages_count || 0;
-            profileTotalMessages.textContent = `💬 ${totalMessages} Messages`;
-        }
-        
         const socialLinks = state.userSettings?.social_links || {};
         document.getElementById('socialTwitter').value = socialLinks.twitter || '';
         document.getElementById('socialInstagram').value = socialLinks.instagram || '';
@@ -2160,83 +1979,10 @@ function updateSendButtonState() {
         const input = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const content = input ? input.value.trim() : '';
-        
-        if (isDmMode) {
-            const isDmChannelSelected = currentDmChannel !== null;
-            sendBtn.disabled = !content || !state.currentUser || !isDmChannelSelected;
-        } else {
-            const isChannelWritable = state.currentChannel?.is_writable !== false;      
-            sendBtn.disabled = !content || !state.currentUser || !state.currentChannel || !isChannelWritable;
-        }
+        const isChannelWritable = state.currentChannel?.is_writable !== false;      
+        sendBtn.disabled = !content || !state.currentUser || !state.currentChannel || !isChannelWritable;
     } catch (error) {
         console.log('Error updating send button:', error);
-    }
-}
-
-async function updateStreak() {
-    try {
-        if (!state.currentUser || !state.supabase) return;
-        
-        // Get today's date in PST
-        const now = new Date();
-        const pstOffset = -8 * 60; // PST is UTC-8
-        const pstTime = new Date(now.getTime() + (pstOffset - now.getTimezoneOffset()) * 60000);
-        const today = pstTime.toISOString().split('T')[0];
-        
-        const { data: profile, error } = await state.supabase
-            .from('profiles')
-            .select('streak_count, last_streak_date')
-            .eq('id', state.currentUser.id)
-            .single();
-            
-        if (error) {
-            console.log('Error fetching profile for streak:', error);
-            return;
-        }
-        
-        let streakCount = profile.streak_count || 1;
-        const lastStreakDate = profile.last_streak_date;
-        
-        if (!lastStreakDate) {
-            // First time streak
-            streakCount = 1;
-        } else {
-            const lastDate = new Date(lastStreakDate);
-            const lastDateStr = lastDate.toISOString().split('T')[0];
-            
-            // Calculate yesterday's date in PST
-            const yesterday = new Date(pstTime);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-            
-            if (lastDateStr === yesterdayStr) {
-                // Last streak was yesterday, increment
-                streakCount++;
-            } else if (lastDateStr !== today) {
-                // Last streak was not today or yesterday, reset
-                streakCount = 1;
-            }
-            // If last streak date is today, do nothing
-        }
-        
-        // Update streak in database
-        await state.supabase
-            .from('profiles')
-            .update({
-                streak_count: streakCount,
-                last_streak_date: today
-            })
-            .eq('id', state.currentUser.id);
-            
-        // Update local state
-        if (state.userSettings) {
-            state.userSettings.streak_count = streakCount;
-            state.userSettings.last_streak_date = today;
-        }
-        
-        console.log('Streak updated:', streakCount);
-    } catch (error) {
-        console.log('Error updating streak:', error);
     }
 }
 
@@ -2366,11 +2112,9 @@ async function initializeApp() {
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
         if (state.userSettings) {
-            // Update streak on app load
-            await updateStreak();
-            await fetchAndUpdateProfile(true);
             applyUserSettings();
             updateHeaderUserButton();
+            fetchAndUpdateProfile(true);
         }
         await ensureProtectedRealmsJoined();
         state.joinedRealms = await loadJoinedRealmsFast();
@@ -2583,19 +2327,6 @@ function setupEventListeners() {
                 document.getElementById('realmDropdown').classList.remove('active');
             }
         });
-        
-        // DM Header click event
-        document.getElementById('dm-header').addEventListener('click', function(e) {
-            e.stopPropagation();
-            switchToDMMode();
-        });
-        
-        // Add DM button click event
-        document.getElementById('add-dm-button').addEventListener('click', function(e) {
-            e.stopPropagation();
-            showStartConversationModal();
-        });
-        
         const messageInput = document.getElementById('messageInput');        
         messageInput.addEventListener('input', function() {
             this.style.height = 'auto';
@@ -3027,7 +2758,6 @@ function setupEventListeners() {
                 document.getElementById('notificationsModal').style.display = 'none';
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
-                document.getElementById('dmSettingsModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -3194,1015 +2924,10 @@ function setupEventListeners() {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
         
-        // DM Settings Modal
-        document.getElementById('dmSettingsModalCloseBtn').addEventListener('click', function() {
-            document.getElementById('dmSettingsModal').style.display = 'none';
-        });
-        
-        document.getElementById('cancelDmSettingsBtn').addEventListener('click', function() {
-            document.getElementById('dmSettingsModal').style.display = 'none';
-        });
-        
-        document.getElementById('saveDmSettingsBtn').addEventListener('click', saveDMSettings);
-        
-        document.getElementById('dmSettingsAddUserBtn').addEventListener('click', function() {
-            showAddUserToGroupModal();
-        });
-        
-        document.getElementById('leaveGroupChatBtn').addEventListener('click', function() {
-            leaveGroupChat();
-        });
-        
     } catch (error) {
         console.log('Error setting up event listeners:', error);
     }
 }
-
-// DM MODE FUNCTIONS
-async function switchToDMMode() {
-    try {
-        isDmMode = true;
-        currentDmChannel = null;
-        
-        // Update UI
-        document.getElementById('dm-header').classList.add('active');
-        document.getElementById('add-dm-button').style.display = 'flex';
-        
-        // Remove active class from realm header
-        document.querySelectorAll('.realm-option.active').forEach(option => {
-            option.classList.remove('active');
-        });
-        
-        // Clear channel list
-        const channelList = document.getElementById('channelList');
-        channelList.innerHTML = '';
-        
-        // Show loading state
-        showSkeletonUI();
-        
-        // Load DM channels
-        await loadDMChannels();
-        
-        // Clear main chat area or show welcome state
-        const messagesContainer = document.getElementById('messagesContainer');
-        messagesContainer.innerHTML = `
-            <div class="empty-state" id="emptyState">
-                <h3>Direct Messages</h3>
-                <p>Select a conversation or start a new one</p>
-            </div>
-        `;
-        
-        // Update message input
-        document.getElementById('messageInput').placeholder = 'Select a conversation to start messaging...';
-        document.getElementById('messageInput').disabled = true;
-        document.getElementById('sendBtn').disabled = true;
-        
-        // Hide realm settings button
-        document.getElementById('realmSettingsBtn').style.display = 'none';
-        
-        // Update chat header
-        updateChatHeaderForDM();
-        
-    } catch (error) {
-        console.log('Error switching to DM mode:', error);
-        showToast('Error', 'Failed to load direct messages', 'error');
-    }
-}
-
-async function loadDMChannels() {
-    try {
-        if (!state.currentUser || !state.supabase) return;
-        
-        console.log('Loading DM channels...');
-        
-        // Query dm_channels where user is a participant
-        const { data: dmChannels, error } = await state.supabase
-            .from('dm_channels')
-            .select(`
-                *,
-                user1:profiles!dm_channels_user1_id_fkey(username, avatar_url, status, stealth_mode),
-                user2:profiles!dm_channels_user2_id_fkey(username, avatar_url, status, stealth_mode),
-                chat_participants(count),
-                dm_messages(created_at)
-            `)
-            .or(`user1_id.eq.${state.currentUser.id},user2_id.eq.${state.currentUser.id},id.in.(
-                SELECT channel_id FROM chat_participants WHERE user_id = ${state.currentUser.id}
-            )`)
-            .order('updated_at', { ascending: false });
-            
-        if (error) {
-            console.log('Error loading DM channels:', error);
-            return;
-        }
-        
-        console.log('Loaded', dmChannels.length, 'DM channels');
-        
-        // Render DM channels
-        renderDMChannels(dmChannels);
-        
-    } catch (error) {
-        console.log('Error loading DM channels:', error);
-    }
-}
-
-function renderDMChannels(dmChannels) {
-    try {
-        const channelList = document.getElementById('channelList');
-        if (!channelList) return;
-        
-        channelList.innerHTML = '';
-        
-        if (dmChannels.length === 0) {
-            channelList.innerHTML = `
-                <div class="channel-item" style="color: var(--text-secondary); text-align: center; font-style: italic;">
-                    No conversations yet
-                </div>
-            `;
-            return;
-        }
-        
-        dmChannels.forEach(channel => {
-            const item = document.createElement('div');
-            item.className = 'channel-item';
-            item.dataset.channelId = channel.id;
-            
-            if (currentDmChannel && channel.id === currentDmChannel.id) {
-                item.classList.add('active');
-            }
-            
-            // Get display name and avatar
-            let displayName = '';
-            let avatar = '';
-            let isGroup = false;
-            
-            if (channel.user1_id && channel.user2_id) {
-                // 1:1 DM
-                const otherUser = channel.user1_id === state.currentUser.id ? channel.user2 : channel.user1;
-                displayName = otherUser?.username || 'Unknown User';
-                avatar = otherUser?.avatar_url ? `<img src="${otherUser.avatar_url}?t=${Date.now()}" class="channel-avatar" onerror="this.style.display='none';">` : '👤';
-            } else if (channel.name) {
-                // Group chat with custom name
-                displayName = channel.name;
-                avatar = '👥';
-                isGroup = true;
-            } else {
-                // Group chat without custom name - need to get participants
-                isGroup = true;
-                avatar = '👥';
-                // This would need additional query for participants, but we'll handle it simply for now
-                displayName = 'Group Chat';
-            }
-            
-            // Get last message time
-            let lastMessageTime = '';
-            if (channel.dm_messages && channel.dm_messages.length > 0) {
-                const lastMessage = channel.dm_messages[0];
-                const time = new Date(lastMessage.created_at);
-                lastMessageTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-            
-            item.innerHTML = `
-                <div class="channel-icon">${avatar}</div>
-                <div style="flex: 1;">
-                    <div style="font-weight: 500;">${escapeHtml(displayName)}</div>
-                    ${lastMessageTime ? `<div style="font-size: 11px; color: var(--text-secondary);">${lastMessageTime}</div>` : ''}
-                </div>
-                <div class="channel-menu-dots" style="padding: 4px; opacity: 0; transition: opacity var(--transition-fast);">⋮</div>
-            `;
-            
-            item.onclick = function(e) {
-                if (!e.target.classList.contains('channel-menu-dots')) {
-                    openDMChannel(channel);
-                }
-            };
-            
-            const menuBtn = item.querySelector('.channel-menu-dots');
-            if (menuBtn) {
-                menuBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    showDMSettingsModal(channel);
-                });
-                item.addEventListener('mouseenter', function() {
-                    menuBtn.style.opacity = '1';
-                });
-                item.addEventListener('mouseleave', function() {
-                    menuBtn.style.opacity = '0';
-                });
-            }
-            
-            channelList.appendChild(item);
-        });
-        
-    } catch (error) {
-        console.log('Error rendering DM channels:', error);
-    }
-}
-
-async function openDMChannel(channel) {
-    try {
-        if (!channel || !state.supabase) return;
-        
-        currentDmChannel = channel;
-        
-        // Update UI
-        document.querySelectorAll('.channel-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        const activeItem = document.querySelector(`[data-channel-id="${channel.id}"]`);
-        if (activeItem) {
-            activeItem.classList.add('active');
-        }
-        
-        // Update chat header
-        updateChatHeaderForDM();
-        
-        // Load messages
-        await loadDMMessages();
-        
-        // Update message input
-        document.getElementById('messageInput').placeholder = 'Type a message...';
-        document.getElementById('messageInput').disabled = false;
-        document.getElementById('messageInput').focus();
-        updateSendButtonState();
-        
-    } catch (error) {
-        console.log('Error opening DM channel:', error);
-        showToast('Error', 'Failed to open conversation', 'error');
-    }
-}
-
-function updateChatHeaderForDM() {
-    try {
-        if (!isDmMode) return;
-        
-        const chatHeader = document.querySelector('.chat-header');
-        if (!chatHeader) return;
-        
-        if (currentDmChannel) {
-            // Get display info for the channel
-            let displayName = '';
-            let avatar = '';
-            let isGroup = false;
-            let otherUser = null;
-            
-            if (currentDmChannel.user1_id && currentDmChannel.user2_id) {
-                // 1:1 DM
-                otherUser = currentDmChannel.user1_id === state.currentUser.id ? 
-                    currentDmChannel.user2 : currentDmChannel.user1;
-                displayName = otherUser?.username || 'Unknown User';
-                avatar = otherUser?.avatar_url || '';
-                isGroup = false;
-            } else if (currentDmChannel.name) {
-                // Group chat with custom name
-                displayName = currentDmChannel.name;
-                isGroup = true;
-            } else {
-                // Group chat without custom name
-                displayName = 'Group Chat';
-                isGroup = true;
-            }
-            
-            // Update header content
-            chatHeader.innerHTML = `
-                <div class="chat-header-info" style="cursor: pointer;">
-                    ${avatar && !isGroup ? `
-                        <img src="${avatar}?t=${Date.now()}" class="header-avatar" onerror="this.style.display='none';">
-                    ` : `
-                        <div class="header-avatar">${isGroup ? '👥' : '👤'}</div>
-                    `}
-                    <div>
-                        <div class="chat-header-title">${escapeHtml(displayName)}</div>
-                        ${!isGroup && otherUser ? `
-                            <div class="chat-header-subtitle ${otherUser.status === 'online' && otherUser.stealth_mode !== true ? 'online' : ''}">
-                                ${otherUser.status === 'online' && otherUser.stealth_mode !== true ? 'Online' : 'Offline'}
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-                ${isGroup ? `
-                    <button class="header-settings-btn" id="dmHeaderSettingsBtn">⋮</button>
-                ` : ''}
-            `;
-            
-            // Add click event for 1:1 profile
-            if (!isGroup && otherUser) {
-                const headerInfo = chatHeader.querySelector('.chat-header-info');
-                headerInfo.addEventListener('click', function() {
-                    showUserProfile(otherUser.id, otherUser);
-                });
-            }
-            
-            // Add click event for group settings
-            if (isGroup) {
-                const settingsBtn = document.getElementById('dmHeaderSettingsBtn');
-                settingsBtn.addEventListener('click', function() {
-                    showDMSettingsModal(currentDmChannel);
-                });
-            }
-            
-        } else {
-            // No channel selected
-            chatHeader.innerHTML = `
-                <div class="chat-header-info">
-                    <div class="header-avatar">💬</div>
-                    <div>
-                        <div class="chat-header-title">Direct Messages</div>
-                        <div class="chat-header-subtitle">Select a conversation</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-    } catch (error) {
-        console.log('Error updating chat header for DM:', error);
-    }
-}
-
-async function showStartConversationModal() {
-    try {
-        document.getElementById('startConversationModal').style.display = 'flex';
-        document.getElementById('startConversationTitle').textContent = 'Start a Conversation';
-        document.getElementById('startConversationSubtitle').textContent = 'Search for users to message';
-        document.getElementById('userSearchInput').value = '';
-        document.getElementById('userSearchResults').style.display = 'none';
-        document.getElementById('userSearchInput').focus();
-        
-    } catch (error) {
-        console.log('Error showing start conversation modal:', error);
-    }
-}
-
-async function searchUsers(searchTerm) {
-    try {
-        if (!state.supabase || !searchTerm.trim()) {
-            document.getElementById('userSearchResults').style.display = 'none';
-            return;
-        }
-        
-        const { data: users, error } = await state.supabase
-            .from('profiles')
-            .select('id, username, avatar_url, status, stealth_mode')
-            .or(`username.ilike.%${searchTerm}%,search_vector.ilike.%${searchTerm}%`)
-            .neq('id', state.currentUser.id)
-            .limit(10);
-            
-        if (error) {
-            console.log('Error searching users:', error);
-            return;
-        }
-        
-        const resultsContainer = document.getElementById('userSearchResults');
-        resultsContainer.innerHTML = '';
-        
-        if (users.length === 0) {
-            resultsContainer.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
-                    No users found
-                </div>
-            `;
-            resultsContainer.style.display = 'block';
-            return;
-        }
-        
-        users.forEach(user => {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'search-result';
-            
-            const isOnline = user.status === 'online' && user.stealth_mode !== true;
-            
-            resultItem.innerHTML = `
-                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
-                <div class="search-result-info">
-                    <div class="search-result-name">${escapeHtml(user.username)}</div>
-                    <div class="search-result-status ${isOnline ? 'online' : ''}">
-                        ${isOnline ? 'Online' : 'Offline'}
-                    </div>
-                </div>
-            `;
-            
-            resultItem.addEventListener('click', async () => {
-                await createOrOpenDM(user.id);
-                document.getElementById('startConversationModal').style.display = 'none';
-                document.getElementById('userSearchInput').value = '';
-                resultsContainer.style.display = 'none';
-            });
-            
-            resultsContainer.appendChild(resultItem);
-        });
-        
-        resultsContainer.style.display = 'block';
-    } catch (error) {
-        console.log('Error searching users:', error);
-    }
-}
-
-async function createOrOpenDM(otherUserId) {
-    try {
-        if (!state.currentUser || !state.supabase || !otherUserId) return;
-        
-        // Check if 1:1 channel already exists
-        const user1 = Math.min(state.currentUser.id, otherUserId);
-        const user2 = Math.max(state.currentUser.id, otherUserId);
-        
-        const { data: existingChannel, error: checkError } = await state.supabase
-            .from('dm_channels')
-            .select('*')
-            .eq('user1_id', user1)
-            .eq('user2_id', user2)
-            .single();
-            
-        if (existingChannel) {
-            // Switch to DM mode and open existing channel
-            await switchToDMMode();
-            await openDMChannel(existingChannel);
-            return;
-        }
-        
-        // Show confirmation modal
-        const { data: otherUser } = await state.supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', otherUserId)
-            .single();
-            
-        if (!otherUser) {
-            showToast('Error', 'User not found', 'error');
-            return;
-        }
-        
-        document.getElementById('confirmationModal').style.display = 'flex';
-        document.getElementById('confirmationIcon').textContent = '💬';
-        document.getElementById('confirmationTitle').textContent = 'Create DM';
-        document.getElementById('confirmationMessage').textContent = `Create DM with ${otherUser.username}?`;
-        
-        const confirmBtn = document.getElementById('confirmationConfirm');
-        const cancelBtn = document.getElementById('confirmationCancel');
-        
-        const handleConfirm = async () => {
-            try {
-                // Create new DM channel
-                const { data: newChannel, error: createError } = await state.supabase
-                    .from('dm_channels')
-                    .insert([{
-                        user1_id: user1,
-                        user2_id: user2,
-                        updated_at: new Date().toISOString()
-                    }])
-                    .select()
-                    .single();
-                    
-                if (createError) throw createError;
-                
-                // Create dm_settings for both users
-                await state.supabase
-                    .from('dm_settings')
-                    .insert([
-                        {
-                            user_id: state.currentUser.id,
-                            channel_id: newChannel.id,
-                            notifications: 'all'
-                        },
-                        {
-                            user_id: otherUserId,
-                            channel_id: newChannel.id,
-                            notifications: 'all'
-                        }
-                    ]);
-                
-                // Switch to DM mode and open new channel
-                await switchToDMMode();
-                await openDMChannel(newChannel);
-                
-                showToast('Success', 'Conversation created', 'success');
-                document.getElementById('confirmationModal').style.display = 'none';
-                
-            } catch (error) {
-                console.log('Error creating DM channel:', error);
-                showToast('Error', 'Failed to create conversation', 'error');
-                document.getElementById('confirmationModal').style.display = 'none';
-            }
-            
-            confirmBtn.removeEventListener('click', handleConfirm);
-            cancelBtn.removeEventListener('click', handleCancel);
-        };
-        
-        const handleCancel = () => {
-            document.getElementById('confirmationModal').style.display = 'none';
-            confirmBtn.removeEventListener('click', handleConfirm);
-            cancelBtn.removeEventListener('click', handleCancel);
-        };
-        
-        confirmBtn.addEventListener('click', handleConfirm);
-        cancelBtn.addEventListener('click', handleCancel);
-        
-    } catch (error) {
-        console.log('Error creating/opening DM:', error);
-        showToast('Error', 'Failed to create conversation', 'error');
-    }
-}
-
-async function showDMSettingsModal(channel) {
-    try {
-        if (!channel || !state.supabase) return;
-        
-        document.getElementById('dmSettingsModal').style.display = 'flex';
-        
-        // Check if it's a group chat
-        const { data: participants, error: participantsError } = await state.supabase
-            .from('chat_participants')
-            .select('count')
-            .eq('channel_id', channel.id);
-            
-        const isGroup = participants && participants[0]?.count > 2;
-        
-        // Show/hide appropriate sections
-        if (isGroup) {
-            document.getElementById('dmGroupSettings').style.display = 'block';
-            document.getElementById('dmDirectSettings').style.display = 'none';
-            
-            // Load current channel name
-            document.getElementById('dmChannelName').value = channel.name || '';
-            
-            // Load participants
-            await loadDMParticipants(channel.id);
-            
-        } else {
-            document.getElementById('dmGroupSettings').style.display = 'none';
-            document.getElementById('dmDirectSettings').style.display = 'block';
-            
-            // Load current notification settings
-            const { data: settings, error: settingsError } = await state.supabase
-                .from('dm_settings')
-                .select('notifications')
-                .eq('channel_id', channel.id)
-                .eq('user_id', state.currentUser.id)
-                .single();
-                
-            if (settings) {
-                document.querySelector(`input[name="dmNotifications"][value="${settings.notifications}"]`).checked = true;
-            }
-        }
-        
-    } catch (error) {
-        console.log('Error showing DM settings modal:', error);
-    }
-}
-
-async function loadDMParticipants(channelId) {
-    try {
-        if (!state.supabase) return;
-        
-        const { data: participants, error } = await state.supabase
-            .from('chat_participants')
-            .select(`
-                profiles (
-                    id,
-                    username,
-                    avatar_url
-                )
-            `)
-            .eq('channel_id', channelId);
-            
-        if (error) {
-            console.log('Error loading participants:', error);
-            return;
-        }
-        
-        const participantsList = document.getElementById('dmParticipantsList');
-        participantsList.innerHTML = '';
-        
-        participants.forEach(participant => {
-            const user = participant.profiles;
-            if (!user) return;
-            
-            const participantElement = document.createElement('div');
-            participantElement.className = 'dm-participant';
-            participantElement.innerHTML = `
-                <img src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
-                <span>${escapeHtml(user.username)}</span>
-                ${user.id !== state.currentUser.id ? '<button class="remove-participant-btn">Remove</button>' : ''}
-            `;
-            
-            participantsList.appendChild(participantElement);
-        });
-        
-    } catch (error) {
-        console.log('Error loading DM participants:', error);
-    }
-}
-
-async function showAddUserToGroupModal() {
-    try {
-        // Reuse the start conversation modal
-        document.getElementById('startConversationModal').style.display = 'flex';
-        document.getElementById('startConversationTitle').textContent = 'Add User to Group';
-        document.getElementById('startConversationSubtitle').textContent = 'Search for users to add to the group';
-        document.getElementById('userSearchInput').value = '';
-        document.getElementById('userSearchResults').style.display = 'none';
-        document.getElementById('userSearchInput').focus();
-        
-        // Store current channel for later use
-        window.tempGroupChannel = currentDmChannel;
-        
-    } catch (error) {
-        console.log('Error showing add user modal:', error);
-    }
-}
-
-async function addUserToGroup(userId) {
-    try {
-        if (!window.tempGroupChannel || !state.supabase) return;
-        
-        const channel = window.tempGroupChannel;
-        
-        // Check if user is already a participant
-        const { data: existingParticipant } = await state.supabase
-            .from('chat_participants')
-            .select('id')
-            .eq('channel_id', channel.id)
-            .eq('user_id', userId)
-            .single();
-            
-        if (existingParticipant) {
-            showToast('Info', 'User is already in the group', 'info');
-            return;
-        }
-        
-        // Check if this is converting from 1:1 to group
-        if (channel.user1_id && channel.user2_id) {
-            // Move original users to chat_participants
-            await state.supabase
-                .from('chat_participants')
-                .insert([
-                    {
-                        channel_id: channel.id,
-                        user_id: channel.user1_id
-                    },
-                    {
-                        channel_id: channel.id,
-                        user_id: channel.user2_id
-                    }
-                ]);
-            
-            // Clear user1_id and user2_id
-            await state.supabase
-                .from('dm_channels')
-                .update({
-                    user1_id: null,
-                    user2_id: null,
-                    name: null // Will be updated below
-                })
-                .eq('id', channel.id);
-        }
-        
-        // Add new user to chat_participants
-        await state.supabase
-            .from('chat_participants')
-            .insert({
-                channel_id: channel.id,
-                user_id: userId
-            });
-        
-        // Create dm_settings for new user
-        await state.supabase
-            .from('dm_settings')
-            .insert({
-                user_id: userId,
-                channel_id: channel.id,
-                notifications: 'all'
-            });
-        
-        // Update channel name if needed
-        if (!channel.name) {
-            // Get all participant usernames
-            const { data: allParticipants } = await state.supabase
-                .from('chat_participants')
-                .select(`
-                    profiles (username)
-                `)
-                .eq('channel_id', channel.id);
-                
-            if (allParticipants) {
-                const usernames = allParticipants.map(p => p.profiles.username).slice(0, 4);
-                let newName = usernames.join(', ');
-                if (allParticipants.length > 4) {
-                    newName += ` +${allParticipants.length - 4}`;
-                }
-                
-                await state.supabase
-                    .from('dm_channels')
-                    .update({ name: newName })
-                    .eq('id', channel.id);
-            }
-        }
-        
-        showToast('Success', 'User added to group', 'success');
-        document.getElementById('startConversationModal').style.display = 'none';
-        delete window.tempGroupChannel;
-        
-        // Reload participants list
-        await loadDMParticipants(channel.id);
-        
-    } catch (error) {
-        console.log('Error adding user to group:', error);
-        showToast('Error', 'Failed to add user to group', 'error');
-    }
-}
-
-async function saveDMSettings() {
-    try {
-        if (!currentDmChannel || !state.supabase) return;
-        
-        // Save notification settings
-        const notifications = document.querySelector('input[name="dmNotifications"]:checked')?.value;
-        if (notifications) {
-            await state.supabase
-                .from('dm_settings')
-                .update({ notifications: notifications })
-                .eq('channel_id', currentDmChannel.id)
-                .eq('user_id', state.currentUser.id);
-        }
-        
-        // Save channel name for groups
-        if (document.getElementById('dmGroupSettings').style.display !== 'none') {
-            const channelName = document.getElementById('dmChannelName').value.trim();
-            if (channelName) {
-                await state.supabase
-                    .from('dm_channels')
-                    .update({ name: channelName })
-                    .eq('id', currentDmChannel.id);
-                    
-                // Update current channel
-                currentDmChannel.name = channelName;
-                updateChatHeaderForDM();
-            }
-        }
-        
-        showToast('Success', 'Settings saved', 'success');
-        document.getElementById('dmSettingsModal').style.display = 'none';
-        
-    } catch (error) {
-        console.log('Error saving DM settings:', error);
-        showToast('Error', 'Failed to save settings', 'error');
-    }
-}
-
-async function leaveGroupChat() {
-    try {
-        if (!currentDmChannel || !state.supabase) return;
-        
-        document.getElementById('confirmationModal').style.display = 'flex';
-        document.getElementById('confirmationIcon').textContent = '🚪';
-        document.getElementById('confirmationTitle').textContent = 'Leave Group Chat';
-        document.getElementById('confirmationMessage').textContent = 'Are you sure you want to leave this group chat?';
-        
-        const confirmBtn = document.getElementById('confirmationConfirm');
-        const cancelBtn = document.getElementById('confirmationCancel');
-        
-        const handleConfirm = async () => {
-            try {
-                // Remove user from chat_participants
-                await state.supabase
-                    .from('chat_participants')
-                    .delete()
-                    .eq('channel_id', currentDmChannel.id)
-                    .eq('user_id', state.currentUser.id);
-                
-                // Remove dm_settings
-                await state.supabase
-                    .from('dm_settings')
-                    .delete()
-                    .eq('channel_id', currentDmChannel.id)
-                    .eq('user_id', state.currentUser.id);
-                
-                // Check if there are any participants left
-                const { data: remainingParticipants } = await state.supabase
-                    .from('chat_participants')
-                    .select('count')
-                    .eq('channel_id', currentDmChannel.id);
-                
-                // If no participants left, delete the channel
-                if (remainingParticipants && remainingParticipants[0]?.count === 0) {
-                    await state.supabase
-                        .from('dm_channels')
-                        .delete()
-                        .eq('id', currentDmChannel.id);
-                }
-                
-                showToast('Success', 'Left group chat', 'success');
-                document.getElementById('confirmationModal').style.display = 'none';
-                document.getElementById('dmSettingsModal').style.display = 'none';
-                
-                // Switch back to DM mode without the channel
-                currentDmChannel = null;
-                updateChatHeaderForDM();
-                await loadDMChannels();
-                
-            } catch (error) {
-                console.log('Error leaving group chat:', error);
-                showToast('Error', 'Failed to leave group chat', 'error');
-                document.getElementById('confirmationModal').style.display = 'none';
-            }
-            
-            confirmBtn.removeEventListener('click', handleConfirm);
-            cancelBtn.removeEventListener('click', handleCancel);
-        };
-        
-        const handleCancel = () => {
-            document.getElementById('confirmationModal').style.display = 'none';
-            confirmBtn.removeEventListener('click', handleConfirm);
-            cancelBtn.removeEventListener('click', handleCancel);
-        };
-        
-        confirmBtn.addEventListener('click', handleConfirm);
-        cancelBtn.addEventListener('click', handleCancel);
-        
-    } catch (error) {
-        console.log('Error in leaveGroupChat:', error);
-        showToast('Error', 'Failed to leave group chat', 'error');
-    }
-}
-
-// Update the existing searchUsers function to handle group add
-async function searchUsers(searchTerm) {
-    try {
-        if (!state.supabase || !searchTerm.trim()) {
-            document.getElementById('userSearchResults').style.display = 'none';
-            return;
-        }
-        
-        const { data: users, error } = await state.supabase
-            .from('profiles')
-            .select('id, username, avatar_url, status, stealth_mode')
-            .or(`username.ilike.%${searchTerm}%,search_vector.ilike.%${searchTerm}%`)
-            .neq('id', state.currentUser.id)
-            .limit(10);
-            
-        if (error) {
-            console.log('Error searching users:', error);
-            return;
-        }
-        
-        const resultsContainer = document.getElementById('userSearchResults');
-        resultsContainer.innerHTML = '';
-        
-        if (users.length === 0) {
-            resultsContainer.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
-                    No users found
-                </div>
-            `;
-            resultsContainer.style.display = 'block';
-            return;
-        }
-        
-        users.forEach(user => {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'search-result';
-            
-            const isOnline = user.status === 'online' && user.stealth_mode !== true;
-            
-            resultItem.innerHTML = `
-                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
-                <div class="search-result-info">
-                    <div class="search-result-name">${escapeHtml(user.username)}</div>
-                    <div class="search-result-status ${isOnline ? 'online' : ''}">
-                        ${isOnline ? 'Online' : 'Offline'}
-                    </div>
-                </div>
-            `;
-            
-            if (window.tempGroupChannel) {
-                // Adding to group
-                resultItem.addEventListener('click', async () => {
-                    await addUserToGroup(user.id);
-                });
-            } else {
-                // Starting conversation
-                resultItem.addEventListener('click', async () => {
-                    await createOrOpenDM(user.id);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                });
-            }
-            
-            resultsContainer.appendChild(resultItem);
-        });
-        
-        resultsContainer.style.display = 'block';
-    } catch (error) {
-        console.log('Error searching users:', error);
-    }
-}
-
-// Update the profile modal to show streak and total messages
-async function showUserProfile(userId, profileData = null) {
-    try {
-        if (!state.supabase) return;
-        
-        let profile;
-        if (profileData) {
-            profile = { id: userId, ...profileData };
-        } else {
-            const { data: fetchedProfile, error } = await state.supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-                
-            if (error) {
-                console.log('Error fetching user profile:', error);
-                showToast('Error', 'Failed to load user profile', 'error');
-                return;
-            }
-            profile = fetchedProfile;
-        }
-        
-        document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
-        document.getElementById('publicProfileAvatar').onclick = function() {
-            if (profile.avatar_url) {
-                openAvatarFullscreen(profile.avatar_url);
-            }
-        };
-        
-        document.getElementById('publicProfileName').textContent = profile.username || 'User';
-        
-        // Add streak and total messages
-        const streakCount = profile.streak_count || 1;
-        const totalMessages = profile.total_messages_count || 0;
-        
-        document.getElementById('publicProfileStats').innerHTML = `
-            <div class="profile-stat">
-                <span class="stat-icon">🔥</span>
-                <span class="stat-text">${streakCount} Day Streak</span>
-            </div>
-            <div class="profile-stat">
-                <span class="stat-icon">💬</span>
-                <span class="stat-text">${totalMessages} Messages</span>
-            </div>
-        `;
-        document.getElementById('publicProfileStats').style.display = 'flex';
-        
-        const isStealth = profile.stealth_mode === true;
-        const status = isStealth ? 'offline' : (profile.status || 'offline');
-        document.getElementById('publicProfileStatusText').textContent = status === 'online' ? 'Online' : 'Offline';
-        document.getElementById('publicProfileStatusDot').className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
-        
-        document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
-        
-        const socialLinks = profile.social_links || {};
-        const socialContainer = document.getElementById('publicProfileSocialLinks');
-        socialContainer.innerHTML = '';
-        
-        if (socialLinks.twitter) {
-            socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
-        }
-        if (socialLinks.instagram) {
-            socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
-        }
-        if (socialLinks.website) {
-            socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
-        }
-        if (socialLinks.other) {
-            socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
-        }
-        
-        document.getElementById('publicProfileSocialSection').style.display = socialContainer.innerHTML ? 'block' : 'none';
-        
-        const realmsData = await loadOtherUserRealms(profile.id);
-        const realmsContainer = document.getElementById('publicProfileRealms');
-        
-        if (realmsData.show_realms === false) {
-            realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
-            document.getElementById('publicProfileRealmsSection').style.display = 'block';
-        } else if (realmsData.realms.length === 0) {
-            realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
-            document.getElementById('publicProfileRealmsSection').style.display = 'block';
-        } else {
-            // Update to show realm icons
-            realmsContainer.innerHTML = realmsData.realms.map(realm => {
-                let iconHtml = '';
-                if (realm.icon_url) {
-                    iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
-                } else {
-                    iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
-                }
-                return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
-            }).join('');
-            document.getElementById('publicProfileRealmsSection').style.display = 'block';
-        }
-        
-        state.selectedUserForProfile = profile.id;
-        document.getElementById('publicProfileModal').style.display = 'flex';
-    } catch (error) {
-        console.log('Error showing user profile:', error);
-        showToast('Error', 'Failed to load user profile', 'error');
-    }
-}
-
-// Rest of the existing functions remain the same...
-// [All other existing functions continue unchanged below this point]
 
 async function showRealmSettingsModal() {
     try {
@@ -4907,8 +3632,16 @@ async function performGlobalSearch(query) {
         // Search messages
         let channelsForMessageSearch = state.channels.map(c => c.id);
         if (includePrivate) {
-            // For DM mode, we would search dm_messages
-            // This is simplified for now
+            const dmRealm = state.joinedRealms.find(r => r.slug === 'direct-messages');
+            if (dmRealm) {
+                const { data: dmChannels } = await state.supabase
+                    .from('channels')
+                    .select('id')
+                    .eq('realm_id', dmRealm.id)
+                    .eq('is_public', false);
+                    
+                channelsForMessageSearch = [...channelsForMessageSearch, ...(dmChannels?.map(c => c.id) || [])];
+            }
         }
         
         const { data: messages, error: messagesError } = await state.supabase
@@ -5153,6 +3886,94 @@ async function markAllNotificationsRead() {
         showToast('Success', 'All notifications marked as read', 'success');
     } catch (error) {
         console.log('Error marking notifications as read:', error);
+    }
+}
+
+async function showUserProfile(userId, profileData = null) {
+    try {
+        if (!state.supabase) return;
+        
+        let profile;
+        if (profileData) {
+            profile = { id: userId, ...profileData };
+        } else {
+            const { data: fetchedProfile, error } = await state.supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+                
+            if (error) {
+                console.log('Error fetching user profile:', error);
+                showToast('Error', 'Failed to load user profile', 'error');
+                return;
+            }
+            profile = fetchedProfile;
+        }
+        
+        document.getElementById('publicProfileAvatar').src = profile.avatar_url ? profile.avatar_url + '?t=' + Date.now() : '';
+        document.getElementById('publicProfileAvatar').onclick = function() {
+            if (profile.avatar_url) {
+                openAvatarFullscreen(profile.avatar_url);
+            }
+        };
+        
+        document.getElementById('publicProfileName').textContent = profile.username || 'User';
+        
+        const isStealth = profile.stealth_mode === true;
+        const status = isStealth ? 'offline' : (profile.status || 'offline');
+        document.getElementById('publicProfileStatusText').textContent = status === 'online' ? 'Online' : 'Offline';
+        document.getElementById('publicProfileStatusDot').className = `public-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        
+        document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
+        
+        const socialLinks = profile.social_links || {};
+        const socialContainer = document.getElementById('publicProfileSocialLinks');
+        socialContainer.innerHTML = '';
+        
+        if (socialLinks.twitter) {
+            socialContainer.innerHTML += `<a href="${socialLinks.twitter}" target="_blank" class="social-link">Twitter</a>`;
+        }
+        if (socialLinks.instagram) {
+            socialContainer.innerHTML += `<a href="${socialLinks.instagram}" target="_blank" class="social-link">Instagram</a>`;
+        }
+        if (socialLinks.website) {
+            socialContainer.innerHTML += `<a href="${socialLinks.website}" target="_blank" class="social-link">Website</a>`;
+        }
+        if (socialLinks.other) {
+            socialContainer.innerHTML += `<a href="${socialLinks.other}" target="_blank" class="social-link">Other</a>`;
+        }
+        
+        document.getElementById('publicProfileSocialSection').style.display = socialContainer.innerHTML ? 'block' : 'none';
+        
+        const realmsData = await loadOtherUserRealms(profile.id);
+        const realmsContainer = document.getElementById('publicProfileRealms');
+        
+        if (realmsData.show_realms === false) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else if (realmsData.realms.length === 0) {
+            realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        } else {
+            // Update to show realm icons
+            realmsContainer.innerHTML = realmsData.realms.map(realm => {
+                let iconHtml = '';
+                if (realm.icon_url) {
+                    iconHtml = `<img src="${realm.icon_url}" style="width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; object-fit: cover;">`;
+                } else {
+                    iconHtml = `<span style="margin-right: 8px;">${realm.icon_url || '🏰'}</span>`;
+                }
+                return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
+            }).join('');
+            document.getElementById('publicProfileRealmsSection').style.display = 'block';
+        }
+        
+        state.selectedUserForProfile = profile.id;
+        document.getElementById('publicProfileModal').style.display = 'flex';
+    } catch (error) {
+        console.log('Error showing user profile:', error);
+        showToast('Error', 'Failed to load user profile', 'error');
     }
 }
 
@@ -5833,6 +4654,148 @@ async function displayUserProfile(profileOrUserId) {
     }
 }
 
+async function createOrOpenDM(otherUserId) {
+    try {
+        if (!state.currentUser || !state.supabase || !otherUserId) return;
+        const isSelf = otherUserId === state.currentUser.id;
+        
+        if (isSelf) {
+            const username = state.userSettings?.username || state.currentUser.email?.split('@')[0];
+            const channelName = `${username}_${username}`;
+            const dmRealm = state.joinedRealms.find(r => r.slug === 'direct-messages');
+            if (!dmRealm) {
+                showToast('Error', 'Direct Messages realm not found', 'error');
+                return;
+            }
+            
+            const { data: existingChannels } = await state.supabase
+                .from('channels')
+                .select('*')
+                .eq('name', channelName)
+                .eq('realm_id', dmRealm.id)
+                .eq('is_public', false)
+                .single();            
+                
+            if (existingChannels) {
+                if (state.currentRealm?.id !== dmRealm.id) {
+                    await switchRealm(dmRealm.id);
+                }
+                state.currentChannel = existingChannels;
+                selectChannel(existingChannels.id);
+                showToast('Info', 'Opened Notes', 'info');
+                return;
+            }
+            
+            const { data: newChannel, error } = await state.supabase
+                .from('channels')
+                .insert([{
+                    name: channelName,
+                    description: `Private notes for ${username}`,
+                    realm_id: dmRealm.id,
+                    created_by: state.currentUser.id,
+                    is_public: false,
+                    is_writable: true,
+                    position: 999
+                }])
+                .select()
+                .single();           
+            if (error) {
+                console.log('Error creating notes channel:', error);
+                showToast('Error', 'Failed to create notes', 'error');
+                return;
+            }
+            
+            if (state.currentRealm?.id !== dmRealm.id) {
+                await switchRealm(dmRealm.id);
+            }
+            state.currentChannel = newChannel;
+            selectChannel(newChannel.id);        
+            showToast('Success', 'Notes created', 'success');
+            return;
+        }
+        
+        const { data: currentUserProfile } = await state.supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', state.currentUser.id)
+            .single();            
+        const { data: otherUserProfile } = await state.supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', otherUserId)
+            .single();            
+        if (!currentUserProfile || !otherUserProfile) {
+            showToast('Error', 'Failed to load user profiles', 'error');
+            return;
+        }
+        const usernames = [currentUserProfile.username, otherUserProfile.username].sort();
+        const channelName = `${usernames[0]}_${usernames[1]}`;
+        const dmRealm = state.joinedRealms.find(r => r.slug === 'direct-messages');
+        if (!dmRealm) {
+            showToast('Error', 'Direct Messages realm not found', 'error');
+            return;
+        }
+        
+        const { data: existingChannels, error: searchError } = await state.supabase
+            .from('channels')
+            .select('*')
+            .eq('realm_id', dmRealm.id)
+            .eq('is_public', false)
+            .or(`name.eq.${channelName},name.eq.${usernames[1]}_${usernames[0]}`);
+            
+        if (searchError) {
+            console.log('Error searching for DM channels:', searchError);
+        }
+        
+        let existingChannel = null;
+        if (existingChannels && existingChannels.length > 0) {
+            existingChannel = existingChannels[0];
+        }
+        
+        if (existingChannel) {
+            if (state.currentRealm?.id !== dmRealm.id) {
+                await switchRealm(dmRealm.id);
+            }
+            state.currentChannel = existingChannel;
+            selectChannel(existingChannel.id);
+            showToast('Info', 'Opened existing conversation', 'info');
+            return;
+        }
+        
+        const { data: newChannel, error } = await state.supabase
+            .from('channels')
+            .insert([{
+                name: channelName,
+                description: `Private conversation between ${usernames[0]} and ${usernames[1]}`,
+                realm_id: dmRealm.id,
+                created_by: state.currentUser.id,
+                is_public: false,
+                is_writable: true,
+                position: 999
+            }])
+            .select()
+            .single();           
+        if (error) {
+            console.log('Error creating DM channel:', error);
+            showToast('Error', 'Failed to create conversation', 'error');
+            return;
+        }
+        
+        if (state.currentRealm?.id !== dmRealm.id) {
+            await switchRealm(dmRealm.id);
+        }
+        state.currentChannel = newChannel;
+        selectChannel(newChannel.id);
+        
+        loadChannels();
+        
+        showToast('Success', 'Conversation created', 'success');      
+    } catch (error) {
+        console.log('Error creating/opening DM:', error);
+        showToast('Error', 'Failed to create conversation', 'error');
+    }
+}
+
 async function reportMessagePrivate(message) {
     try {
         if (!state.currentUser || !state.supabase || !message) return;
@@ -5943,10 +4906,8 @@ async function addReaction(emoji) {
         
         const messageId = state.selectedMessageForReaction.id;
         
-        const tableName = isDmMode ? 'dm_messages' : 'messages';
-        
         const { data: message, error: fetchError } = await state.supabase
-            .from(tableName)
+            .from('messages')
             .select('reactions')
             .eq('id', messageId)
             .single();
@@ -5974,7 +4935,7 @@ async function addReaction(emoji) {
         }
         
         const { error: updateError } = await state.supabase
-            .from(tableName)
+            .from('messages')
             .update({ reactions: reactions })
             .eq('id', messageId);
             
@@ -5990,6 +4951,76 @@ async function addReaction(emoji) {
     } catch (error) {
         console.log('Error adding reaction:', error);
         showToast('Error', 'Failed to add reaction', 'error');
+    }
+}
+
+function showStartConversationModal() {
+    try {
+        document.getElementById('startConversationModal').style.display = 'flex';
+        document.getElementById('userSearchInput').value = '';
+        document.getElementById('userSearchResults').style.display = 'none';
+        document.getElementById('userSearchInput').focus();
+    } catch (error) {
+        console.log('Error showing start conversation modal:', error);
+        showToast('Error', 'Failed to open search', 'error');
+    }
+}
+
+async function searchUsers(searchTerm) {
+    try {
+        if (!state.supabase || !searchTerm.trim()) {
+            document.getElementById('userSearchResults').style.display = 'none';
+            return;
+        }
+        
+        const { data: users, error } = await state.supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .ilike('username', `%${searchTerm}%`)
+            .neq('id', state.currentUser.id)
+            .limit(10);
+            
+        if (error) {
+            console.log('Error searching users:', error);
+            return;
+        }
+        
+        const resultsContainer = document.getElementById('userSearchResults');
+        resultsContainer.innerHTML = '';
+        
+        if (users.length === 0) {
+            resultsContainer.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
+                    No users found
+                </div>
+            `;
+            resultsContainer.style.display = 'block';
+            return;
+        }
+        
+        users.forEach(user => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'search-result';
+            resultItem.innerHTML = `
+                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
+                <div class="search-result-info">
+                    <div class="search-result-name">${escapeHtml(user.username)}</div>
+                </div>
+            `;
+            
+            resultItem.addEventListener('click', async () => {
+                await createOrOpenDM(user.id);
+                document.getElementById('startConversationModal').style.display = 'none';
+                document.getElementById('userSearchInput').value = '';
+                resultsContainer.style.display = 'none';
+            });
+            
+            resultsContainer.appendChild(resultItem);
+        });
+        
+        resultsContainer.style.display = 'block';
+    } catch (error) {
+        console.log('Error searching users:', error);
     }
 }
 

@@ -6,7 +6,7 @@ const ADMIN_USERNAME = 'TheRealBenGurWaves';
 
 let state = {
     supabase: null,
-    currentUser: null,
+    currentUser: null, 
     currentRealm: null,
     currentChannel: null,
     joinedRealms: [],

@@ -56,7 +56,7 @@
 <div class="modal-back enhanced-media-modal" id="enhancedMediaModal" style="display: none;">
     <div class="enhanced-media-content">
         <button class="modal-close-btn enhanced-media-close" id="enhancedMediaClose">×</button>
-        <iframe id="enhancedMediaIframe" class="enhanced-media-iframe" allowfullscreen sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe>
+        <iframe id="enhancedMediaIframe" class="enhanced-media-iframe" allowfullscreen></iframe>
     </div>
 </div>
 <div class="modal-back avatar-fullscreen-modal" id="avatarFullscreenModal" style="display: none;">
@@ -118,11 +118,11 @@
         <div id="creatorSettings" style="display: none;">
             <div class="form-group">
                 <label class="form-label">Realm Name</label>
-                <input type="text" id="realmSettingsName" class="form-input" placeholder="Enter realm name" maxlength="100" required />
+                <input type="text" id="realmSettingsName" class="form-input" placeholder="Enter realm name" />
             </div>
             <div class="form-group">
                 <label class="form-label">Description</label>
-                <textarea id="realmSettingsDescription" class="form-input bio-textarea" placeholder="Describe your realm..." rows="3" maxlength="500"></textarea>
+                <textarea id="realmSettingsDescription" class="form-input bio-textarea" placeholder="Describe your realm..." rows="3"></textarea>
             </div>
             <div class="form-group">
                 <label class="form-label">Realm Icon</label>
@@ -142,7 +142,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Announcement Message</label>
-                <textarea id="realmSettingsAnnouncement" class="form-input bio-textarea" placeholder="Important announcements for all users..." rows="4" maxlength="1000"></textarea>
+                <textarea id="realmSettingsAnnouncement" class="form-input bio-textarea" placeholder="Important announcements for all users..." rows="4"></textarea>
                 <div style="color: var(--color-gray); font-size: 12px; margin-top: 4px;">Shown to all users when they enter the realm</div>
             </div>
             <div class="toggle-switch">
@@ -159,7 +159,7 @@
                 <label class="form-label">Co-Admins</label>
                 <div class="co-admin-section">
                     <div class="co-admin-search">
-                        <input type="text" id="realmCoAdminSearch" class="form-input" placeholder="Search users to add as co-admin" maxlength="50" />
+                        <input type="text" id="realmCoAdminSearch" class="form-input" placeholder="Search users to add as co-admin" />
                         <button id="realmAddCoAdminBtn" class="btn-secondary">Add Co-admin</button>
                     </div>
                     <div class="co-admin-list" id="realmCoAdminsList">
@@ -203,10 +203,10 @@
             </div>
         </div>
         <div class="form-group">
-            <input id="loginEmail" class="form-input" placeholder="Email" autocomplete="email" type="email" required />
+            <input id="loginEmail" class="form-input" placeholder="Email" autocomplete="email" />
         </div>
         <div class="form-group">
-            <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" minlength="8" required />
+            <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" />
         </div>
         <div class="action-row">
             <div style="flex:1">
@@ -221,14 +221,14 @@
 <div id="app" style="display: none;">
     <div class="top-bar">
         <div class="top-bar-left">
-            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">☰</button>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
             <span class="version">v0.5.560 Beta</span>
         </div>
         <div class="top-bar-right">
-            <button class="search-btn" id="globalSearchBtn" title="Search" aria-label="Search">
+            <button class="search-btn" id="globalSearchBtn" title="Search">
                 <span>🔍</span>
             </button>
-            <button class="notification-bell" id="notificationBell" title="Notifications" aria-label="Notifications">
+            <button class="notification-bell" id="notificationBell" title="Notifications">
                 🔔
                 <div class="notification-dot" id="notificationDot"></div>
             </button>
@@ -255,11 +255,12 @@
     </div>
     <div class="main-content">
         <div class="sidebar" id="sidebar">
-            <!-- NEW: DM Header Row -->
-            <div class="sidebar-row dm-mode-switch" id="dm-header">
-                <div class="sidebar-row-icon">💌</div>
-                <div class="sidebar-row-text">Direct Messages</div>
+            <!-- Direct Messages Header (NEW) -->
+            <div id="dm-header" class="sidebar-header dm-header">
+                <div class="realm-icon">✉</div>
+                <div class="realm-name">Direct Messages</div>
             </div>
+            
             <div class="realm-section" id="realmSection">
                 <div class="realm-section-content" id="realmSelector">
                     <div class="realm-icon">🏰</div>
@@ -267,8 +268,8 @@
                         <div class="realm-title" id="currentRealmName">Loading...</div>
                         <div class="realm-members" id="realmMembers"></div>
                     </div>
-                    <button class="realm-dropdown-btn" id="realmDropdownBtn" aria-label="Toggle realm dropdown">▼</button>
-                    <button class="realm-settings-btn" id="realmSettingsBtn" aria-label="Realm settings">⚙️</button>
+                    <button class="realm-dropdown-btn" id="realmDropdownBtn">▼</button>
+                    <button class="realm-settings-btn" id="realmSettingsBtn">⚙️</button>
                 </div>
                 <div class="realm-dropdown" id="realmDropdown">
                     <div class="loading-placeholder">
@@ -277,10 +278,9 @@
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="section-header" id="channelsHeader">
-                    <div class="section-title">Channels</div>
-                    <span class="dm-plus-button" style="display: none;">+</span>
-                    <button class="collapse-toggle" id="collapseChannels" aria-label="Collapse channels">−</button>
+                <div id="channels-header" class="channels-header">
+                    <h3>Channels</h3>
+                    <button id="add-dm-button" class="add-dm-button" style="display:none;">+</button>
                 </div>
                 <div class="category-content" id="channelsContent">
                     <div class="channel-list" id="channelList">
@@ -312,24 +312,6 @@
         </div>
         <div class="main-chat">
             <div id="pinnedMessageContainer" style="display: none;"></div>
-            <!-- Main Chat Header (Dynamically updated) -->
-            <div class="main-chat-header" id="mainChatHeader">
-                <div class="dm-header-1on1" id="dmHeader1on1" style="display: none;">
-                    <div class="dm-header-clickable" id="dmHeaderClickable">
-                        <div class="dm-header-avatar" id="dmHeaderAvatar"></div>
-                        <div class="dm-header-user-info">
-                            <div class="dm-header-username" id="dmHeaderUsername"></div>
-                            <div class="dm-header-status" id="dmHeaderStatus"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="dm-header-group" id="dmHeaderGroup" style="display: none;">
-                    <div class="dm-header-group-name" id="dmHeaderGroupName"></div>
-                </div>
-                <div class="realm-channel-header" id="realmChannelHeader">
-                    <!-- Existing realm channel header content remains here -->
-                </div>
-            </div>
             <div class="messages-container" id="messagesContainer">
                 <div class="empty-state" id="emptyState">
                     Select a channel to view messages
@@ -353,15 +335,15 @@
             <div class="input-area">
                 <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
                 <div class="input-buttons">
-                    <button class="input-btn" id="attachmentBtn" title="Attach file" aria-label="Attach file">
+                    <button class="input-btn" id="attachmentBtn" title="Attach file">
                         <i class="fas fa-paperclip"></i>
                     </button>
-                    <button class="input-btn" id="emojiBtn" title="Insert emoji" aria-label="Insert emoji">
+                    <button class="input-btn" id="emojiBtn" title="Insert emoji">
                         <i class="fas fa-smile"></i>
                     </button>
                 </div>
-                <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled maxlength="2000"></textarea>
-                <button class="send-btn" id="sendBtn" disabled aria-label="Send message">↑</button>
+                <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
+                <button class="send-btn" id="sendBtn" disabled>↑</button>
             </div>
         </div>
     </div>
@@ -391,39 +373,39 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Email</label>
-                <input id="profileEmail" class="form-input" readonly type="email" />
+                <input id="profileEmail" class="form-input" readonly />
                 <div class="email-toggle-container">
                     <button class="email-toggle-btn" id="emailToggleBtn">Show/Hide Email</button>
                 </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input id="profileUsername" class="form-input" maxlength="30" pattern="[a-zA-Z0-9_]+" title="Only letters, numbers, and underscores allowed" />
+                <input id="profileUsername" class="form-input" />
                 <div class="username-hint" id="usernameHint"></div>
                 <div class="auto-save-indicator" id="usernameAutoSaveIndicator">Username updated</div>
             </div>
             <div class="form-group">
                 <label class="form-label">Bio</label>
-                <textarea id="profileBio" class="form-input bio-textarea" placeholder="Tell us about yourself..." rows="3" maxlength="500"></textarea>
+                <textarea id="profileBio" class="form-input bio-textarea" placeholder="Tell us about yourself..." rows="3"></textarea>
                 <div class="auto-save-indicator" id="bioAutoSaveIndicator">Bio saved</div>
             </div>
             <div class="social-links-section">
                 <div class="social-links-title">Social Links</div>
                 <div class="social-link-group">
                     <label class="social-link-label">Twitter/X</label>
-                    <input type="url" id="socialTwitter" class="form-input" placeholder="https://x.com/username" pattern="https://.*">
+                    <input type="text" id="socialTwitter" class="form-input" placeholder="https://x.com/username">
                 </div>
                 <div class="social-link-group">
                     <label class="social-link-label">Instagram</label>
-                    <input type="url" id="socialInstagram" class="form-input" placeholder="https://instagram.com/username" pattern="https://.*">
+                    <input type="text" id="socialInstagram" class="form-input" placeholder="https://instagram.com/username">
                 </div>
                 <div class="social-link-group">
                     <label class="social-link-label">Website</label>
-                    <input type="url" id="socialWebsite" class="form-input" placeholder="https://example.com" pattern="https://.*">
+                    <input type="text" id="socialWebsite" class="form-input" placeholder="https://example.com">
                 </div>
                 <div class="social-link-group">
                     <label class="social-link-label">Other</label>
-                    <input type="url" id="socialOther" class="form-input" placeholder="https://..." pattern="https://.*">
+                    <input type="text" id="socialOther" class="form-input" placeholder="https://...">
                 </div>
                 <div class="auto-save-indicator" id="socialAutoSaveIndicator">Social links saved</div>
             </div>
@@ -439,26 +421,6 @@
                 <div class="realms-list" id="profileRealmsList">
                     <div class="loading-placeholder">
                         <div class="loading-spinner"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- NEW: User Stats -->
-            <div class="user-stats-section">
-                <div class="user-stats-title">Your Stats</div>
-                <div class="user-stats-grid">
-                    <div class="user-stat">
-                        <div class="user-stat-icon">🔥</div>
-                        <div class="user-stat-info">
-                            <div class="user-stat-value" id="profileStreakCount">0</div>
-                            <div class="user-stat-label">Day Streak</div>
-                        </div>
-                    </div>
-                    <div class="user-stat">
-                        <div class="user-stat-icon">💬</div>
-                        <div class="user-stat-info">
-                            <div class="user-stat-value" id="profileMessagesSent">0</div>
-                            <div class="user-stat-label">Messages Sent</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -558,7 +520,7 @@
         <h2 class="modal-title">Search</h2>
         <div class="modal-subtitle">Search across all messages</div>
         <div class="form-group">
-            <input type="text" id="globalSearchInput" class="form-input" placeholder="Type your search..." maxlength="100" />
+            <input type="text" id="globalSearchInput" class="form-input" placeholder="Type your search..." />
         </div>
         <div class="toggle-switch">
             <label class="toggle">
@@ -603,19 +565,6 @@
             <div class="public-profile-status" style="text-align: center; margin-bottom: 24px;">
                 <div class="public-profile-status-dot" id="publicProfileStatusDot" style="background-color: var(--color-green);"></div>
                 <span id="publicProfileStatusText" style="color: var(--color-green); font-size: 14px;">Online</span>
-            </div>
-            <!-- NEW: Public Profile Stats -->
-            <div class="public-profile-stats">
-                <div class="public-profile-stat">
-                    <div class="public-profile-stat-icon">🔥</div>
-                    <div class="public-profile-stat-value" id="publicProfileStreak">0</div>
-                    <div class="public-profile-stat-label">Day Streak</div>
-                </div>
-                <div class="public-profile-stat">
-                    <div class="public-profile-stat-icon">💬</div>
-                    <div class="public-profile-stat-value" id="publicProfileMessagesSent">0</div>
-                    <div class="public-profile-stat-label">Messages</div>
-                </div>
             </div>
         </div>
         <div class="public-profile-content" style="overflow-y: auto; max-height: 60vh;">
@@ -694,7 +643,7 @@
         <div class="modal-subtitle">Join new realms to expand your labyrinth</div>
         <div class="create-realm-form" style="display: none;"></div>
         <div class="form-group" style="margin: 20px 0;">
-            <input type="text" id="realmSearchInput" class="form-input" placeholder="Search realms..." maxlength="100" />
+            <input type="text" id="realmSearchInput" class="form-input" placeholder="Search realms..." />
         </div>
         <div class="action-row" style="margin: 20px 0;">
             <button id="createNewRealmBtn" class="btn-primary" style="width: 100%;">
@@ -719,11 +668,11 @@
         <div class="modal-subtitle">Establish your own corner of the labyrinth</div>
         <div class="form-group">
             <label class="form-label">Realm Name *</label>
-            <input type="text" id="newRealmNameModal" class="form-input" placeholder="e.g., The Hidden Grove" maxlength="100" required />
+            <input type="text" id="newRealmNameModal" class="form-input" placeholder="e.g., The Hidden Grove" />
         </div>
         <div class="form-group">
             <label class="form-label">Description (optional)</label>
-            <textarea id="newRealmDescriptionModal" class="form-input" placeholder="What is this realm about?" rows="3" maxlength="500"></textarea>
+            <textarea id="newRealmDescriptionModal" class="form-input" placeholder="What is this realm about?" rows="3"></textarea>
         </div>
         <div class="toggle-switch">
             <span class="toggle-label">Show me as creator</span>
@@ -744,11 +693,11 @@
         <div class="modal-subtitle">Add a new channel to <span id="currentRealmNameForChannel"></span></div>
         <div class="form-group">
             <label class="form-label">Channel Name</label>
-            <input type="text" id="newChannelName" class="form-input" placeholder="e.g., general" maxlength="50" required />
+            <input type="text" id="newChannelName" class="form-input" placeholder="e.g., general" />
         </div>
         <div class="form-group">
             <label class="form-label">Description (optional)</label>
-            <input type="text" id="newChannelDescription" class="form-input" placeholder="What's this channel about?" maxlength="200" />
+            <input type="text" id="newChannelDescription" class="form-input" placeholder="What's this channel about?" />
         </div>
         <div class="toggle-switch">
             <span class="toggle-label">Writable Channel (allow messages)</span>
@@ -808,93 +757,13 @@
         </div>
     </div>
 </div>
-<!-- Extended User Search Modal for DM -->
-<div class="modal-back" id="dmUserSearchModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="dmUserSearchModalCloseBtn">×</button>
-        <h2 class="modal-title" id="dmUserSearchTitle">Start a Conversation</h2>
-        <div class="modal-subtitle" id="dmUserSearchSubtitle">Search for users to message</div>
-        <div class="form-group">
-            <input type="text" id="dmUserSearchInput" class="form-input" placeholder="Search by username..." maxlength="50" />
-        </div>
-        <div class="search-results" id="dmUserSearchResults" style="display: none;">
-            <div class="dm-user-search-result-list">
-                <!-- Results will be inserted here -->
-            </div>
-        </div>
-        <div class="action-row" style="margin-top: 32px;">
-            <button id="cancelDmUserSearchBtn" class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-</div>
-<!-- DM Channel Settings Modal -->
-<div class="modal-back" id="dmChannelSettingsModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="dmChannelSettingsModalCloseBtn">×</button>
-        <h2 class="modal-title">Direct Message Settings</h2>
-        <div class="modal-subtitle" id="dmChannelSettingsSubtitle"></div>
-        
-        <!-- Group Name Section (Group DM only) -->
-        <div class="form-group" id="dmGroupNameSection" style="display: none;">
-            <label class="form-label">Group Name</label>
-            <input type="text" id="dmGroupNameInput" class="form-input" placeholder="Enter group name" maxlength="50" />
-        </div>
-        
-        <!-- Users Section (Group DM only) -->
-        <div class="form-group" id="dmGroupUsersSection" style="display: none;">
-            <label class="form-label">Group Members</label>
-            <div class="dm-group-users-list" id="dmGroupUsersList">
-                <!-- Users will be added here -->
-            </div>
-            <button id="dmAddUserBtn" class="btn-secondary" style="margin-top: 12px; width: 100%;">
-                <span>+</span>
-                <span>Add User</span>
-            </button>
-        </div>
-        
-        <!-- Notifications Section -->
-        <div class="form-group">
-            <label class="form-label">Notifications</label>
-            <div class="dm-notification-options">
-                <label class="notification-option">
-                    <input type="radio" name="dmNotifications" value="all" checked>
-                    <span class="notification-label">All Messages</span>
-                    <span class="notification-desc">Notify on every message</span>
-                </label>
-                <label class="notification-option">
-                    <input type="radio" name="dmNotifications" value="mention">
-                    <span class="notification-label">Mentions Only</span>
-                    <span class="notification-desc">Only notify when mentioned</span>
-                </label>
-                <label class="notification-option">
-                    <input type="radio" name="dmNotifications" value="mute">
-                    <span class="notification-label">Muted</span>
-                    <span class="notification-desc">No notifications</span>
-                </label>
-            </div>
-        </div>
-        
-        <!-- Leave Button (Group DM only) -->
-        <div id="dmLeaveSection" style="display: none; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-            <button id="dmLeaveBtn" class="btn-delete" style="width: 100%;">
-                <span>🚪</span>
-                <span>Leave Group</span>
-            </button>
-        </div>
-        
-        <div class="action-row" style="margin-top: 32px;">
-            <button id="cancelDmChannelSettingsBtn" class="btn-secondary">Cancel</button>
-            <button id="saveDmChannelSettingsBtn" class="btn-primary">Save</button>
-        </div>
-    </div>
-</div>
 <div class="modal-back" id="startConversationModal">
     <div class="modal-content">
         <button class="modal-close-btn" id="startConversationModalCloseBtn">×</button>
         <h2 class="modal-title">Start a Conversation</h2>
         <div class="modal-subtitle">Search for users to message</div>
         <div class="form-group">
-            <input type="text" id="userSearchInput" class="form-input" placeholder="Search by username..." maxlength="50" />
+            <input type="text" id="userSearchInput" class="form-input" placeholder="Search by username..." />
         </div>
         <div class="search-results" id="userSearchResults" style="display: none;"></div>
         <div class="action-row" style="margin-top: 32px;">

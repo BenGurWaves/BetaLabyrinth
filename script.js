@@ -4,12 +4,6 @@ const STORAGE_BUCKET = 'avatars';
 const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves', 'direct-messages'];
 const ADMIN_USERNAME = 'TheRealBenGurWaves';
 
-// ADDED: New global variables for DM mode
-let isDMMode = false;
-let currentDMChannel = null;
-let dmSettingsSubscription = null;
-let dmChannelsSubscription = null;
-
 let state = {
     supabase: null,
     currentUser: null,
@@ -47,1240 +41,8 @@ let state = {
     welcomeModalShown: new Set(),
     announcementModalShown: new Set(),
     channelDeleteStep: 1,
-    systemThemeListener: null,
-    isOnline: true,
-    typingUsers: {},
-    presenceSubscription: null,
-    typingTimeout: null,
-    isTyping: false,
-    mentionSearchActive: false,
-    // ADDED: New state variables for DM
-    dmChannels: [],
-    dmParticipants: {},
-    dmNotificationsSettings: {}
+    systemThemeListener: null
 };
-
-// ADDED: DM Header click event listener (to be added in setupEventListeners)
-function setupDMEventListeners() {
-    try {
-        // 1. Event listener for #dm-header click
-        document.getElementById('dm-header').addEventListener('click', function() {
-            isDMMode = true;
-            currentDMChannel = null;
-            
-            // Add 'active' class to #dm-header, remove from realm header
-            this.classList.add('active');
-            document.querySelector('.realm-section').classList.remove('active');
-            
-            // Show .dm-plus-button
-            document.querySelector('.dm-plus-button').style.display = 'flex';
-            
-            // Clear channel list
-            const channelList = document.getElementById('channelList');
-            if (channelList) {
-                channelList.innerHTML = '';
-            }
-            
-            // Load DM channels
-            loadDMChannels();
-            
-            // Close any open channel
-            if (state.messageSubscription) {
-                state.supabase.removeChannel(state.messageSubscription);
-                state.messageSubscription = null;
-            }
-            
-            // Update UI for DM mode
-            document.getElementById('currentRealmName').textContent = 'Direct Messages';
-            document.getElementById('realmSettingsBtn').style.display = 'none';
-            
-            // Clear messages
-            const messagesContainer = document.getElementById('messagesContainer');
-            if (messagesContainer) {
-                messagesContainer.innerHTML = '<div class="empty-state" id="emptyState">Select a conversation</div>';
-            }
-            
-            // Disable message input
-            const messageInput = document.getElementById('messageInput');
-            if (messageInput) {
-                messageInput.disabled = true;
-                messageInput.placeholder = 'Select a conversation to start messaging...';
-            }
-            
-            const sendBtn = document.getElementById('sendBtn');
-            if (sendBtn) {
-                sendBtn.disabled = true;
-            }
-            
-            // Hide realm dropdown if open
-            document.getElementById('realmDropdown').classList.remove('active');
-            
-            // Update add channel button visibility
-            updateAddChannelButton();
-        });
-        
-        // 2. When selecting a realm (modified existing logic)
-        // This will be handled by modifying the existing realm selection logic
-        
-        // 4. .dm-plus-button click
-        document.querySelector('.dm-plus-button').addEventListener('click', function() {
-            showStartConversationModal();
-        });
-        
-    } catch (error) {
-        console.log('Error setting up DM event listeners:', error);
-    }
-}
-
-// ADDED: New function loadDMChannels()
-async function loadDMChannels() {
-    try {
-        if (!state.supabase || !state.currentUser) {
-            console.log('Cannot load DM channels: no user or supabase');
-            return;
-        }
-        
-        console.log('Loading DM channels...');
-        
-        // Fetch user's DM channels via dm_participants JOIN dm_channels
-        const { data: dmParticipants, error } = await state.supabase
-            .from('dm_participants')
-            .select(`
-                dm_id,
-                dm_channels (
-                    id,
-                    name,
-                    created_at,
-                    updated_at,
-                    last_message_at
-                )
-            `)
-            .eq('user_id', state.currentUser.id)
-            .order('updated_at', { ascending: false });
-            
-        if (error) {
-            console.log('Error loading DM channels:', error);
-            return;
-        }
-        
-        // Extract unique DM channels
-        const dmChannelsMap = new Map();
-        dmParticipants.forEach(dp => {
-            if (dp.dm_channels && !dmChannelsMap.has(dp.dm_channels.id)) {
-                dmChannelsMap.set(dp.dm_channels.id, dp.dm_channels);
-            }
-        });
-        
-        state.dmChannels = Array.from(dmChannelsMap.values());
-        
-        // For each DM channel, fetch participants and compute display name
-        for (const channel of state.dmChannels) {
-            await fetchDMParticipants(channel);
-        }
-        
-        // Render DM channels
-        renderDMChannels();
-        
-        // Subscribe to realtime updates for these channels
-        setupDMChannelsSubscription();
-        
-        console.log('Loaded', state.dmChannels.length, 'DM channels');
-        
-    } catch (error) {
-        console.log('Error in loadDMChannels:', error);
-    }
-}
-
-// ADDED: Helper function to fetch DM participants
-async function fetchDMParticipants(dmChannel) {
-    try {
-        if (!state.supabase || !dmChannel) return;
-        
-        const { data: participants, error } = await state.supabase
-            .from('dm_participants')
-            .select(`
-                user_id,
-                profiles (
-                    id,
-                    username,
-                    avatar_url,
-                    status
-                )
-            `)
-            .eq('dm_id', dmChannel.id);
-            
-        if (error) {
-            console.log('Error fetching DM participants:', error);
-            return;
-        }
-        
-        // Store participants
-        state.dmParticipants[dmChannel.id] = participants.map(p => ({
-            user_id: p.user_id,
-            profile: p.profiles
-        }));
-        
-        // Compute display name
-        if (dmChannel.name) {
-            dmChannel.display_name = dmChannel.name;
-        } else {
-            // If no channel name, use other users' usernames
-            const otherUsers = participants
-                .filter(p => p.user_id !== state.currentUser.id)
-                .map(p => p.profiles?.username || 'Unknown');
-            
-            if (otherUsers.length === 0) {
-                // Self DM or no other participants
-                dmChannel.display_name = state.userSettings?.username || 'You';
-            } else {
-                dmChannel.display_name = otherUsers.join(', ');
-            }
-        }
-        
-    } catch (error) {
-        console.log('Error fetching DM participants:', error);
-    }
-}
-
-// ADDED: Render DM channels in the channel list
-function renderDMChannels() {
-    try {
-        const channelList = document.getElementById('channelList');
-        if (!channelList) return;
-        
-        channelList.innerHTML = '';
-        
-        if (state.dmChannels.length === 0) {
-            channelList.innerHTML = `
-                <div class="channel-item" style="color: var(--text-secondary); text-align: center; font-style: italic;">
-                    No conversations yet
-                </div>
-            `;
-            return;
-        }
-        
-        state.dmChannels.forEach(channel => {
-            const item = document.createElement('div');
-            item.className = 'channel-item';
-            if (currentDMChannel && channel.id === currentDMChannel.id) {
-                item.classList.add('active');
-            }
-            
-            item.innerHTML = `
-                <div class="channel-icon">${getDMChannelIcon(channel)}</div>
-                <div style="flex: 1;">${escapeHtml(channel.display_name || 'Unknown')}</div>
-                <div class="dm-channel-dots" style="padding: 4px; opacity: 0; transition: opacity var(--transition-fast);">⋯</div>
-            `;
-            
-            item.onclick = function(e) {
-                if (!e.target.classList.contains('dm-channel-dots')) {
-                    openDMChannel(channel.id);
-                }
-            };
-            
-            const dotsBtn = item.querySelector('.dm-channel-dots');
-            if (dotsBtn) {
-                dotsBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    openDMSettingsModal(channel);
-                });
-                item.addEventListener('mouseenter', function() {
-                    dotsBtn.style.opacity = '1';
-                });
-                item.addEventListener('mouseleave', function() {
-                    dotsBtn.style.opacity = '0';
-                });
-            }
-            
-            channelList.appendChild(item);
-        });
-        
-    } catch (error) {
-        console.log('Error rendering DM channels:', error);
-    }
-}
-
-// ADDED: Get appropriate icon for DM channel
-function getDMChannelIcon(channel) {
-    if (!channel || !state.dmParticipants[channel.id]) return '👤';
-    
-    const participants = state.dmParticipants[channel.id];
-    const otherUsers = participants.filter(p => p.user_id !== state.currentUser.id);
-    
-    if (otherUsers.length === 1) {
-        return '👤'; // 1:1 chat
-    } else {
-        return '👥'; // Group chat
-    }
-}
-
-// ADDED: Open DM channel function
-async function openDMChannel(dmChannelId) {
-    try {
-        if (!state.supabase) return;
-        
-        const channel = state.dmChannels.find(c => c.id === dmChannelId);
-        if (!channel) {
-            console.log('DM channel not found:', dmChannelId);
-            return;
-        }
-        
-        currentDMChannel = channel;
-        isDMMode = true;
-        
-        // Update UI
-        document.querySelectorAll('.channel-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        const activeItem = Array.from(document.querySelectorAll('.channel-item')).find(item => {
-            return item.textContent.includes(channel.display_name);
-        });
-        
-        if (activeItem) {
-            activeItem.classList.add('active');
-        }
-        
-        // Ensure participants are loaded
-        if (!state.dmParticipants[channel.id]) {
-            await fetchDMParticipants(channel);
-        }
-        
-        // Update header
-        const participants = state.dmParticipants[channel.id];
-        if (!participants) return;
-        
-        if (participants.length === 2) {
-            // 1:1 chat - show other user's info
-            const otherUser = participants.find(p => p.user_id !== state.currentUser.id);
-            if (otherUser && otherUser.profile) {
-                const avatarUrl = otherUser.profile.avatar_url ? `${otherUser.profile.avatar_url}?t=${Date.now()}` : '';
-                document.getElementById('currentRealmName').innerHTML = `
-                    ${avatarUrl ? `<img src="${avatarUrl}" alt="${otherUser.profile.username}" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 8px;">` : ''}
-                    <span>${escapeHtml(otherUser.profile.username)}</span>
-                    <span class="user-status-dot ${otherUser.profile.status === 'online' ? 'online' : ''}" style="margin-left: 8px;"></span>
-                `;
-                
-                // Make header clickable for profile
-                document.getElementById('currentRealmName').style.cursor = 'pointer';
-                document.getElementById('currentRealmName').onclick = () => {
-                    showUserProfile(otherUser.user_id);
-                };
-            }
-        } else {
-            // Group chat
-            document.getElementById('currentRealmName').textContent = channel.display_name;
-            document.getElementById('currentRealmName').style.cursor = 'default';
-            document.getElementById('currentRealmName').onclick = null;
-        }
-        
-        // Show DM settings button (three dots)
-        document.getElementById('realmSettingsBtn').style.display = 'flex';
-        
-        // Load messages
-        await loadDMMessages();
-        
-        // Update message input
-        updateMessageInputForChannel();
-        
-        // Setup realtime subscription for new messages
-        setupDMMessageSubscription();
-        
-        // Update read receipts
-        updateDMReadReceipts();
-        
-    } catch (error) {
-        console.log('Error opening DM channel:', error);
-        showToast('Error', 'Failed to open conversation', 'error');
-    }
-}
-
-// ADDED: Load messages for DM channel
-async function loadDMMessages() {
-    try {
-        if (!currentDMChannel || !state.supabase) {
-            console.log('Cannot load DM messages: no channel selected');
-            return;
-        }
-        
-        console.log('Loading messages for DM channel:', currentDMChannel.id);
-        
-        const messagesContainer = document.getElementById('messagesContainer');
-        if (messagesContainer) {
-            messagesContainer.innerHTML = '<div class="empty-state" id="emptyState">Loading messages...</div>';
-        }
-        
-        const { data: messages, error } = await state.supabase
-            .from('dm_messages')
-            .select(`
-                *,
-                profiles (
-                    username,
-                    avatar_url,
-                    status,
-                    stealth_mode
-                )
-            `)
-            .eq('dm_id', currentDMChannel.id)
-            .order('created_at', { ascending: true })
-            .limit(50);
-            
-        if (error) {
-            console.log('Error loading DM messages:', error);
-            if (messagesContainer) {
-                messagesContainer.innerHTML = `
-                    <div class="empty-state" id="emptyState">
-                        Failed to load messages. Try again later.
-                    </div>
-                `;
-            }
-            return;
-        }
-        
-        // Store messages in a separate array or reuse state.messages
-        state.messages = messages; // Reusing the same array for now
-        renderMessages();
-        
-        console.log('Loaded', messages.length, 'DM messages');
-        
-    } catch (error) {
-        console.log('Error in loadDMMessages:', error);
-    }
-}
-
-// ADDED: Update read receipts for DM
-async function updateDMReadReceipts() {
-    try {
-        if (!currentDMChannel || !state.supabase || !state.userSettings?.send_read_receipts) return;
-        
-        // Update read_by array for messages in this DM channel
-        const { error } = await state.supabase
-            .from('dm_messages')
-            .update({ 
-                read_by: state.supabase.raw(`array_append(read_by, '${state.currentUser.id}')`)
-            })
-            .eq('dm_id', currentDMChannel.id)
-            .neq('user_id', state.currentUser.id)
-            .filter('read_by', 'not.cs', `{${state.currentUser.id}}`);
-            
-        if (error) {
-            console.log('Error updating DM read receipts:', error);
-        }
-    } catch (error) {
-        console.log('Error in updateDMReadReceipts:', error);
-    }
-}
-
-// ADDED: Setup realtime subscription for DM messages
-function setupDMMessageSubscription() {
-    try {
-        if (!currentDMChannel || !state.supabase) return;
-        
-        if (state.messageSubscription) {
-            state.supabase.removeChannel(state.messageSubscription);
-        }
-        
-        state.messageSubscription = state.supabase
-            .channel(`dm_messages:${currentDMChannel.id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'dm_messages',
-                filter: `dm_id=eq.${currentDMChannel.id}`
-            }, async (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    if (payload.new.user_id === state.currentUser.id) return;
-                    
-                    const { data: message, error } = await state.supabase
-                        .from('dm_messages')
-                        .select(`
-                            *,
-                            profiles (
-                                username,
-                                avatar_url,
-                                status,
-                                stealth_mode
-                            )
-                        `)
-                        .eq('id', payload.new.id)
-                        .single();
-                        
-                    if (error || !message) return;
-                    
-                    state.messages.push(message);
-                    appendMessage(message);
-                    
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    if (messagesContainer) {
-                        const scrollBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-                        if (scrollBottom < 200) {
-                            setTimeout(() => {
-                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                            }, 100);
-                        }
-                    }
-                    
-                    if (state.userSettings?.in_app_notifications && !document.hasFocus()) {
-                        showToast('New Message', `From ${message.profiles?.username || 'User'}`, 'info');
-                    }
-                    
-                    // Update DM channel's last_message_at
-                    await state.supabase
-                        .from('dm_channels')
-                        .update({ last_message_at: new Date().toISOString() })
-                        .eq('id', currentDMChannel.id);
-                        
-                } else if (payload.eventType === 'UPDATE') {
-                    const messageIndex = state.messages.findIndex(m => m.id === payload.new.id);
-                    if (messageIndex !== -1) {
-                        state.messages[messageIndex] = {
-                            ...state.messages[messageIndex],
-                            ...payload.new
-                        };
-                        
-                        const msgElement = document.querySelector(`[data-message-id="${payload.new.id}"]`);
-                        if (msgElement) {
-                            const msgBody = msgElement.querySelector('.msg-body');
-                            if (msgBody) {
-                                const messageText = msgBody.querySelector('.message-text');
-                                const messageTime = msgBody.querySelector('.message-time');
-                                const reactionsContainer = msgBody.querySelector('.reactions-container');
-                                
-                                if (messageText) {
-                                    messageText.innerHTML = formatMessageContent(payload.new.content);
-                                }
-                                if (payload.new.edited_at && !messageTime.innerHTML.includes('(edited)')) {
-                                    messageTime.innerHTML = messageTime.innerHTML.replace(/\s*$/, '') + ' <span class="message-edited">(edited)</span>';
-                                }
-                                if (payload.new.reactions) {
-                                    if (reactionsContainer) {
-                                        reactionsContainer.innerHTML = renderReactions(payload.new.reactions);
-                                    } else if (payload.new.reactions.length > 0) {
-                                        const newReactionsContainer = document.createElement('div');
-                                        newReactionsContainer.className = 'reactions-container';
-                                        newReactionsContainer.innerHTML = renderReactions(payload.new.reactions);
-                                        msgBody.appendChild(newReactionsContainer);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (payload.eventType === 'DELETE') {
-                    state.messages = state.messages.filter(m => m.id !== payload.old.id);
-                    const msgElement = document.querySelector(`[data-message-id="${payload.old.id}"]`);
-                    if (msgElement && msgElement.parentNode) {
-                        msgElement.parentNode.removeChild(msgElement);
-                    }
-                    if (state.messages.length === 0) {
-                        const messagesContainer = document.getElementById('messagesContainer');
-                        if (messagesContainer) {
-                            messagesContainer.innerHTML = `
-                                <div class="empty-state" id="emptyState">
-                                    No messages yet. Start the conversation!
-                                </div>
-                            `;
-                        }
-                    }
-                }
-            })
-            .subscribe();
-            
-    } catch (error) {
-        console.log('Error setting up DM message subscription:', error);
-    }
-}
-
-// ADDED: Setup subscription for DM channels updates
-function setupDMChannelsSubscription() {
-    try {
-        if (!state.supabase || !state.currentUser) return;
-        
-        if (dmChannelsSubscription) {
-            state.supabase.removeChannel(dmChannelsSubscription);
-        }
-        
-        dmChannelsSubscription = state.supabase
-            .channel(`dm_channels:user:${state.currentUser.id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'dm_participants',
-                filter: `user_id=eq.${state.currentUser.id}`
-            }, async (payload) => {
-                // Reload DM channels when participant changes
-                await loadDMChannels();
-            })
-            .subscribe();
-            
-    } catch (error) {
-        console.log('Error setting up DM channels subscription:', error);
-    }
-}
-
-// ADDED: Send message for DM mode
-async function sendDMMessage() {
-    try {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();
-        
-        if (!message || !state.currentUser || !currentDMChannel) return;
-        
-        const optimisticMessage = {
-            id: `temp_${Date.now()}`,
-            content: message,
-            dm_id: currentDMChannel.id,
-            user_id: state.currentUser.id,
-            created_at: new Date().toISOString(),
-            profiles: {
-                username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
-                avatar_url: state.userSettings?.avatar_url,
-                status: state.userSettings?.status || 'online',
-                stealth_mode: state.userSettings?.stealth_mode || false
-            }
-        };
-        
-        appendMessage(optimisticMessage);
-        input.value = '';
-        input.style.height = 'auto';
-        updateSendButtonState();
-        
-        setTimeout(() => {
-            const container = document.getElementById('messagesContainer');
-            if (container) container.scrollTop = container.scrollHeight;
-        }, 100);
-        
-        // Insert into dm_messages
-        const { error } = await state.supabase
-            .from('dm_messages')
-            .insert([{
-                content: message,
-                dm_id: currentDMChannel.id,
-                user_id: state.currentUser.id
-            }]);
-            
-        if (error) {
-            console.log('Error sending DM message:', error);
-            showToast('Error', 'Failed to send message', 'error');
-            return;
-        }
-        
-        // Update DM channel's last_message_at
-        await state.supabase
-            .from('dm_channels')
-            .update({ 
-                last_message_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', currentDMChannel.id);
-            
-    } catch (error) {
-        console.log('Error in sendDMMessage:', error);
-        showToast('Error', 'Failed to send message', 'error');
-    }
-}
-
-// ADDED: Open DM settings modal
-async function openDMSettingsModal(channel) {
-    try {
-        if (!channel || !state.supabase) return;
-        
-        // Load DM settings
-        const { data: settings, error } = await state.supabase
-            .from('dm_settings')
-            .select('*')
-            .eq('dm_id', channel.id)
-            .eq('user_id', state.currentUser.id)
-            .single();
-            
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-            console.log('Error loading DM settings:', error);
-        }
-        
-        state.dmNotificationsSettings[channel.id] = settings || { notifications: 'all' };
-        
-        // Load participants
-        if (!state.dmParticipants[channel.id]) {
-            await fetchDMParticipants(channel);
-        }
-        
-        // Show DM settings modal (would need to create this modal in HTML)
-        // For now, show a toast
-        showToast('DM Settings', 'Settings modal coming soon', 'info');
-        
-    } catch (error) {
-        console.log('Error opening DM settings modal:', error);
-    }
-}
-
-// ADDED: User search select handler for starting DM
-async function handleUserSearchSelectForDM(userId, username) {
-    try {
-        if (!state.supabase || !state.currentUser) return;
-        
-        // Check for existing 1:1 DM channel
-        const user1 = Math.min(state.currentUser.id, userId);
-        const user2 = Math.max(state.currentUser.id, userId);
-        
-        const { data: existingChannels, error } = await state.supabase
-            .from('dm_channels')
-            .select('id')
-            .eq('user1_id', user1)
-            .eq('user2_id', user2)
-            .single();
-            
-        if (error && error.code !== 'PGRST116') {
-            console.log('Error checking existing DM channel:', error);
-        }
-        
-        if (existingChannels) {
-            // Open existing channel
-            openDMChannel(existingChannels.id);
-            return;
-        }
-        
-        // Confirm creation
-        const confirmed = confirm(`Start a conversation with ${username}?`);
-        if (!confirmed) return;
-        
-        // Create new DM channel
-        const { data: newChannel, error: createError } = await state.supabase
-            .from('dm_channels')
-            .insert([{
-                user1_id: user1,
-                user2_id: user2,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-            
-        if (createError) {
-            console.log('Error creating DM channel:', createError);
-            showToast('Error', 'Failed to create conversation', 'error');
-            return;
-        }
-        
-        // Add participants
-        const participants = [
-            { dm_id: newChannel.id, user_id: state.currentUser.id },
-            { dm_id: newChannel.id, user_id: userId }
-        ];
-        
-        const { error: participantsError } = await state.supabase
-            .from('dm_participants')
-            .insert(participants);
-            
-        if (participantsError) {
-            console.log('Error adding participants:', participantsError);
-        }
-        
-        // Add default settings for both users
-        const settings = [
-            { dm_id: newChannel.id, user_id: state.currentUser.id, notifications: 'all' },
-            { dm_id: newChannel.id, user_id: userId, notifications: 'all' }
-        ];
-        
-        const { error: settingsError } = await state.supabase
-            .from('dm_settings')
-            .insert(settings);
-            
-        if (settingsError) {
-            console.log('Error adding DM settings:', settingsError);
-        }
-        
-        // Open the new channel
-        openDMChannel(newChannel.id);
-        showToast('Success', 'Conversation started', 'success');
-        
-    } catch (error) {
-        console.log('Error handling user search select for DM:', error);
-        showToast('Error', 'Failed to start conversation', 'error');
-    }
-}
-
-// ADDED: Streak update logic
-async function updateStreak() {
-    try {
-        if (!state.currentUser || !state.supabase) return;
-        
-        // Calculate today in PST
-        const now = new Date();
-        const pstOffset = -8 * 60 * 60 * 1000; // PST is UTC-8
-        const today = new Date(now.getTime() + pstOffset);
-        const todayStr = today.toISOString().split('T')[0];
-        
-        // Fetch user's profile
-        const { data: profile, error } = await state.supabase
-            .from('profiles')
-            .select('last_active, streak_days')
-            .eq('id', state.currentUser.id)
-            .single();
-            
-        if (error) {
-            console.log('Error fetching profile for streak update:', error);
-            return;
-        }
-        
-        let lastActive = profile.last_active ? new Date(profile.last_active) : null;
-        let streakDays = profile.streak_days || 0;
-        
-        if (lastActive) {
-            const lastActiveDate = new Date(lastActive.getTime() + pstOffset);
-            const lastActiveStr = lastActiveDate.toISOString().split('T')[0];
-            
-            const diffDays = Math.floor((today - lastActiveDate) / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 0) {
-                // Already active today
-                return;
-            } else if (diffDays === 1) {
-                // Consecutive day
-                streakDays++;
-            } else {
-                // Missed a day, reset streak
-                streakDays = 1;
-            }
-        } else {
-            // First time active
-            streakDays = 1;
-        }
-        
-        // Update profile
-        const { error: updateError } = await state.supabase
-            .from('profiles')
-            .update({
-                last_active: todayStr,
-                streak_days: streakDays,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', state.currentUser.id);
-            
-        if (updateError) {
-            console.log('Error updating streak:', updateError);
-        } else {
-            console.log('Streak updated:', streakDays, 'days');
-        }
-        
-    } catch (error) {
-        console.log('Error in updateStreak:', error);
-    }
-}
-
-// ADDED: Modified sendMessage to handle DM mode
-// We'll modify the existing sendMessage function to check isDMMode
-// Replace the existing sendMessage function with this modified version:
-async function sendMessage() {
-    try {
-        // MODIFIED: Check if in DM mode
-        if (isDMMode) {
-            await sendDMMessage();
-            return;
-        }
-        
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();        
-        if (!message || !state.currentUser || !state.currentChannel) return;
-        if (state.currentChannel.is_writable === false) {
-            showToast('Error', 'This channel is read-only', 'error');
-            return;
-        }
-        const optimisticMessage = {
-            id: `temp_${Date.now()}`,
-            content: message,
-            channel_id: state.currentChannel.id,
-            user_id: state.currentUser.id,
-            created_at: new Date().toISOString(),
-            profiles: {
-                username: state.userSettings?.username || state.currentUser.email?.split('@')[0],
-                avatar_url: state.userSettings?.avatar_url,
-                status: state.userSettings?.status || 'online',
-                stealth_mode: state.userSettings?.stealth_mode || false
-            }
-        };
-        appendMessage(optimisticMessage);
-        input.value = '';
-        input.style.height = 'auto';
-        updateSendButtonState();
-        setTimeout(() => {
-            const container = document.getElementById('messagesContainer');
-            if (container) container.scrollTop = container.scrollHeight;
-        }, 100);
-        state.supabase
-            .from('messages')
-            .insert([{
-                content: message,
-                channel_id: state.currentChannel.id,
-                user_id: state.currentUser.id
-            }])
-            .then(({ error }) => {
-                if (error) {
-                    console.log('Error sending message:', error);
-                    showToast('Error', 'Failed to send message', 'error');
-                }
-            });
-        // Extract mentions and create notifications
-        const mentions = extractMentions(message);
-        for (const username of mentions) {
-            const { data: user } = await state.supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', username)
-                .single();
-            if (user) {
-                await state.supabase
-                    .from('notifications')
-                    .insert({
-                        user_id: user.id,
-                        content: `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`,
-                        type: 'mention'
-                    });
-            }
-        }            
-    } catch (error) {
-        console.log('Error in sendMessage:', error);
-        showToast('Error', 'Failed to send message', 'error');
-    }
-}
-
-// ADDED: Modified switchRealm to handle DM mode deactivation
-// We need to modify the existing switchRealm function to set isDMMode = false
-// Replace the existing switchRealm function with this modified version:
-async function switchRealm(realmId) {
-    try {
-        if (!state.supabase) return;        
-        
-        // MODIFIED: Set isDMMode = false when selecting a realm
-        isDMMode = false;
-        currentDMChannel = null;
-        
-        // MODIFIED: Remove 'active' from #dm-header
-        const dmHeader = document.getElementById('dm-header');
-        if (dmHeader) {
-            dmHeader.classList.remove('active');
-        }
-        
-        // MODIFIED: Hide .dm-plus-button
-        const dmPlusButton = document.querySelector('.dm-plus-button');
-        if (dmPlusButton) {
-            dmPlusButton.style.display = 'none';
-        }
-        
-        console.log('Switching to realm:', realmId);        
-        const realm = state.joinedRealms.find(r => r.id === realmId);
-        if (!realm) {
-            console.log('Realm not found in joined realms');
-            return;
-        }      
-        state.currentRealm = realm;
-        // Update realm icon in sidebar
-        const realmIcon = document.querySelector('.realm-icon');
-        if (realmIcon && realm.icon_url) {
-            realmIcon.style.backgroundImage = `url(${realm.icon_url})`;
-            realmIcon.textContent = '';
-            realmIcon.style.backgroundSize = 'cover';
-            realmIcon.style.backgroundPosition = 'center';
-        } else if (realmIcon) {
-            realmIcon.style.backgroundImage = 'none';
-            realmIcon.textContent = realm.icon_url || '🏰';
-        }
-        document.getElementById('currentRealmName').textContent = realm.name;
-        document.getElementById('realmMembers').textContent = '';
-        
-        const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-        realmSettingsBtn.style.display = 'flex';
-        
-        showSkeletonUI();
-        state.supabase
-            .from('profiles')
-            .update({ last_realm_id: realm.id })
-            .eq('id', state.currentUser.id)
-            .then(() => console.log('Last realm updated'))
-            .catch(err => console.log('Error updating last realm (non-critical):', err));
-        loadChannels();
-        document.getElementById('realmDropdown').classList.remove('active');
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('active');
-        }
-        
-        setTimeout(() => checkRealmAnnouncement(realm), 500);
-    } catch (error) {
-        console.log('Error in switchRealm:', error);
-        showToast('Error', 'Failed to switch realm', 'error');
-    }
-}
-
-// ADDED: Modified initializeApp to include streak update
-// We need to modify the existing initializeApp function to call updateStreak
-// Replace the existing initializeApp function with this modified version:
-async function initializeApp() {
-    try {
-        if (state.isLoading) return;
-        state.isLoading = true;       
-        console.log('Initializing app v0.5.560 Beta...');
-        document.getElementById('app').style.display = 'flex';
-        document.getElementById('loginOverlay').style.display = 'none';
-        state.userSettings = await loadUserProfile();
-        if (state.userSettings) {
-            applyUserSettings();
-            updateHeaderUserButton();
-            fetchAndUpdateProfile(true);
-        }
-        await ensureProtectedRealmsJoined();
-        state.joinedRealms = await loadJoinedRealmsFast();
-        let realmToSelect = null;
-        const lastRealmId = state.userSettings?.last_realm_id;        
-        if (lastRealmId) {
-            realmToSelect = state.joinedRealms.find(r => r.id === lastRealmId);
-        }        
-        if (!realmToSelect && state.joinedRealms.length > 0) {
-            realmToSelect = state.joinedRealms.find(r => r.slug === 'labyrinth') || state.joinedRealms[0];
-        }
-        if (realmToSelect) {
-            state.currentRealm = realmToSelect;
-            // Update realm icon in sidebar
-            const realmIcon = document.querySelector('.realm-icon');
-            if (realmIcon && realmToSelect.icon_url) {
-                realmIcon.style.backgroundImage = `url(${realmToSelect.icon_url})`;
-                realmIcon.textContent = '';
-                realmIcon.style.backgroundSize = 'cover';
-                realmIcon.style.backgroundPosition = 'center';
-            } else if (realmIcon) {
-                realmIcon.style.backgroundImage = 'none';
-                realmIcon.textContent = realmToSelect.icon_url || '🏰';
-            }
-            document.getElementById('currentRealmName').textContent = realmToSelect.name;
-            document.getElementById('realmMembers').textContent = '';
-            
-            const realmSettingsBtn = document.getElementById('realmSettingsBtn');
-            realmSettingsBtn.style.display = 'flex';
-            
-            renderRealmDropdown();
-            loadChannels();
-        }
-        setupEventListeners();
-        
-        // MODIFIED: Add DM event listeners
-        setupDMEventListeners();
-        
-        initializePWA();
-        state.initComplete = true;
-        state.isLoading = false;
-        if (state.loaderTimeout) {
-            clearTimeout(state.loaderTimeout);
-            state.loaderTimeout = null;
-        }
-        hideLoader();
-        setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.560 Beta', 'success');
-        }, 500);
-        
-        setTimeout(checkWelcomeMessages, 1000);
-        
-        // ADDED: Update streak on app load
-        updateStreak();
-        
-    } catch (error) {
-        console.log('App initialization error:', error);
-        showToast('Error', 'App initialization failed', 'error');
-        hideLoader();
-        state.isLoading = false;
-    }
-}
-
-// ADDED: Modified updateMessageInputForChannel to handle DM mode
-// Replace the existing updateMessageInputForChannel function with this modified version:
-function updateMessageInputForChannel() {
-    try {
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const readOnlyNotice = document.getElementById('readOnlyNotice');        
-        
-        // MODIFIED: Handle DM mode
-        if (isDMMode) {
-            if (!currentDMChannel || !messageInput || !sendBtn) return;
-            
-            messageInput.disabled = false;
-            const participants = state.dmParticipants[currentDMChannel.id];
-            let placeholderText = 'Type a message...';
-            
-            if (participants && participants.length === 2) {
-                const otherUser = participants.find(p => p.user_id !== state.currentUser.id);
-                if (otherUser) {
-                    placeholderText = `Message ${otherUser.profile?.username || 'User'}`;
-                }
-            } else if (currentDMChannel.display_name) {
-                placeholderText = `Message ${currentDMChannel.display_name}`;
-            }
-            
-            messageInput.placeholder = placeholderText;
-            messageInput.style.opacity = "1";
-            messageInput.style.pointerEvents = "auto";
-            sendBtn.style.display = "flex";
-            readOnlyNotice.classList.remove('active');
-            
-            if (!messageInput.disabled) {
-                setTimeout(() => messageInput.focus(), 100);
-            }
-            
-            updateSendButtonState();
-            return;
-        }
-        
-        // Original code for realm mode
-        if (!state.currentChannel || !messageInput || !sendBtn) return;
-        const isWritable = state.currentChannel.is_writable !== false;
-        const isDMRealm = state.currentRealm?.slug === 'direct-messages';
-        const username = state.userSettings?.username || state.currentUser?.email?.split('@')[0];
-        const isSelfDM = isDMRealm && state.currentChannel?.name === `${username}_${username}`;
-        
-        if (!isWritable) {
-            messageInput.disabled = true;
-            messageInput.placeholder = "This channel is read-only";
-            messageInput.style.opacity = "0.5";
-            messageInput.style.pointerEvents = "none";
-            sendBtn.style.display = "none";
-            readOnlyNotice.classList.add('active');
-        } else {
-            messageInput.disabled = false;
-            let placeholderText = `Message ${isDMRealm ? (isSelfDM ? '📝' : '👤') : '#'}${state.currentChannel.name}`;
-            if (isSelfDM) {
-                placeholderText = 'Message 📝 Notes';
-            }
-            messageInput.placeholder = placeholderText;
-            messageInput.style.opacity = "1";
-            messageInput.style.pointerEvents = "auto";
-            sendBtn.style.display = "flex";
-            readOnlyNotice.classList.remove('active');
-            if (!messageInput.disabled) {
-                setTimeout(() => messageInput.focus(), 100);
-            }
-        }        
-        updateSendButtonState();        
-    } catch (error) {
-        console.log('Error updating message input for channel:', error);
-    }
-}
-
-// ADDED: Modified showStartConversationModal to handle DM context
-// Replace the existing showStartConversationModal function with this modified version:
-function showStartConversationModal(forMention = false, context = "start") {
-    try {
-        state.mentionSearchActive = forMention;
-        // Store context for handling selection
-        const modal = document.getElementById('startConversationModal');
-        if (modal) {
-            modal.dataset.context = context;
-        }
-        
-        document.getElementById('startConversationModal').style.display = 'flex';
-        document.getElementById('userSearchInput').value = '';
-        document.getElementById('userSearchResults').style.display = 'none';
-        document.getElementById('userSearchInput').focus();
-    } catch (error) {
-        console.log('Error showing start conversation modal:', error);
-        showToast('Error', 'Failed to open search', 'error');
-    }
-}
-
-// ADDED: Modified searchUsers to handle DM context
-// Replace the existing searchUsers function with this modified version:
-async function searchUsers(searchTerm) {
-    try {
-        if (!state.supabase || !searchTerm.trim()) {
-            document.getElementById('userSearchResults').style.display = 'none';
-            return;
-        }
-        
-        const { data: users, error } = await state.supabase
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .ilike('username', `%${searchTerm}%`)
-            .neq('id', state.currentUser.id)
-            .limit(10);
-            
-        if (error) {
-            console.log('Error searching users:', error);
-            return;
-        }
-        
-        const resultsContainer = document.getElementById('userSearchResults');
-        resultsContainer.innerHTML = '';
-        
-        if (users.length === 0) {
-            resultsContainer.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">
-                    No users found
-                </div>
-            `;
-            resultsContainer.style.display = 'block';
-            return;
-        }
-        
-        users.forEach(user => {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'search-result';
-            resultItem.innerHTML = `
-                <img class="search-result-avatar" src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
-                <div class="search-result-info">
-                    <div class="search-result-name">${escapeHtml(user.username)}</div>
-                </div>
-            `;
-            
-            resultItem.addEventListener('click', async () => {
-                const modal = document.getElementById('startConversationModal');
-                const context = modal?.dataset.context || 'start';
-                
-                if (state.mentionSearchActive) {
-                    insertMention(user.username);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                    state.mentionSearchActive = false;
-                } else if (context === 'start') {
-                    // MODIFIED: Handle DM creation
-                    await handleUserSearchSelectForDM(user.id, user.username);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                } else {
-                    // Original behavior for other contexts
-                    await createOrOpenDM(user.id);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                }
-            });
-            
-            resultsContainer.appendChild(resultItem);
-        });
-        
-        resultsContainer.style.display = 'block';
-    } catch (error) {
-        console.log('Error searching users:', error);
-    }
-}
-
-// ADDED: Cleanup function for DM mode
-function cleanupDMMode() {
-    try {
-        if (dmSettingsSubscription) {
-            state.supabase.removeChannel(dmSettingsSubscription);
-            dmSettingsSubscription = null;
-        }
-        
-        if (dmChannelsSubscription) {
-            state.supabase.removeChannel(dmChannelsSubscription);
-            dmChannelsSubscription = null;
-        }
-        
-        currentDMChannel = null;
-        state.dmChannels = [];
-        state.dmParticipants = {};
-        state.dmNotificationsSettings = {};
-    } catch (error) {
-        console.log('Error cleaning up DM mode:', error);
-    }
-}
 
 function hideLoader() {
     try {
@@ -2350,8 +1112,6 @@ function extractRumbleId(url) {
 function formatMessageContent(content) {
     if (!content) return '';
     let escapedContent = escapeHtml(content);
-    // Highlight mentions
-    escapedContent = escapedContent.replace(/@(\w+)/g, '<span class="mention" data-username="$1">@$1</span>');
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return escapedContent.replace(urlRegex, function(url) {
         const cleanUrl = url.replace(/[.,!?;:]$/, '');
@@ -2963,7 +1723,7 @@ function setupMessageSubscription() {
     }
 }
 
-async function sendMessage() {
+function sendMessage() {
     try {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();        
@@ -3005,39 +1765,11 @@ async function sendMessage() {
                     console.log('Error sending message:', error);
                     showToast('Error', 'Failed to send message', 'error');
                 }
-            });
-        // Extract mentions and create notifications
-        const mentions = extractMentions(message);
-        for (const username of mentions) {
-            const { data: user } = await state.supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', username)
-                .single();
-            if (user) {
-                await state.supabase
-                    .from('notifications')
-                    .insert({
-                        user_id: user.id,
-                        content: `You were mentioned by ${state.userSettings.username} in ${state.currentChannel.name}`,
-                        type: 'mention'
-                    });
-            }
-        }            
+            });            
     } catch (error) {
         console.log('Error in sendMessage:', error);
         showToast('Error', 'Failed to send message', 'error');
     }
-}
-
-function extractMentions(text) {
-    const mentionRegex = /@(\w+)/g;
-    const mentions = [];
-    let match;
-    while ((match = mentionRegex.exec(text)) !== null) {
-        mentions.push(match[1]);
-    }
-    return [...new Set(mentions)]; // Remove duplicates
 }
 
 function updateUserUI() {
@@ -3256,8 +1988,8 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.560 Beta...');
-        state.loaderTimeout = setTimeout(hideLoader, 5000);
+        console.log('Initializing Supabase v0.5.56 Beta...');
+        state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
                 persistSession: true,
@@ -3375,7 +2107,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.560 Beta...');
+        console.log('Initializing app v0.5.56 Beta...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -3426,7 +2158,7 @@ async function initializeApp() {
         }
         hideLoader();
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.560 Beta', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.5.56 Beta', 'success');
         }, 500);
         
         setTimeout(checkWelcomeMessages, 1000);
@@ -3539,17 +2271,6 @@ async function loadInitialData() {
     }
 }
 
-function updateOnlineStatus(online) {
-    state.isOnline = online;
-    const offlineOverlay = document.getElementById('offlineOverlay');
-    if (!offlineOverlay) return;
-    if (!online) {
-        offlineOverlay.style.display = 'flex';
-    } else {
-        offlineOverlay.style.display = 'none';
-    }
-}
-
 function setupEventListeners() {
     try {
         document.getElementById('mobileMenuBtn').addEventListener('click', function(e) {
@@ -3618,12 +2339,6 @@ function setupEventListeners() {
                     e.preventDefault();
                     sendMessage();
                 }
-            }
-            // Handle @ mention trigger
-            if (e.key === '@') {
-                e.preventDefault();
-                state.mentionSearchActive = true;
-                showStartConversationModal(true);
             }
         });
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
@@ -3701,7 +2416,8 @@ function setupEventListeners() {
             if (toggle) {
                 toggle.addEventListener('change', async function() {
                     if (toggleId === 'settingsPushNotifications') {
-                        await subscribeToPushNotifications();
+                        showToast('Coming Soon', 'Push notifications will be available in a future update', 'info');
+                        this.checked = false;
                         return;
                     }
                     if (toggleId === 'settingsEmailNotifications') {
@@ -4016,7 +2732,6 @@ function setupEventListeners() {
                     if (this.id === 'startConversationModal') {
                         document.getElementById('userSearchInput').value = '';
                         document.getElementById('userSearchResults').style.display = 'none';
-                        state.mentionSearchActive = false;
                     }
                 }
             });
@@ -4087,14 +2802,12 @@ function setupEventListeners() {
             document.getElementById('startConversationModal').style.display = 'none';
             document.getElementById('userSearchInput').value = '';
             document.getElementById('userSearchResults').style.display = 'none';
-            state.mentionSearchActive = false;
         });
         
         document.getElementById('startConversationModalCloseBtn').addEventListener('click', function() {
             document.getElementById('startConversationModal').style.display = 'none';
             document.getElementById('userSearchInput').value = '';
             document.getElementById('userSearchResults').style.display = 'none';
-            state.mentionSearchActive = false;
         });
         
         document.getElementById('enhancedMediaClose').addEventListener('click', function() {
@@ -4211,36 +2924,9 @@ function setupEventListeners() {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
         
-        // Online/offline event listeners
-        window.addEventListener('online', () => updateOnlineStatus(true));
-        window.addEventListener('offline', () => updateOnlineStatus(false));
-        setInterval(() => updateOnlineStatus(navigator.onLine), 60000);
-        
-        
     } catch (error) {
         console.log('Error setting up event listeners:', error);
     }
-}
-
-function handleTyping() {
-    if (!state.presenceSubscription || !state.currentChannel) return;
-    clearTimeout(state.typingTimeout);
-    if (!state.isTyping) {
-        state.isTyping = true;
-        state.presenceSubscription.track({
-            user_id: state.currentUser.id,
-            username: state.userSettings.username,
-            typing: true
-        }, true);
-    }
-    state.typingTimeout = setTimeout(() => {
-        state.isTyping = false;
-        state.presenceSubscription.track({
-            user_id: state.currentUser.id,
-            username: state.userSettings.username,
-            typing: false
-        }, true);
-    }, 1000);
 }
 
 async function showRealmSettingsModal() {
@@ -4341,7 +3027,7 @@ async function loadCoAdmins() {
             const adminElement = document.createElement('div');
             adminElement.className = 'co-admin-item';
             adminElement.innerHTML = `
-                <img src="${admin.avatar_url ? admin.avatar_url + '?t=' + Date.now() : ''}" alt="${admin.username}" onerror="this.style.display='none';" style="width: 30px; height: 30px; border-radius: 50%; margin-right: 8px;">
+                <img src="${admin.avatar_url ? admin.avatar_url + '?t=' + Date.now() : ''}" alt="${admin.username}" onerror="this.style.display='none';">
                 <span>${escapeHtml(admin.username)}</span>
                 <button class="remove-co-admin-btn" data-user-id="${admin.id}">Remove</button>
             `;
@@ -5285,9 +3971,6 @@ async function showUserProfile(userId, profileData = null) {
         
         state.selectedUserForProfile = profile.id;
         document.getElementById('publicProfileModal').style.display = 'flex';
-        // Center the modal
-        document.getElementById('publicProfileModal').style.alignItems = 'center';
-        document.getElementById('publicProfileModal').style.justifyContent = 'center';
     } catch (error) {
         console.log('Error showing user profile:', error);
         showToast('Error', 'Failed to load user profile', 'error');
@@ -5678,21 +4361,12 @@ function initializePWA() {
             e.preventDefault();
             deferredPrompt = e;
             console.log('PWA install prompt available - relying on native browser install');
-            // Show custom install button
-            document.getElementById('installPWAButton').style.display = 'flex';
         });
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed successfully');
             deferredPrompt = null;
             console.log('PWA installed successfully via native browser install');
-            document.getElementById('installPWAButton').style.display = 'none';
         });
-        // Check for iOS
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-            // Show iOS install tooltip
-            document.getElementById('iosInstallTooltip').style.display = 'block';
-        }
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
             navigator.serviceWorker.register('/sw.js')
                 .then((registration) => {
@@ -5716,39 +4390,6 @@ function initializePWA() {
         }        
     } catch (error) {
         console.log('Error initializing PWA (non-critical):', error);
-    }
-}
-
-async function subscribeToPushNotifications() {
-    try {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            showToast('Error', 'Push notifications not supported', 'error');
-            return;
-        }
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            showToast('Error', 'Permission denied for push notifications', 'error');
-            return;
-        }
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: 'BDizcBGIv3G_5PqGAFYr19qiEX2o0kZaKlFUDXQMX5xrgvCk0PNFf14WDPZezmmewMguw07DHkHs4FSdCT07I-A'
-        });
-        // Save subscription to profiles.push_notifications
-        const { error } = await state.supabase
-            .from('profiles')
-            .update({ push_notifications: subscription })
-            .eq('id', state.currentUser.id);
-        if (error) {
-            console.log('Error saving push subscription:', error);
-            showToast('Error', 'Failed to save push subscription', 'error');
-            return;
-        }
-        showToast('Success', 'Push notifications enabled', 'success');
-    } catch (error) {
-        console.log('Error subscribing to push notifications:', error);
-        showToast('Error', 'Failed to enable push notifications', 'error');
     }
 }
 
@@ -6313,9 +4954,8 @@ async function addReaction(emoji) {
     }
 }
 
-function showStartConversationModal(forMention = false) {
+function showStartConversationModal() {
     try {
-        state.mentionSearchActive = forMention;
         document.getElementById('startConversationModal').style.display = 'flex';
         document.getElementById('userSearchInput').value = '';
         document.getElementById('userSearchResults').style.display = 'none';
@@ -6369,18 +5009,10 @@ async function searchUsers(searchTerm) {
             `;
             
             resultItem.addEventListener('click', async () => {
-                if (state.mentionSearchActive) {
-                    insertMention(user.username);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                    state.mentionSearchActive = false;
-                } else {
-                    await createOrOpenDM(user.id);
-                    document.getElementById('startConversationModal').style.display = 'none';
-                    document.getElementById('userSearchInput').value = '';
-                    resultsContainer.style.display = 'none';
-                }
+                await createOrOpenDM(user.id);
+                document.getElementById('startConversationModal').style.display = 'none';
+                document.getElementById('userSearchInput').value = '';
+                resultsContainer.style.display = 'none';
             });
             
             resultsContainer.appendChild(resultItem);
@@ -6390,17 +5022,6 @@ async function searchUsers(searchTerm) {
     } catch (error) {
         console.log('Error searching users:', error);
     }
-}
-
-function insertMention(username) {
-    const messageInput = document.getElementById('messageInput');
-    const cursorPos = messageInput.selectionStart;
-    const textBefore = messageInput.value.substring(0, cursorPos);
-    const textAfter = messageInput.value.substring(cursorPos);
-    messageInput.value = textBefore + '@' + username + ' ' + textAfter;
-    messageInput.focus();
-    messageInput.selectionStart = cursorPos + username.length + 2;
-    messageInput.selectionEnd = cursorPos + username.length + 2;
 }
 
 async function createChannel() {
@@ -6577,11 +5198,11 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.560 Beta...');
-    document.title = 'Labyrinth Chat v0.5.560 Beta';
-    document.querySelector('.version').textContent = 'v0.5.560 Beta';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.560 Beta • Fully Functional';
-    state.loaderTimeout = setTimeout(hideLoader, 5000);
+    console.log('Initializing Labyrinth Chat v0.5.56 Beta...');
+    document.title = 'Labyrinth Chat v0.5.56 Beta';
+    document.querySelector('.version').textContent = 'v0.5.56 Beta';
+    document.querySelector('.login-subtitle').textContent = 'v0.5.56 Beta • Fully Functional';
+    state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);
 });

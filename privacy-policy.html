@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Privacy Policy | Labyrinth by BenGurWaves</title>
+<meta name="description" content="Privacy Policy for Labyrinth™ and LabyrinthChat™ services." />
+<meta property="og:description" content="Privacy Policy for Labyrinth™ and LabyrinthChat™ services." />
+<meta name="twitter:description" content="Privacy Policy for Labyrinth™ and LabyrinthChat™ services" />
+<meta name="theme-color" content="#0a0a0a" />
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;350;400&display=swap" rel="stylesheet">
+<style>
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { height: 100%; scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  min-height: 100%;
+  background: #0a0a0a;
+  color: #f5f5f5;
+  font-family: 'Inter', sans-serif;
+  font-weight: 350;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  cursor: none;
+}
+:root {
+  --color-black: #0a0a0a;
+  --color-white: #f5f5f5;
+  --color-gold: rgba(202, 168, 122, 0.9);
+  --color-gold-light: rgba(202, 168, 122, 0.4);
+  --transition-slow: 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-base: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-fast: 0.2s ease;
+}
+.cursor {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-gold-light);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s, border 0.3s;
+}
+.cursor--active { width: 48px; height: 48px; border-color: var(--color-gold); }
+.grain-overlay {
+  position: fixed;
+  top: -100%; left: -100%;
+  width: 300%; height: 300%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.02;
+  animation: grain 8s steps(10) infinite;
+}
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, -20%); }
+  30% { transform: translate(-10%, -25%); }
+  40% { transform: translate(-20%, -5%); }
+  50% { transform: translate(-25%, -15%); }
+  60% { transform: translate(-15%, -20%); }
+  70% { transform: translate(-20%, -10%); }
+  80% { transform: translate(-5%, -25%); }
+  90% { transform: translate(-25%, -5%); }
+}
+.loader {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--color-black);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-slow), visibility var(--transition-slow);
+}
+.loader__text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--color-gold-light);
+  opacity: 0;
+  animation: loaderPulse 2.4s infinite;
+  margin-bottom: 24px;
+}
+@keyframes loaderPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+.loader__subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(202, 168, 122, 0.4);
+  text-transform: uppercase;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.typing-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background-color: rgba(202, 168, 122, 0.6);
+  margin-left: 2px;
+  animation: blink 1.2s infinite;
+  vertical-align: middle;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.loader--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.nav {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  padding: 2.5rem 3rem;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  mix-blend-mode: difference;
+}
+.nav__logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--color-white);
+  text-decoration: none;
+  pointer-events: auto;
+  position: relative;
+}
+.nav__logo::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width var(--transition-base);
+}
+.nav__logo:hover::after { width: 100%; }
+.nav__toggle {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  color: var(--color-white);
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+  position: relative;
+}
+.nav__toggle::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width var(--transition-base);
+}
+.nav__toggle:hover::after { width: 100%; }
+.menu {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(5, 5, 5, 0.98);
+  backdrop-filter: blur(20px);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-slow), visibility var(--transition-slow);
+}
+.menu--active {
+  opacity: 1;
+  visibility: visible;
+}
+.menu__content {
+  text-align: center;
+}
+.menu__item {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3rem, 6vw, 5rem);
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  margin: 1.5rem 0;
+  transition: color var(--transition-base), letter-spacing var(--transition-base);
+  letter-spacing: 0.02em;
+}
+.menu__item:hover {
+  color: var(--color-gold);
+  letter-spacing: 0.08em;
+}
+
+/* Privacy Policy Content */
+.privacy-policy {
+  padding: 15rem 10% 8rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.privacy-policy__header {
+  text-align: center;
+  margin-bottom: 4rem;
+  opacity: 0;
+  transform: translateY(30px);
+}
+.privacy-policy__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+  color: var(--color-white);
+}
+.privacy-policy__date {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-gold-light);
+  opacity: 0.7;
+}
+.privacy-policy__content {
+  opacity: 0;
+  transform: translateY(30px);
+}
+.privacy-policy__disclaimer {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: rgba(245, 245, 245, 1);
+  font-weight: 500;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(202, 168, 122, 0.15);
+}
+.privacy-policy__body {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.68;
+  color: rgba(245, 245, 245, 0.88);
+}
+.privacy-policy__body h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  margin: 2.5rem 0 1rem;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.02em;
+}
+.privacy-policy__body p {
+  margin-bottom: 1.2rem;
+  text-align: left;
+}
+.privacy-policy__body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.85rem;
+}
+.privacy-policy__body th,
+.privacy-policy__body td {
+  border: 1px solid rgba(202, 168, 122, 0.15);
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+.privacy-policy__body th {
+  background: rgba(202, 168, 122, 0.05);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+.privacy-policy__body ul {
+  margin: 1rem 0 1rem 1.5rem;
+}
+.privacy-policy__body li {
+  margin-bottom: 0.5rem;
+}
+
+.footer {
+  padding: 5rem 10% 3rem;
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+.footer__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4rem;
+  margin-bottom: 4rem;
+}
+.footer__column h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.7);
+}
+.footer__links {
+  list-style: none;
+}
+.footer__links li {
+  margin-bottom: 0.8rem;
+}
+.footer__links a {
+  color: rgba(255,255,255,0.4);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color var(--transition-base);
+}
+.footer__links a:hover {
+  color: var(--color-gold);
+}
+.footer__bottom {
+  text-align: center;
+  padding-top: 3rem;
+  border-top: 1px solid rgba(255,255,255,0.02);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.05em;
+}
+
+.fade-in {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  transition: opacity 1.4s ease, transform 1.4s ease;
+}
+@media (max-width: 768px) {
+  .nav { padding: 2rem; }
+  .privacy-policy { padding: 12rem 5% 5rem; }
+  .footer__grid { grid-template-columns: 1fr; gap: 3rem; }
+  .privacy-policy__body table {
+    font-size: 0.75rem;
+  }
+  .privacy-policy__body th,
+  .privacy-policy__body td {
+    padding: 0.5rem;
+  }
+}
+@media (max-width: 480px) {
+  .nav { padding: 1.5rem; }
+  .footer { padding: 4rem 5% 2rem; }
+  .privacy-policy { padding: 10rem 1.5rem 4rem; }
+}
+</style>
+</head>
+<body>
+<div class="grain-overlay"></div>
+<div class="cursor"></div>
+<div class="loader" id="loader">
+  <div class="loader__text">LABYRINTH</div>
+  <div class="loader__subtitle" id="typingText"></div>
+</div>
+<nav class="nav">
+  <button class="nav__logo nav__toggle" id="companyToggle">LABYRINTH</button>
+  <button class="nav__toggle" id="menuToggle">MENU</button>
+</nav>
+<div class="menu" id="menu">
+  <div class="menu__content">
+    <a href="https://labyrinth.bengurwaves.com" class="menu__item">Home</a>
+    <a href="https://labyrinth.bengurwaves.com/terms-and-conditions" class="menu__item">Terms and Conditions</a>
+    <a href="https://labyrinth.bengurwaves.com/privacy-policy" class="menu__item">Privacy Policy</a>
+    <a href="https://labyrinth.bengurwaves.com/age-assurance-policy" class="menu__item">Age Assurance Policy</a>
+  </div>
+</div>
+<div class="menu" id="companyMenu">
+  <div class="menu__content">
+    <a href="https://www.bengurwaves.com" class="menu__item">BenGurWaves</a>
+    <a href="https://labyrinth.bengurwaves.com" class="menu__item">Labyrinth</a>
+    <a href="https://sync.bengurwaves.com" class="menu__item">Sync</a>
+    <a href="https://pontus.bengurwaves.com" class="menu__item">Pontus</a>
+    <a href="https://marenth.bengurwaves.com" class="menu__item">Marenth</a>
+  </div>
+</div>
+
+<main>
+  <section class="privacy-policy">
+    <div class="privacy-policy__header">
+      <h1 class="privacy-policy__title">Privacy Policy of Service</h1>
+      <div class="privacy-policy__date">Last updated: January 10, 2026</div>
+    </div>
+    <div class="privacy-policy__content">
+      <div class="privacy-policy__disclaimer">
+        Service: Labyrinth™ / LabyrinthChat™<br>
+        Provider: BenGurWaves™ (Sole Proprietor) — BenGurWaves - bengurwaves@gmail.com
+      </div>
+      <div class="privacy-policy__body">
+        <p>This Privacy Policy explains how we collect, use, store, share, and protect your personal information when you use Labyrinth™ (the “Service”). It applies to all users and is incorporated into our Terms and Conditions and Age Assurance Policy.</p>
+        <p>We are committed to transparency, data minimization (especially for minors), and child safety. We do not sell your personal information, and we do not use your private messages or Realm content to train artificial intelligence or machine learning models.</p>
+
+        <h2>1. Notice at Collection (California CPRA and General Transparency)</h2>
+        <p>By creating an account or using the Service, you acknowledge the data practices described below.</p>
+
+        <h2>1.1 Categories of Personal Information We Collect, Purposes, and Sharing</h2>
+        <table>
+          <tr>
+            <th>Category</th>
+            <th>Examples of Data Collected</th>
+            <th>Purposes</th>
+            <th>Shared With</th>
+          </tr>
+          <tr>
+            <td>Identifiers</td>
+            <td>Email address, username/display name, IP address, unique session/device identifiers</td>
+            <td>Account creation, authentication, security, fraud prevention, service operation</td>
+            <td>Supabase (database/storage), Cloudflare (security/CDN), law enforcement (if legally required)</td>
+          </tr>
+          <tr>
+            <td>Protected Characteristics</td>
+            <td>Date of birth</td>
+            <td>Age assurance, access restrictions, compliance with child safety laws</td>
+            <td>Not shared with third parties except age verification vendors (if used) or law enforcement (if required)</td>
+          </tr>
+          <tr>
+            <td>Sensitive Personal Information (SPI)</td>
+            <td>All data related to users under 16 (treated as SPI under California law)</td>
+            <td>Age-based access control, child safety, legal compliance</td>
+            <td>Not shared with third parties except law enforcement (if required for mandatory reporting)</td>
+          </tr>
+          <tr>
+            <td>Internet/Network Activity</td>
+            <td>Browser type, device/OS information, pages viewed, referral sources, traffic patterns, interaction logs</td>
+            <td>Service improvement, security, abuse prevention, analytics</td>
+            <td>Cloudflare (security/traffic), Google Analytics (non-anonymized usage data)</td>
+          </tr>
+          <tr>
+            <td>User Content</td>
+            <td>Messages, posts, files, images uploaded to Realms or chats</td>
+            <td>Providing the Service, displaying content to intended recipients, moderation/safety</td>
+            <td>Other users (only as you intend), law enforcement (if required); NOT shared with AI vendors</td>
+          </tr>
+        </table>
+        <p>We do not knowingly collect personal information from children under 13.</p>
+
+        <h2>1.2 Data Minimization for Users Under 18</h2>
+        <p>For users who declare or are verified as under 18, we collect only what is necessary:</p>
+        <ul>
+          <li>Email, username, date of birth, hashed password, and limited IP/logs for security.</li>
+          <li>We do *not* collect precise location, phone numbers, detailed device fingerprints, or unnecessary metadata.</li>
+          <li>Traffic and interaction logs are retained for shorter periods (30 days) and used only for safety and security.</li>
+        </ul>
+
+        <h2>1.3 Retention Summary</h2>
+        <table>
+          <tr>
+            <th>Category</th>
+            <th>Standard Retention</th>
+            <th>Exceptions</th>
+          </tr>
+          <tr>
+            <td>Email/Username</td>
+            <td>Until account deletion</td>
+            <td>Hashed version retained 3 years for fraud prevention</td>
+          </tr>
+          <tr>
+            <td>Date of Birth</td>
+            <td>Until account deletion</td>
+            <td>Deleted immediately upon request (subject to legal holds)</td>
+          </tr>
+          <tr>
+            <td>User Content/Messages</td>
+            <td>Until you delete or account deletion</td>
+            <td>Preserved if flagged for abuse/CSAM (until investigation resolves)</td>
+          </tr>
+          <tr>
+            <td>IP Address/Logs</td>
+            <td>90 days</td>
+            <td>Longer if active abuse investigation</td>
+          </tr>
+          <tr>
+            <td>Under-18 Data (SPI)</td>
+            <td>Deleted within 30 days of account deletion</td>
+            <td>Preserved only for legal holds or mandatory reporting</td>
+          </tr>
+        </table>
+
+        <h2>2. How We Use Personal Information</h2>
+        <p>We use your information only to:</p>
+        <ul>
+          <li>Provide, operate, and improve the Service</li>
+          <li>Authenticate and manage accounts</li>
+          <li>Enforce age restrictions and safety rules</li>
+          <li>Detect and prevent abuse, fraud, or security issues</li>
+          <li>Comply with legal obligations (including child safety reporting)</li>
+          <li>Analyze usage to maintain performance</li>
+        </ul>
+        <p>We do *not* use private content for marketing, profiling, or AI training.</p>
+
+        <h2>3. User Content and Ownership</h2>
+        <h2>3.1 You Own Your Content</h2>
+        <p>You retain full ownership and all rights to the messages, posts, files, and other content you create.</p>
+
+        <h2>3.2 Limited License</h2>
+        <p>You grant us a revocable, non-exclusive, royalty-free license to store, display, transmit, and back up your content solely to operate the Service and enforce our policies.</p>
+
+        <h2>3.3 No AI or Machine Learning Use</h2>
+        <p>We do *not* use your private messages or Realm content to train AI/ML models (ours or third-party). This prohibition applies to us, our Service Providers, and any future acquirer.</p>
+
+        <h2>4. Data Deletion and Retention</h2>
+        <h2>4.1 How to Request Deletion</h2>
+        <p>Delete your account via in-app settings or by emailing labyrinthchat@gmail.com with subject “DELETION REQUEST.”</p>
+
+        <h2>4.2 Deletion Process and Timeline</h2>
+        <ul>
+          <li>Day 0–2: Verification and immediate disable of account access.</li>
+          <li>Day 2–14: Removal from active systems (profile, content, messages).</li>
+          <li>Day 14–60: Deletion from backups and Service Provider systems.</li>
+          <li>Day 60: Final confirmation email sent.</li>
+        </ul>
+        <p>You will receive status updates and a final confirmation.</p>
+
+        <h2>4.3 Limited Exceptions</h2>
+        <ul>
+          <li>Hashed email/username retained up to 3 years for fraud prevention (non-reversible, not used for any other purpose).</li>
+          <li>Content flagged for CSAM/abuse preserved until investigation resolves.</li>
+          <li>Data subject to legal hold or law enforcement request retained as required.</li>
+        </ul>
+
+        <h2>4.4 Service Provider Coordination</h2>
+        <p>We instruct Supabase, Cloudflare, and other providers to delete your data (including backups) per the above timeline.</p>
+
+        <h2>5. Third-Party Service Providers</h2>
+        <p>All providers are bound by Data Processing Agreements requiring security, limited use, and deletion on request.</p>
+        <table>
+          <tr>
+            <th>Provider</th>
+            <th>Purpose</th>
+            <th>Data Shared</th>
+            <th>Key Notes</th>
+          </tr>
+          <tr>
+            <td>Supabase</td>
+            <td>Database and storage</td>
+            <td>Email, username, content, profile data, logs</td>
+            <td>Backups retained 30 days post-deletion</td>
+          </tr>
+          <tr>
+            <td>Cloudflare</td>
+            <td>Hosting, security, CDN</td>
+            <td>IP address, traffic patterns, browser metadata</td>
+            <td>Logs retained up to 30 days</td>
+          </tr>
+          <tr>
+            <td>Google Analytics</td>
+            <td>Usage analytics</td>
+            <td>Session data, pages viewed, device type, IP address (non-anonymized)</td>
+            <td>Retained per Google policy (default 14 months); opt-out available via browser add-on</td>
+          </tr>
+        </table>
+        <p>If we use third-party age verification services, they will receive date of birth and (if needed) ID data solely for verification, which they delete promptly after use.</p>
+        <p>Data is primarily processed in the U.S. We use appropriate safeguards (including Standard Contractual Clauses) for international transfers.</p>
+
+        <h2>6. Sensitive Personal Information and Minors</h2>
+        <p>Data of users under 16 is treated as Sensitive Personal Information. It is used only for age assurance, access control, safety, and legal compliance. It is not sold, shared for marketing, or used for profiling.</p>
+
+        <h2>7. Your Privacy Rights and How to Exercise Them</h2>
+        <p>Submit requests via:</p>
+        <ul>
+          <li>Email: labyrinthchat@gmail.com</li>
+          <li>In-app settings where available</li>
+        </ul>
+        <p>We verify identity via registered email or username. Response within 45 days (California) or 30 days (GDPR), with possible extension.</p>
+
+        <h2>7.1 California Residents (CCPA/CPRA)</h2>
+        <p>You have the right to:</p>
+        <ul>
+          <li>Know/access your data</li>
+          <li>Correct inaccurate data</li>
+          <li>Delete your data</li>
+          <li>Limit use of Sensitive Personal Information</li>
+          <li>Opt out of sale/sharing (we do not sell)</li>
+          <li>Non-discrimination</li>
+        </ul>
+        <p>We honor Global Privacy Control (GPC) signals.</p>
+
+        <h2>7.2 EEA/UK and Similar Jurisdictions (GDPR)</h2>
+        <p>You have the right to:</p>
+        <ul>
+          <li>Access, rectify, erase, restrict processing</li>
+          <li>Data portability</li>
+          <li>Object to processing</li>
+        </ul>
+        <p>Contact our Data Protection contact: labyrinthchat@gmail.com</p>
+
+        <h2>8. Security Measures</h2>
+        <p>We use industry-standard safeguards (encryption, access controls, secure providers). However, no system is 100% secure.</p>
+
+        <h2>9. Mandatory Reporting and Legal Disclosures</h2>
+        <p>We may disclose data when legally required, including mandatory CSAM reporting to NCMEC/law enforcement (without notice if it would interfere). We resist over broad requests and publish an annual transparency report on law enforcement requests.</p>
+
+        <h2>10. Changes to This Policy</h2>
+        <p>Material changes (e.g., new data uses or sharing) will receive 30 days’ advance notice via email or in-Service alert. You may delete your account if you do not accept. Non-material changes take effect upon posting.</p>
+
+        <h2>11. Contact Us</h2>
+        <p>For privacy questions or requests:</p>
+        <p>General support: In-app Features (preferred)<br>
+        Email: labyrinthchat@gmail.com</p>
+        <p>We respond to verified requests promptly and maintain records of all privacy inquiries.</p>
+        <p>Thank you for trusting us with your information. We operate responsibly and prioritize safety and privacy.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer__grid">
+      <div class="footer__column">
+        <h4>Navigation</h4>
+        <ul class="footer__links">
+          <li><a href="https://labyrinth.bengurwaves.com">Home</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/terms-and-conditions">Terms and Conditions</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/privacy-policy">Privacy Policy</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/age-assurance-policy">Age Assurance Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer__column">
+        <h4>Connect</h4>
+        <ul class="footer__links">
+          <li><a href="mailto:contact@bengurwaves.com">Email</a></li>
+          <li><a href="https://www.instagram.com/bengurwaves" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+          <li><a href="https://www.youtube.com/@bengurwaves" target="_blank" rel="noopener noreferrer">YouTube</a></li>
+          <li><a href="https://www.tiktok.com/@bengurwaves" target="_blank" rel="noopener noreferrer">TikTok</a></li>
+        </ul>
+      </div>
+      <div class="footer__column">
+        <h4>Entities</h4>
+        <ul class="footer__links">
+          <li><a href="https://www.bengurwaves.com">BenGurWaves</a></li>
+          <li><a href="https://sync.bengurwaves.com">Sync</a></li>
+          <li><a href="https://pontus.bengurwaves.com">Pontus</a></li>
+          <li><a href="https://marenth.bengurwaves.com">Marenth</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      © 2026 BenGurWaves™ | © 2026 Labyrinth™ | © 2026 LabyrinthChat™
+    </div>
+  </footer>
+</main>
+
+<script>
+/* Security Warning */
+console.log('%c⚠ This website is protected. Unauthorized copying is monitored.', 'color: red; font-size: 16px; font-weight: bold;');
+
+/* ============================================================================
+   Initialization
+   ============================================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  initLoader();
+  initCustomCursor();
+  initMenu();
+  initCompanyMenu();
+  initPrivacyPolicyFade();
+  initPersonalization();
+  initEasterEgg();
+});
+
+/* ============================================================================
+   Loader with Typing Subtitle
+   ============================================================================ */
+function initLoader() {
+  const loader = document.getElementById('loader');
+  const typingText = document.getElementById('typingText');
+  const text = "by BenGurWaves";
+  let index = 0;
+
+  function typeCharacter() {
+    if (index < text.length) {
+      typingText.innerHTML = text.substring(0, index + 1) + '<span class="typing-cursor"></span>';
+      index++;
+      setTimeout(typeCharacter, 90);
+    } else {
+      typingText.innerHTML = text + '<span class="typing-cursor"></span>';
+    }
+  }
+
+  setTimeout(() => {
+    typeCharacter();
+  }, 400);
+
+  setTimeout(() => {
+    loader.classList.add('loader--hidden');
+    setTimeout(() => document.querySelector('.privacy-policy__header').classList.add('fade-in'), 300);
+    setTimeout(() => document.querySelector('.privacy-policy__content').classList.add('fade-in'), 700);
+  }, 3200);
+}
+
+/* ============================================================================
+   Custom Cursor
+   ============================================================================ */
+function initCustomCursor() {
+  const cursor = document.querySelector('.cursor');
+  if (!cursor || window.matchMedia('(pointer: coarse)').matches) {
+    document.body.style.cursor = 'auto';
+    return;
+  }
+  let mouseX = 0, mouseY = 0;
+  let cursorX = 0, cursorY = 0;
+  const speed = 0.15;
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursor.style.opacity = '1';
+  });
+  function animateCursor() {
+    const dx = mouseX - cursorX;
+    const dy = mouseY - cursorY;
+    cursorX += dx * speed;
+    cursorY += dy * speed;
+    cursor.style.left = cursorX + 'px';
+    cursor.style.top = cursorY + 'px';
+    requestAnimationFrame(animateCursor);
+  }
+  animateCursor();
+  document.querySelectorAll('a, button').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('cursor--active'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('cursor--active'));
+  });
+}
+
+/* ============================================================================
+   Menus
+   ============================================================================ */
+function initMenu() {
+  const toggle = document.getElementById('menuToggle');
+  const menu = document.getElementById('menu');
+  toggle.addEventListener('click', () => {
+    if (document.getElementById('companyMenu').classList.contains('menu--active')) {
+      document.getElementById('companyMenu').classList.remove('menu--active');
+      document.getElementById('companyToggle').textContent = 'BENGURWAVES';
+    }
+    menu.classList.toggle('menu--active');
+    toggle.textContent = menu.classList.contains('menu--active') ? 'CLOSE' : 'MENU';
+  });
+}
+function initCompanyMenu() {
+  const toggle = document.getElementById('companyToggle');
+  const menu = document.getElementById('companyMenu');
+  toggle.addEventListener('click', () => {
+    if (document.getElementById('menu').classList.contains('menu--active')) {
+      document.getElementById('menu').classList.remove('menu--active');
+      document.getElementById('menuToggle').textContent = 'MENU';
+    }
+    menu.classList.toggle('menu--active');
+    toggle.textContent = menu.classList.contains('menu--active') ? 'CLOSE' : 'BENGURWAVES';
+  });
+}
+
+/* ============================================================================
+   Privacy Policy Fade-in
+   ============================================================================ */
+function initPrivacyPolicyFade() {
+  // Already handled in loader timeout
+}
+
+/* ============================================================================
+   Personalization
+   ============================================================================ */
+function initPersonalization() {
+  const hour = new Date().getHours();
+  const root = document.documentElement;
+  if (hour >= 18 || hour < 6) {
+    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.95)');
+  } else if (hour >= 6 && hour < 12) {
+    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.75)');
+  }
+}
+
+/* ============================================================================
+   Easter Egg
+   ============================================================================ */
+function initEasterEgg() {
+  let clickCount = 0;
+  const logo = document.getElementById('companyToggle');
+  logo.addEventListener('click', () => {
+    clickCount++;
+    if (clickCount === 3) {
+      const cursor = document.querySelector('.cursor');
+      if (cursor) {
+        cursor.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        cursor.style.mixBlendMode = 'normal';
+        setTimeout(() => {
+          cursor.style.borderColor = '';
+          cursor.style.mixBlendMode = '';
+        }, 3000);
+      }
+      clickCount = 0;
+    }
+    setTimeout(() => clickCount > 0 && clickCount--, 1000);
+  });
+}
+</script>
+
+<script>
+/* Security Deterrent Measures */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && ['u','s','a','c','x','v'].includes(e.key.toLowerCase()) || e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase()) || e.key === 'F12') {
+    e.preventDefault();
+  }
+});
+document.body.style.userSelect = 'none';
+</script>
+</body>
+</html>

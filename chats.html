@@ -208,6 +208,23 @@
         <div class="form-group">
             <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" />
         </div>
+        
+        <!-- ADDED v0.5.57: Terms & Age confirmation on signup -->
+        <div class="form-group">
+          <label class="toggle">
+            <input type="checkbox" id="over13Checkbox">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">I confirm I am over 13 years of age</span>
+        </div>
+        <div class="form-group">
+          <label class="toggle">
+            <input type="checkbox" id="termsCheckbox">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></span>
+        </div>
+        
         <div class="action-row">
             <div style="flex:1">
                 <button id="signInBtn" class="btn-primary">Sign in</button>
@@ -499,6 +516,12 @@
                 </div>
             </div>
             
+            <!-- ADDED v0.5.57: Install button -->
+            <button class="btn-secondary" id="installAppBtn" style="width: 100%; margin-bottom: 16px;">
+                <span>↓</span>
+                <span>Install Labyrinth Chat</span>
+            </button>
+            
             <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
                 <button class="force-refresh-btn" id="modalForceRefreshBtn" style="width: 100%; margin-bottom: 16px;">
                     <span>↻</span>
@@ -578,6 +601,21 @@
                     <!-- Realms will be added here -->
                 </div>
             </div>
+            
+            <!-- ADDED v0.5.57: Public Profile enhancements -->
+            <div class="public-profile-section" id="publicProfileStreakSection" style="display: none;">
+                <h3>Streak</h3>
+                <div class="public-profile-streak" id="publicProfileStreak">🔥 0 day streak</div>
+            </div>
+            <div class="public-profile-section" id="publicProfileMessagesSection">
+                <h3>Messages</h3>
+                <div class="public-profile-messages" id="publicProfileMessages">Total messages sent: 0</div>
+            </div>
+            <div class="public-profile-section" id="publicProfileDobSection" style="display: none;">
+                <h3>Date of Birth</h3>
+                <div class="public-profile-dob" id="publicProfileDob"></div>
+            </div>
+            
         </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="publicProfileContactBtn" class="btn-primary">Contact</button>
@@ -675,6 +713,16 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        
+        <!-- ADDED v0.5.57: Realm creation disclaimer -->
+        <div class="form-group">
+            <label class="toggle">
+                <input type="checkbox" id="realmDisclaimerCheckbox" required>
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">By creating a Realm™, the Creator assumes all legal responsibility for moderation, content, and the behavior of members within that Realm. BenGurWaves™ acts only as a passive host.</span>
+        </div>
+        
         <div class="action-row">
             <button id="cancelCreateRealmBtn" class="btn-secondary">Cancel</button>
             <button id="confirmCreateRealmBtn" class="btn-primary">Create Realm</button>
@@ -817,6 +865,38 @@
         </div>
     </div>
 </template>
+
+<!-- ADDED v0.5.57: Age / DOB collection modal -->
+<div class="modal-back" id="dobModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="dobModalClose">×</button>
+        <h2 class="modal-title">Complete Your Profile</h2>
+        <div class="modal-subtitle">Please enter your date of birth</div>
+        <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" id="dobInput" class="form-input">
+        </div>
+        <div class="toggle-switch">
+            <span class="toggle-label">Show Date of Birth on public profile</span>
+            <label class="toggle">
+                <input type="checkbox" id="showDobToggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="action-row">
+            <button id="saveDobBtn" class="btn-primary">Save & Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADDED v0.5.57: Cookie / Cache consent banner -->
+<div class="cookie-banner" id="cookieBanner">
+    <div class="cookie-content">
+        <div>We use cookies and cache to improve your experience.</div>
+        <button id="acceptCookiesBtn" class="btn-primary">Accept</button>
+    </div>
+</div>
+
 <script src="script.js" defer></script>
 </body>
 </html>

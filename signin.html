@@ -1,479 +1,1373 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Sign In | Labyrinth</title>
-<meta name="description" content="Sign in to your Labyrinth account" />
-<meta property="og:description" content="Sign in to your Labyrinth account" />
-<meta name="theme-color" content="#0a0a0a" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;350;400&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { height: 100%; scroll-behavior: smooth; overflow-x: hidden; }
-body {
-  min-height: 100%;
-  background: #0a0a0a;
-  color: #f5f5f5;
-  font-family: 'Inter', sans-serif;
-  font-weight: 350;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  cursor: none;
-}
-:root {
-  --color-black: #0a0a0a;
-  --color-white: #f5f5f5;
-  --color-gold: rgba(202, 168, 122, 0.9);
-  --color-gold-light: rgba(202, 168, 122, 0.4);
-  --transition-slow: 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  --transition-base: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  --transition-fast: 0.2s ease;
-}
-.cursor {
-  position: fixed;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--color-gold-light);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  mix-blend-mode: difference;
-  transform: translate(-50%, -50%);
-  transition: width 0.3s, height 0.3s, border 0.3s;
-}
-.cursor--active { width: 48px; height: 48px; border-color: var(--color-gold); }
-.grain-overlay {
-  position: fixed;
-  top: -100%; left: -100%;
-  width: 300%; height: 300%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1000;
-  opacity: 0.02;
-  animation: grain 8s steps(10) infinite;
-}
-@keyframes grain {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-5%, -10%); }
-  20% { transform: translate(-15%, -20%); }
-  30% { transform: translate(-10%, -25%); }
-  40% { transform: translate(-20%, -5%); }
-  50% { transform: translate(-25%, -15%); }
-  60% { transform: translate(-15%, -20%); }
-  70% { transform: translate(-20%, -10%); }
-  80% { transform: translate(-5%, -25%); }
-  90% { transform: translate(-25%, -5%); }
-}
-.hero {
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-.hero__image {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  filter: brightness(0.18) contrast(1.3);
-  transform: scale(1.02);
-  transition: transform 20s linear;
-}
-.auth-card {
-  position: relative;
-  z-index: 2;
-  background: rgba(10, 10, 10, 0.7);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(202, 168, 122, 0.15);
-  width: max(320px, 34%);
-  max-width: 420px;
-  padding: 2.5rem 2.2rem;
-  border-radius: 18px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-  text-align: center;
-  opacity: 0;
-  transform: translateY(15px);
-  transition: opacity 1s ease 0.5s, transform 1s ease 0.5s;
-}
-.auth-card.fade-in { opacity: 1; transform: translateY(0); }
-.auth-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(2.8rem, 7vw, 4.5rem);
-  font-weight: 300;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.6rem;
-  color: var(--color-white);
-}
-.auth-subtitle {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic;
-  font-size: 1.3rem;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 2.2rem;
-  font-weight: 300;
-}
-.form-group {
-  margin-bottom: 1.5rem;
-}
-.form-input {
-  width: 100%;
-  height: 48px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(202,168,122,0.25);
-  border-radius: 10px;
-  padding: 0 1.4rem;
-  color: var(--color-white);
-  font-family: 'Inter', sans-serif;
-  font-size: 1.35rem;
-  font-weight: 350;
-  transition: border-color var(--transition-base), background-color var(--transition-base);
-}
-.form-input::placeholder {
-  color: rgba(255,255,255,0.35);
-  font-weight: 300;
-}
-.form-input:focus {
-  outline: none;
-  border-color: var(--color-gold);
-  background: rgba(255,255,255,0.08);
-}
-#username-group { display: none; } /* Hidden in Sign In mode */
-.buttons-container {
-  display: flex;
-  gap: 0.9rem;
-  margin-bottom: 2.2rem;
-}
-.btn {
-  flex: 1;
-  height: 46px;
-  border-radius: 10px;
-  font-family: 'Inter', sans-serif;
-  font-size: 1.25rem;
-  font-weight: 350;
-  letter-spacing: 0.08em;
-  cursor: none;
-  transition: all var(--transition-base);
-  border: none;
-  text-transform: uppercase;
-}
-.btn--primary {
-  background: rgba(202, 168, 122, 0.85);
-  color: var(--color-black);
-}
-.btn--primary:hover {
-  background: rgba(224, 192, 150, 0.95);
-  transform: translateY(-1px);
-}
-.btn--secondary {
-  background: transparent;
-  color: rgba(202, 168, 122, 0.85);
-  border: 1px solid rgba(202, 168, 122, 0.85);
-}
-.btn--secondary:hover {
-  background: rgba(202, 168, 122, 0.85);
-  color: var(--color-black);
-  transform: translateY(-1px);
-}
-.btn--google {
-  width: 100%;
-  background: var(--color-white);
-  color: var(--color-black);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.9rem;
-  margin-bottom: 2.2rem;
-  font-size: 1.2rem;
-}
-.btn--google:hover {
-  background: #f5f5f5;
-  transform: translateY(-1px);
-}
-.divider {
-  display: flex;
-  align-items: center;
-  margin-bottom: 2.2rem;
-  color: rgba(255,255,255,0.4);
-  font-family: 'Inter', sans-serif;
-  font-size: 1.1rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 0.5px;
-  background: rgba(255,255,255,0.15);
-}
-.divider span { padding: 0 1.4rem; }
-#message {
-  text-align: center;
-  margin-top: 1.2rem;
-  min-height: 22px;
-  font-family: 'Inter', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 300;
-}
-.message-success { color: rgba(202, 168, 122, 0.9); }
-.message-error { color: rgba(255, 120, 120, 0.8); }
-@media (max-width: 768px) {
-  .auth-card { width: 88%; max-width: 380px; padding: 2.2rem 1.8rem; }
-  .buttons-container { flex-direction: column; }
-}
-@media (max-width: 480px) {
-  .auth-card { padding: 2rem 1.5rem; }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labyrinth Chat | Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;350;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Imported and adapted from style.css */
+        :root { 
+            --color-black: #050505;
+            --color-dark: #0a0a0a;
+            --color-white: #f5f5f5;
+            --color-gray: rgba(255, 255, 255, 0.15);
+            --color-gray-light: rgba(255, 255, 255, 0.05);
+            --color-gray-dark: rgba(255, 255, 255, 0.02);
+            --color-gold: rgba(202, 168, 122, 0.9);
+            --color-gold-light: rgba(202, 168, 122, 0.4);
+            --color-gold-transparent: rgba(202, 168, 122, 0.15);
+            --online-emerald: rgba(16, 185, 129, 0.8);
+            --danger: rgba(239, 68, 68, 0.8);
+            --warning: rgba(245, 158, 11, 0.8);
+            --success: rgba(34, 197, 94, 0.8);
+            --transition-base: 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+            --transition-fast: 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+            --bg-primary: #050505;
+            --bg-secondary: #0a0a0a;
+            --text-primary: #f5f5f5;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --input-bg: rgba(255, 255, 255, 0.02);
+            --msg-bg: rgba(255, 255, 255, 0.02);
+            --msg-bg-me: rgba(202, 168, 122, 0.03);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            letter-spacing: 0.01em;
+        }
+        
+        html, body {
+            height: 100%;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            touch-action: manipulation;
+            font-family: 'Inter', sans-serif;
+            font-weight: 350;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .grain-overlay {
+            position: fixed;
+            top: -100%; left: -100%;
+            width: 300%; height: 300%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.015;
+            animation: grain 8s steps(10) infinite;
+        }
+        
+        @keyframes grain {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-5%, -10%); }
+            20% { transform: translate(-15%, -20%); }
+            30% { transform: translate(-10%, -25%); }
+            40% { transform: translate(-20%, -5%); }
+            50% { transform: translate(-25%, -15%); }
+            60% { transform: translate(-15%, -20%); }
+            70% { transform: translate(-20%, -10%); }
+            80% { transform: translate(-5%, -25%); }
+            90% { transform: translate(-25%, -5%); }
+        }
+        
+        h1, h2, h3, h4, .logo, .modal-title, .login-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+        }
+        
+        .body-text, .form-input, .login-subtitle, .modal-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-weight: 350;
+            letter-spacing: 0.01em;
+            line-height: 1.6;
+        }
+        
+        /* Main container */
+        #app {
+            display: flex;
+            height: 100vh;
+            position: relative;
+            background: var(--bg-primary);
+            overflow: hidden;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at center, #0a0a0a 0%, #050505 70%);
+            padding: 20px;
+        }
+        
+        /* Modal styles */
+        .modal-back {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            animation: modalFadeIn var(--transition-base);
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(30px);
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
+            animation: modalSlideUp 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        @keyframes modalSlideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-title {
+            font-size: 32px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .modal-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 14px;
+            font-weight: 300;
+            text-align: center;
+        }
+        
+        /* Tabs */
+        .modal-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 4px;
+        }
+        
+        .modal-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 12px 12px 0 0;
+            transition: all var(--transition-fast);
+            position: relative;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .modal-tab:hover {
+            color: var(--text-primary);
+            background: var(--color-gray-dark);
+        }
+        
+        .modal-tab.active {
+            color: var(--color-gold);
+        }
+        
+        .modal-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--color-gold);
+            border-radius: 1px;
+        }
+        
+        .modal-tab-content {
+            display: none;
+        }
+        
+        .modal-tab-content.active {
+            display: block;
+        }
+        
+        /* Form styles */
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            font-size: 13px;
+            color: var(--color-gray);
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 300;
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 350;
+            transition: border-color var(--transition-fast);
+            padding-right: 50px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-gold);
+            box-shadow: 0 0 0 1px var(--color-gold-transparent);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--color-gray);
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all var(--transition-fast);
+        }
+        
+        .password-toggle:hover {
+            color: var(--color-gold);
+            background: var(--color-gray-dark);
+        }
+        
+        .error-message {
+            font-size: 13px;
+            color: var(--danger);
+            margin-top: 8px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .error-message.show {
+            display: flex;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            background: var(--color-gray-dark);
+            border: 1px solid transparent;
+            transition: border-color var(--transition-fast);
+        }
+        
+        .checkbox-group:has(input:checked) {
+            border-color: var(--color-gold-transparent);
+        }
+        
+        .checkbox-group input {
+            margin-top: 2px;
+            accent-color: var(--color-gold);
+        }
+        
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        .checkbox-label a {
+            color: var(--color-gold);
+            text-decoration: none;
+            transition: color var(--transition-fast);
+        }
+        
+        .checkbox-label a:hover {
+            text-decoration: underline;
+        }
+        
+        .terms-text {
+            font-size: 12px;
+            color: var(--color-gray);
+            margin-top: 24px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        /* Button styles */
+        .btn-primary {
+            background: transparent;
+            border: 1px solid var(--color-gold);
+            color: var(--color-gold);
+            padding: 16px 32px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            transition: all var(--transition-fast);
+            width: 100%;
+            margin-top: 8px;
+            min-height: 48px;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: var(--color-gold);
+            color: var(--color-black);
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: var(--color-gray);
+            color: var(--color-gray);
+        }
+        
+        .btn-primary.loading {
+            position: relative;
+            color: transparent;
+        }
+        
+        .btn-primary.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid transparent;
+            border-top-color: var(--color-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Profile completion modal */
+        .profile-step {
+            display: none;
+            text-align: center;
+        }
+        
+        .profile-step.active {
+            display: block;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+        
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-gray);
+            transition: all var(--transition-fast);
+        }
+        
+        .step-dot.active {
+            background: var(--color-gold);
+            transform: scale(1.2);
+        }
+        
+        .birthday-inputs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .birthday-select {
+            flex: 1;
+            padding: 16px 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color var(--transition-fast);
+            cursor: pointer;
+        }
+        
+        .birthday-select:focus {
+            outline: none;
+            border-color: var(--color-gold);
+        }
+        
+        /* Password validation */
+        .password-validation {
+            margin-top: 12px;
+            padding: 16px;
+            background: var(--color-gray-dark);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .validation-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .validation-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .validation-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--color-gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--color-black);
+            transition: all var(--transition-fast);
+        }
+        
+        .validation-icon.valid {
+            background: var(--success);
+        }
+        
+        /* Loading overlay */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid transparent;
+            border-top-color: var(--color-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: relative;
+        }
+        
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 3px solid transparent;
+            border-radius: 50%;
+            border-right-color: var(--color-gold-light);
+            animation: spin 1.5s linear infinite reverse;
+        }
+        
+        .loading-text {
+            font-size: 14px;
+            color: var(--color-gold);
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+        }
+        
+        /* Logo */
+        .logo {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: var(--color-gold);
+            z-index: 10;
+            text-align: center;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 32px 24px;
+                max-height: 85vh;
+            }
+            
+            .modal-title {
+                font-size: 28px;
+            }
+            
+            .birthday-inputs {
+                flex-direction: column;
+            }
+            
+            .logo {
+                top: 20px;
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .modal-content {
+                padding: 24px 20px;
+                border-radius: 16px;
+            }
+            
+            .modal-title {
+                font-size: 24px;
+            }
+            
+            .modal-tab {
+                padding: 12px 16px;
+                font-size: 13px;
+            }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 2px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-gold-transparent);
+            border-radius: 2px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-gold-light);
+        }
+    </style>
 </head>
 <body>
-<div class="grain-overlay"></div>
-<div class="cursor"></div>
-<main>
-  <section class="hero" id="hero">
-    <img src="https://pub-581d7155bdcb44a492ac6087a584acf3.r2.dev/P1087859.JPG" alt="Background" class="hero__image">
-    <div class="auth-card" id="authCard">
-      <h1 class="auth-title">Labyrinth</h1>
-      <p class="auth-subtitle">Enter the frequencies</p>
-      <form id="auth-form" onsubmit="return false;">
-        <div class="form-group" id="username-group">
-          <input type="text" id="username" class="form-input" placeholder="Username" autocomplete="username">
+    <div class="grain-overlay"></div>
+    
+    <div class="logo">Labyrinth Chat</div>
+    
+    <div id="app">
+        <!-- Loading overlay -->
+        <div id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Entering the labyrinth...</div>
         </div>
-        <div class="form-group">
-          <input type="email" id="email" class="form-input" placeholder="Email" required autocomplete="email">
+        
+        <!-- Authentication Modal -->
+        <div id="authModal" class="modal-back" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-title">Welcome</div>
+                <div class="modal-subtitle">Enter the labyrinth of conversation</div>
+                
+                <div class="modal-tabs">
+                    <button class="modal-tab active" data-tab="signin">Sign In</button>
+                    <button class="modal-tab" data-tab="signup">Create Account</button>
+                </div>
+                
+                <!-- Sign In Tab -->
+                <div id="signinTab" class="modal-tab-content active">
+                    <form id="signinForm">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="signinEmail" required autocomplete="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <div class="input-with-icon">
+                                <input type="password" class="form-input" id="signinPassword" required autocomplete="current-password">
+                                <button type="button" class="password-toggle" data-target="signinPassword">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="error-message" id="signinError"></div>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary" id="signinBtn">Sign In</button>
+                        
+                        <div class="terms-text">
+                            By continual use of The Service, you agree to all Terms and Conditions.
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Create Account Tab -->
+                <div id="signupTab" class="modal-tab-content">
+                    <form id="signupForm">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="signupEmail" required autocomplete="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <div class="input-with-icon">
+                                <input type="password" class="form-input" id="signupPassword" required autocomplete="new-password">
+                                <button type="button" class="password-toggle" data-target="signupPassword">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password</label>
+                            <div class="input-with-icon">
+                                <input type="password" class="form-input" id="signupPasswordConfirm" required autocomplete="new-password">
+                                <button type="button" class="password-toggle" data-target="signupPasswordConfirm">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="error-message" id="passwordMatchError"></div>
+                        </div>
+                        
+                        <!-- Password validation -->
+                        <div class="password-validation">
+                            <div class="validation-item">
+                                <span class="validation-icon" id="valLength">✕</span>
+                                <span>Minimum 8 characters</span>
+                            </div>
+                            <div class="validation-item">
+                                <span class="validation-icon" id="valUpper">✕</span>
+                                <span>At least one uppercase letter</span>
+                            </div>
+                            <div class="validation-item">
+                                <span class="validation-icon" id="valLower">✕</span>
+                                <span>At least one lowercase letter</span>
+                            </div>
+                            <div class="validation-item">
+                                <span class="validation-icon" id="valNumber">✕</span>
+                                <span>At least one number</span>
+                            </div>
+                            <div class="validation-item">
+                                <span class="validation-icon" id="valSpecial">✕</span>
+                                <span>At least one special character</span>
+                            </div>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="termsCheckbox" required>
+                            <label class="checkbox-label">
+                                Agree with <a href="terms-and-conditions.html" target="_blank">Terms and Conditions</a> and the <a href="privacy-policy.html" target="_blank">Privacy Policy</a>
+                            </label>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="ageCheckbox" required>
+                            <label class="checkbox-label">
+                                I agree that I am <a href="age-assurance-policy.html" target="_blank">13 or older</a>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary" id="signupBtn" disabled>Create Account</button>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-          <input type="password" id="password" class="form-input" placeholder="Password" required autocomplete="new-password">
+        
+        <!-- Profile Completion Modal -->
+        <div id="profileModal" class="modal-back" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-title">Complete Your Profile</div>
+                <div class="modal-subtitle">A few details to personalize your experience</div>
+                
+                <div class="step-indicator">
+                    <div class="step-dot active" data-step="1"></div>
+                    <div class="step-dot" data-step="2"></div>
+                </div>
+                
+                <!-- Step 1: Username -->
+                <div id="usernameStep" class="profile-step active">
+                    <div class="form-group">
+                        <label class="form-label">Choose a username</label>
+                        <input type="text" class="form-input" id="usernameInput" maxlength="30" autocomplete="username">
+                        <div class="error-message" id="usernameError"></div>
+                        <div class="terms-text" style="margin-top: 12px;">
+                            This will be your display name in the labyrinth
+                        </div>
+                    </div>
+                    
+                    <button class="btn-primary" id="usernameBtn" disabled>Continue</button>
+                </div>
+                
+                <!-- Step 2: Birthday -->
+                <div id="birthdayStep" class="profile-step">
+                    <div class="form-group">
+                        <label class="form-label">Date of Birth</label>
+                        <div class="birthday-inputs">
+                            <select class="birthday-select" id="birthMonth">
+                                <option value="">Month</option>
+                                <option value="01">January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            
+                            <select class="birthday-select" id="birthDay">
+                                <option value="">Day</option>
+                            </select>
+                            
+                            <select class="birthday-select" id="birthYear">
+                                <option value="">Year</option>
+                            </select>
+                        </div>
+                        <div class="error-message" id="birthdayError"></div>
+                        <div class="terms-text" style="margin-top: 12px;">
+                            You must be at least 13 years old to use Labyrinth Chat
+                        </div>
+                    </div>
+                    
+                    <button class="btn-primary" id="birthdayBtn" disabled>Save & Continue</button>
+                </div>
+            </div>
         </div>
-        <div class="buttons-container">
-          <button type="button" class="btn btn--primary" id="signin-btn">Sign In</button>
-          <button type="button" class="btn btn--secondary" id="signup-btn">Sign Up</button>
-        </div>
-        <div class="divider"><span>or</span></div>
-        <button type="button" class="btn btn--google" id="google-btn">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Continue with Google
-        </button>
-      </form>
-      <div id="message"></div>
     </div>
-  </section>
-</main>
 
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-const supabaseUrl = 'https://fjbrlejyneudwdiipmbt.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Auto-redirect on successful sign-in
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-    if (session) {
-      window.location.href = 'chats.html';
-    }
-  }
-});
-
-console.log('%c⚠ This website is protected. Unauthorized copying is monitored.', 'color: red; font-size: 16px; font-weight: bold;');
-
-document.addEventListener('DOMContentLoaded', () => {
-  initCustomCursor();
-  initAuthModeToggle();
-  document.getElementById('authCard').classList.add('fade-in');
-});
-
-function initCustomCursor() {
-  const cursor = document.querySelector('.cursor');
-  if (!cursor || window.matchMedia('(pointer: coarse)').matches) {
-    document.body.style.cursor = 'auto';
-    return;
-  }
-  let mouseX = 0, mouseY = 0;
-  let cursorX = 0, cursorY = 0;
-  const speed = 0.15;
-
-  document.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-    cursor.style.opacity = '1';
-  });
-
-  function animateCursor() {
-    const dx = mouseX - cursorX;
-    const dy = mouseY - cursorY;
-    cursorX += dx * speed;
-    cursorY += dy * speed;
-    cursor.style.left = cursorX + 'px';
-    cursor.style.top = cursorY + 'px';
-    requestAnimationFrame(animateCursor);
-  }
-  animateCursor();
-
-  document.querySelectorAll('a, button, .form-input').forEach(el => {
-    el.addEventListener('mouseenter', () => cursor.classList.add('cursor--active'));
-    el.addEventListener('mouseleave', () => cursor.classList.remove('cursor--active'));
-  });
-}
-
-function initAuthModeToggle() {
-  const usernameGroup = document.getElementById('username-group');
-  const signinBtn = document.getElementById('signin-btn');
-  const signupBtn = document.getElementById('signup-btn');
-
-  // Default: Sign In mode
-  usernameGroup.style.display = 'none';
-  signinBtn.textContent = 'Sign In';
-  signupBtn.textContent = 'Sign Up';
-
-  signupBtn.addEventListener('click', async () => {
-    if (usernameGroup.style.display === 'none') {
-      // Switch to Sign Up view
-      usernameGroup.style.display = 'block';
-      signinBtn.textContent = 'Back to Sign In';
-      signupBtn.textContent = 'Create Account';
-    } else {
-      // Perform Sign Up
-      await performSignUp();
-    }
-  });
-
-  signinBtn.addEventListener('click', async () => {
-    if (usernameGroup.style.display === 'none') {
-      // Perform Sign In
-      await performSignIn();
-    } else {
-      // Back to Sign In mode
-      usernameGroup.style.display = 'none';
-      signinBtn.textContent = 'Sign In';
-      signupBtn.textContent = 'Sign Up';
-      clearMessage();
-    }
-  });
-
-  document.getElementById('google-btn').addEventListener('click', () => {
-    supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin + '/chats.html' }
-    });
-  });
-
-  // Enter key on password → sign in
-  document.getElementById('password').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      if (usernameGroup.style.display === 'none') {
-        performSignIn();
-      }
-    }
-  });
-}
-
-async function performSignIn() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-
-  if (!email || !password) {
-    showMessage('Please enter email and password.', true);
-    return;
-  }
-
-  showMessage('Signing in...', false);
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    showMessage(error.message, true);
-  }
-}
-
-async function performSignUp() {
-  const username = document.getElementById('username').value.trim().toLowerCase();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-
-  if (!username || !email || !password) {
-    showMessage('All fields are required.', true);
-    return;
-  }
-
-  // Strong password check
-  if (password.length < 8) return showMessage('Password must be at least 8 characters.', true);
-  if (!/[A-Z]/.test(password)) return showMessage('Password must contain an uppercase letter.', true);
-  if (!/[0-9]/.test(password)) return showMessage('Password must contain a number.', true);
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return showMessage('Password must contain a special character.', true);
-
-  // Username uniqueness
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .maybeSingle();
-
-  if (existing) {
-    return showMessage('Username already taken. Choose another.', true);
-  }
-
-  showMessage('Creating account...', false);
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { username } // You can use this in a trigger to populate profiles table
-    }
-  });
-
-  if (error) {
-    showMessage(error.message, true);
-  } else {
-    showMessage('Please check your email for the confirmation link.', false);
-  }
-}
-
-function showMessage(text, isError = false) {
-  const messageEl = document.getElementById('message');
-  messageEl.textContent = text;
-  messageEl.className = isError ? 'message-error' : 'message-success';
-}
-
-function clearMessage() {
-  document.getElementById('message').textContent = '';
-}
-
-function initPersonalization() {
-  const hour = new Date().getHours();
-  const root = document.documentElement;
-  if (hour >= 18 || hour < 6) {
-    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.95)');
-  } else if (hour >= 6 && hour < 12) {
-    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.75)');
-  }
-}
-initPersonalization();
-
-/* Protection */
-document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && ['u','s','a','c','x','v'].includes(e.key.toLowerCase()) ||
-      (e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) ||
-      e.key === 'F12') {
-    e.preventDefault();
-  }
-});
-document.body.style.userSelect = 'none';
-</script>
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
+        
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // State management
+        let currentUser = null;
+        let currentProfile = null;
+        let usernameCheckTimeout = null;
+        
+        // DOM Elements
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const authModal = document.getElementById('authModal');
+        const profileModal = document.getElementById('profileModal');
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize UI interactions
+            initUI();
+            
+            // Check for existing session
+            await checkSession();
+            
+            // Populate year dropdown for birthday
+            populateYearDropdown();
+        });
+        
+        // Initialize UI event listeners
+        function initUI() {
+            // Tab switching
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+            
+            // Password toggle buttons
+            document.querySelectorAll('.password-toggle').forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetId = button.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const icon = button.querySelector('svg');
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                    } else {
+                        input.type = 'password';
+                        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+                    }
+                });
+            });
+            
+            // Sign in form
+            document.getElementById('signinForm').addEventListener('submit', handleSignIn);
+            document.getElementById('signinEmail').addEventListener('input', validateSignInForm);
+            document.getElementById('signinPassword').addEventListener('input', validateSignInForm);
+            
+            // Sign up form
+            document.getElementById('signupForm').addEventListener('submit', handleSignUp);
+            document.getElementById('signupEmail').addEventListener('input', validateSignUpForm);
+            document.getElementById('signupPassword').addEventListener('input', () => {
+                validatePassword();
+                validateSignUpForm();
+            });
+            document.getElementById('signupPasswordConfirm').addEventListener('input', () => {
+                validatePasswordMatch();
+                validateSignUpForm();
+            });
+            document.getElementById('termsCheckbox').addEventListener('change', validateSignUpForm);
+            document.getElementById('ageCheckbox').addEventListener('change', validateSignUpForm);
+            
+            // Profile completion
+            document.getElementById('usernameInput').addEventListener('input', handleUsernameInput);
+            document.getElementById('usernameBtn').addEventListener('click', handleUsernameSubmit);
+            document.getElementById('birthdayBtn').addEventListener('click', handleBirthdaySubmit);
+            
+            // Birthday dropdowns
+            document.getElementById('birthMonth').addEventListener('change', () => {
+                populateDayDropdown();
+                validateBirthday();
+            });
+            document.getElementById('birthDay').addEventListener('change', validateBirthday);
+            document.getElementById('birthYear').addEventListener('change', () => {
+                populateDayDropdown();
+                validateBirthday();
+            });
+        }
+        
+        // Check for existing session
+        async function checkSession() {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) throw error;
+                
+                if (session) {
+                    currentUser = session.user;
+                    await fetchUserProfile();
+                } else {
+                    showAuthModal();
+                }
+            } catch (error) {
+                console.error('Session check error:', error);
+                showAuthModal();
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+        
+        // Fetch user profile
+        async function fetchUserProfile() {
+            try {
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') throw error;
+                
+                currentProfile = profile;
+                
+                // Check if profile is complete
+                if (!profile || !profile.username || !profile.birthday) {
+                    showProfileModal(profile);
+                } else {
+                    // Redirect to chats page
+                    window.location.href = 'chats.html';
+                }
+            } catch (error) {
+                console.error('Profile fetch error:', error);
+                showAuthModal();
+            }
+        }
+        
+        // Show authentication modal
+        function showAuthModal() {
+            authModal.style.display = 'flex';
+        }
+        
+        // Show profile completion modal
+        function showProfileModal(profile) {
+            authModal.style.display = 'none';
+            profileModal.style.display = 'flex';
+            
+            // Determine which step to show
+            if (!profile || !profile.username) {
+                // Start with username step
+                showProfileStep(1);
+            } else if (!profile.birthday) {
+                // Start with birthday step
+                showProfileStep(2);
+            }
+        }
+        
+        // Switch between tabs
+        function switchTab(tabId) {
+            // Update active tab
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.getAttribute('data-tab') === tabId);
+            });
+            
+            // Show active tab content
+            document.querySelectorAll('.modal-tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `${tabId}Tab`);
+            });
+            
+            // Clear any errors
+            clearErrors();
+        }
+        
+        // Validate sign in form
+        function validateSignInForm() {
+            const email = document.getElementById('signinEmail').value;
+            const password = document.getElementById('signinPassword').value;
+            const button = document.getElementById('signinBtn');
+            
+            const isValid = email && password.length >= 8;
+            button.disabled = !isValid;
+            
+            return isValid;
+        }
+        
+        // Validate sign up form
+        function validateSignUpForm() {
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirm = document.getElementById('signupPasswordConfirm').value;
+            const terms = document.getElementById('termsCheckbox').checked;
+            const age = document.getElementById('ageCheckbox').checked;
+            const button = document.getElementById('signupBtn');
+            
+            const emailValid = /\S+@\S+\.\S+/.test(email);
+            const passwordValid = validatePassword();
+            const matchValid = validatePasswordMatch();
+            const allValid = emailValid && passwordValid && matchValid && terms && age;
+            
+            button.disabled = !allValid;
+            
+            return allValid;
+        }
+        
+        // Validate password strength
+        function validatePassword() {
+            const password = document.getElementById('signupPassword').value;
+            
+            const hasMinLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            
+            // Update validation icons
+            document.getElementById('valLength').classList.toggle('valid', hasMinLength);
+            document.getElementById('valLength').textContent = hasMinLength ? '✓' : '✕';
+            
+            document.getElementById('valUpper').classList.toggle('valid', hasUpper);
+            document.getElementById('valUpper').textContent = hasUpper ? '✓' : '✕';
+            
+            document.getElementById('valLower').classList.toggle('valid', hasLower);
+            document.getElementById('valLower').textContent = hasLower ? '✓' : '✕';
+            
+            document.getElementById('valNumber').classList.toggle('valid', hasNumber);
+            document.getElementById('valNumber').textContent = hasNumber ? '✓' : '✕';
+            
+            document.getElementById('valSpecial').classList.toggle('valid', hasSpecial);
+            document.getElementById('valSpecial').textContent = hasSpecial ? '✓' : '✕';
+            
+            return hasMinLength && hasUpper && hasLower && hasNumber && hasSpecial;
+        }
+        
+        // Validate password match
+        function validatePasswordMatch() {
+            const password = document.getElementById('signupPassword').value;
+            const confirm = document.getElementById('signupPasswordConfirm').value;
+            const errorElement = document.getElementById('passwordMatchError');
+            
+            if (!password || !confirm) {
+                errorElement.classList.remove('show');
+                return false;
+            }
+            
+            if (password !== confirm) {
+                errorElement.textContent = 'Passwords do not match';
+                errorElement.classList.add('show');
+                return false;
+            } else {
+                errorElement.classList.remove('show');
+                return true;
+            }
+        }
+        
+        // Handle sign in
+        async function handleSignIn(e) {
+            e.preventDefault();
+            
+            if (!validateSignInForm()) return;
+            
+            const email = document.getElementById('signinEmail').value;
+            const password = document.getElementById('signinPassword').value;
+            const button = document.getElementById('signinBtn');
+            const errorElement = document.getElementById('signinError');
+            
+            // Show loading state
+            button.classList.add('loading');
+            button.disabled = true;
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                currentUser = data.user;
+                await fetchUserProfile();
+                
+            } catch (error) {
+                console.error('Sign in error:', error);
+                errorElement.textContent = error.message || 'Invalid email or password';
+                errorElement.classList.add('show');
+            } finally {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        }
+        
+        // Handle sign up
+        async function handleSignUp(e) {
+            e.preventDefault();
+            
+            if (!validateSignUpForm()) return;
+            
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const button = document.getElementById('signupBtn');
+            
+            // Show loading state
+            button.classList.add('loading');
+            button.disabled = true;
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                // Automatically sign in the user
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (signInError) throw signInError;
+                
+                currentUser = signInData.user;
+                showProfileModal(null);
+                
+            } catch (error) {
+                console.error('Sign up error:', error);
+                alert('Error creating account: ' + error.message);
+            } finally {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        }
+        
+        // Handle username input
+        function handleUsernameInput() {
+            const input = document.getElementById('usernameInput');
+            const button = document.getElementById('usernameBtn');
+            const errorElement = document.getElementById('usernameError');
+            
+            const username = input.value.trim();
+            
+            // Clear previous timeout
+            if (usernameCheckTimeout) {
+                clearTimeout(usernameCheckTimeout);
+            }
+            
+            // Basic validation
+            if (!username) {
+                button.disabled = true;
+                errorElement.classList.remove('show');
+                return;
+            }
+            
+            if (username.length < 3) {
+                button.disabled = true;
+                errorElement.textContent = 'Username must be at least 3 characters';
+                errorElement.classList.add('show');
+                return;
+            }
+            
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                button.disabled = true;
+                errorElement.textContent = 'Username can only contain letters, numbers, and underscores';
+                errorElement.classList.add('show');
+                return;
+            }
+            
+            // Debounce the username check
+            usernameCheckTimeout = setTimeout(async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('username')
+                        .eq('username', username)
+                        .neq('id', currentUser?.id || '')
+                        .single();
+                    
+                    if (error && error.code !== 'PGRST116') throw error;
+                    
+                    if (data) {
+                        // Username is taken
+                        button.disabled = true;
+                        errorElement.textContent = 'This username is taken. Please choose another.';
+                        errorElement.classList.add('show');
+                    } else {
+                        // Username is available
+                        button.disabled = false;
+                        errorElement.classList.remove('show');
+                    }
+                } catch (error) {
+                    console.error('Username check error:', error);
+                }
+            }, 500);
+        }
+        
+        // Handle username submission
+        async function handleUsernameSubmit() {
+            const username = document.getElementById('usernameInput').value.trim();
+            const button = document.getElementById('usernameBtn');
+            
+            if (!username) return;
+            
+            // Show loading state
+            button.classList.add('loading');
+            button.disabled = true;
+            
+            try {
+                const { error } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: currentUser.id,
+                        username: username,
+                        updated_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+                
+                // Move to birthday step
+                showProfileStep(2);
+                
+            } catch (error) {
+                console.error('Username save error:', error);
+                document.getElementById('usernameError').textContent = 'Error saving username';
+                document.getElementById('usernameError').classList.add('show');
+            } finally {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        }
+        
+        // Populate year dropdown
+        function populateYearDropdown() {
+            const yearSelect = document.getElementById('birthYear');
+            const currentYear = new Date().getFullYear();
+            
+            // Add years from 1900 to current year - 13
+            for (let year = currentYear - 13; year >= 1900; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+        }
+        
+        // Populate day dropdown based on month and year
+        function populateDayDropdown() {
+            const month = document.getElementById('birthMonth').value;
+            const year = document.getElementById('birthYear').value;
+            const daySelect = document.getElementById('birthDay');
+            
+            // Clear existing options except the first
+            while (daySelect.options.length > 1) {
+                daySelect.remove(1);
+            }
+            
+            if (!month || !year) return;
+            
+            // Get days in month
+            const daysInMonth = new Date(year, month, 0).getDate();
+            
+            // Add day options
+            for (let day = 1; day <= daysInMonth; day++) {
+                const option = document.createElement('option');
+                option.value = day.toString().padStart(2, '0');
+                option.textContent = day;
+                daySelect.appendChild(option);
+            }
+        }
+        
+        // Validate birthday
+        function validateBirthday() {
+            const month = document.getElementById('birthMonth').value;
+            const day = document.getElementById('birthDay').value;
+            const year = document.getElementById('birthYear').value;
+            const button = document.getElementById('birthdayBtn');
+            const errorElement = document.getElementById('birthdayError');
+            
+            if (!month || !day || !year) {
+                button.disabled = true;
+                errorElement.classList.remove('show');
+                return false;
+            }
+            
+            // Calculate age
+            const birthDate = new Date(year, month - 1, day);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            // Check if at least 13 years old
+            if (age < 13) {
+                button.disabled = true;
+                errorElement.textContent = 'You must be at least 13 years old.';
+                errorElement.classList.add('show');
+                return false;
+            } else {
+                button.disabled = false;
+                errorElement.classList.remove('show');
+                return true;
+            }
+        }
+        
+        // Handle birthday submission
+        async function handleBirthdaySubmit() {
+            if (!validateBirthday()) return;
+            
+            const month = document.getElementById('birthMonth').value;
+            const day = document.getElementById('birthDay').value;
+            const year = document.getElementById('birthYear').value;
+            const button = document.getElementById('birthdayBtn');
+            
+            // Format as YYYY-MM-DD
+            const birthday = `${year}-${month}-${day}`;
+            
+            // Show loading state
+            button.classList.add('loading');
+            button.disabled = true;
+            
+            try {
+                const { error } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: currentUser.id,
+                        birthday: birthday,
+                        updated_at: new Date().toISOString()
+                    });
+                
+                if (error) throw error;
+                
+                // Redirect to chats page
+                window.location.href = 'chats.html';
+                
+            } catch (error) {
+                console.error('Birthday save error:', error);
+                document.getElementById('birthdayError').textContent = 'Error saving birthday';
+                document.getElementById('birthdayError').classList.add('show');
+            } finally {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        }
+        
+        // Show specific profile step
+        function showProfileStep(stepNumber) {
+            // Update step indicator
+            document.querySelectorAll('.step-dot').forEach(dot => {
+                dot.classList.toggle('active', parseInt(dot.getAttribute('data-step')) === stepNumber);
+            });
+            
+            // Show correct step content
+            document.getElementById('usernameStep').classList.toggle('active', stepNumber === 1);
+            document.getElementById('birthdayStep').classList.toggle('active', stepNumber === 2);
+            
+            // Reset step if going back to username
+            if (stepNumber === 1) {
+                document.getElementById('usernameInput').value = '';
+                document.getElementById('usernameBtn').disabled = true;
+            }
+        }
+        
+        // Clear all error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(error => {
+                error.classList.remove('show');
+            });
+        }
+    </script>
 </body>
 </html>

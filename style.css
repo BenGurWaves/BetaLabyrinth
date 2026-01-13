@@ -3,7 +3,7 @@
     --color-black: #050505;
     --color-dark: #0a0a0a;
     --color-white: #f5f5f5;
-    --color-gray: rgba(255, 255, 255, 0.15); 
+    --color-gray: rgba(255, 255, 255, 0.15);
     --color-gray-light: rgba(255, 255, 255, 0.05);
     --color-gray-dark: rgba(255, 255, 255, 0.02);
     --color-gold: rgba(202, 168, 122, 0.9);
@@ -17,13 +17,15 @@
     --header-height: 72px;
     --input-height: 88px;
     --top-bar-height: 72px;
-    --transition-base: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    --transition-fast: 0.2s ease;
+    /* UPDATED v0.5.57: Smoother, longer transition */
+    --transition-base: 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+    --transition-fast: 0.25s cubic-bezier(0.23, 1, 0.32, 1);
     --bg-primary: #050505;
     --bg-secondary: #0a0a0a;
     --bg-sidebar: #0a0a0a;
     --text-primary: #f5f5f5;
     --text-secondary: rgba(255, 255, 255, 0.6);
+    /* UPDATED v0.5.57: Reduced border opacity */
     --border-color: rgba(255, 255, 255, 0.15);
     --msg-bg: rgba(255, 255, 255, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.03);
@@ -49,6 +51,7 @@
     --bg-sidebar: #ffffff;
     --text-primary: #1a1a1a;
     --text-secondary: rgba(26, 26, 26, 0.6);
+    /* UPDATED v0.5.57: Reduced border opacity for light theme */
     --border-color: rgba(0, 0, 0, 0.1);
     --msg-bg: rgba(0, 0, 0, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.08);
@@ -222,6 +225,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     align-items: center;
     justify-content: space-between;
     padding: 0 28px;
+    /* UPDATED v0.5.57: Added backdrop blur */
     backdrop-filter: blur(20px);
     flex-shrink: 0;
     z-index: 1000;
@@ -238,8 +242,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-primary);
     font-size: 20px;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     justify-content: center;
     align-items: center;
@@ -260,8 +264,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     font-size: 18px;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -298,7 +302,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     max-height: 400px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     backdrop-filter: blur(40px);
     z-index: 2000;
     display: none;
@@ -334,7 +339,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-bottom: 1px solid var(--border-color);
     display: flex;
     gap: 16px;
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     margin-bottom: 8px;
     transition: background var(--transition-fast);
     min-height: 72px;
@@ -384,7 +390,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     cursor: pointer;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
-    min-height: 44px;
+    min-height: 48px;
 }
 .header-user-btn:hover {
     border-color: var(--color-gold);
@@ -403,6 +409,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background, never black */
     background: var(--color-gold-transparent);
     overflow: hidden; /* Ensure circle mask */
 }
@@ -452,6 +459,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     height: 100%;
     position: relative;
     z-index: 900;
+    /* UPDATED v0.5.57: Added backdrop blur */
     backdrop-filter: blur(20px);
     flex-shrink: 0;
     transition: transform var(--transition-base);
@@ -505,8 +513,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     cursor: pointer;
     font-size: 16px;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -525,7 +533,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-bottom: none;
-    border-radius: 0 0 12px 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 0 0 16px 16px;
     display: none;
     flex-direction: column;
     backdrop-filter: blur(20px);
@@ -548,7 +557,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border: none;
     background: transparent;
     cursor: pointer;
-    min-height: 44px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     border-bottom: 1px solid var(--border-color);
@@ -606,8 +615,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     cursor: pointer;
     font-size: 12px;
     transition: all var(--transition-fast);
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -629,7 +638,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .channel-item, .dm-item {
     padding: 12px 16px;
-    border-radius: 6px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 12px;
     margin-bottom: 4px;
     cursor: pointer;
     display: flex;
@@ -639,7 +649,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     position: relative;
     color: var(--text-secondary);
-    min-height: 44px;
+    min-height: 48px;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -682,8 +692,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     padding: 4px;
     margin-right: 4px;
     transition: opacity var(--transition-fast), color var(--transition-fast);
-    min-width: 24px;
-    min-height: 24px;
+    min-width: 32px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -714,6 +724,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 12px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .dm-info {
@@ -817,8 +828,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     cursor: pointer;
     font-size: 20px;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -867,7 +878,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     animation: fadeIn 0.4s ease;
     padding: 20px 24px;
     background: var(--msg-bg);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     position: relative;
     backdrop-filter: blur(10px);
     border: 1px solid transparent;
@@ -912,6 +924,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .message-avatar:hover {
@@ -1067,7 +1080,7 @@ audio {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
-    min-height: 44px;
+    min-height: 48px;
 }
 .new-messages-btn:hover {
     background: var(--color-gold);
@@ -1080,6 +1093,7 @@ audio {
     padding: 20px 32px;
     border-top: 1px solid var(--border-color);
     background: var(--bg-secondary);
+    /* UPDATED v0.5.57: Added backdrop blur */
     backdrop-filter: blur(20px);
     display: flex;
     align-items: flex-end;
@@ -1096,7 +1110,8 @@ audio {
     padding: 16px 20px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     color: var(--text-primary);
     font-size: 15px;
     resize: none;
@@ -1148,8 +1163,8 @@ audio {
     border: none;
     color: var(--color-gray);
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1173,8 +1188,8 @@ audio {
     background: transparent;
     border: 1px solid var(--color-gold);
     color: var(--color-gold);
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1225,8 +1240,8 @@ audio {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 18px;
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1242,7 +1257,8 @@ audio {
 .welcome-message {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     padding: 40px;
     margin-bottom: 32px;
     max-width: 800px;
@@ -1291,7 +1307,8 @@ audio {
 }
 .modal-content {
     background: var(--bg-secondary);
-    border-radius: 16px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 20px;
     padding: 40px;
     width: 100%;
     max-width: 500px;
@@ -1323,8 +1340,8 @@ audio {
     color: var(--text-secondary);
     font-size: 28px;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1386,6 +1403,7 @@ audio {
     font-size: 12px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .coadmin-list {
@@ -1499,7 +1517,8 @@ audio {
 }
 .realm-grid-item {
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     padding: 20px;
     cursor: pointer;
     transition: all var(--transition-fast);
@@ -1636,7 +1655,7 @@ audio {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
-    min-height: 36px;
+    min-height: 48px;
 }
 .join-realm-btn:hover:not(:disabled) {
     background: var(--color-gold);
@@ -1656,7 +1675,7 @@ audio {
     border-radius: 8px;
     font-size: 13px;
     font-style: italic;
-    min-height: 36px;
+    min-height: 48px;
     display: flex;
     align-items: center;
 }
@@ -1672,7 +1691,7 @@ audio {
     font-family: 'Inter', sans-serif;
     font-weight: 350;
     margin-left: 8px;
-    min-height: 36px;
+    min-height: 48px;
 }
 .leave-realm-btn:hover {
     background: var(--danger);
@@ -1710,7 +1729,7 @@ audio {
     border-radius: 12px 12px 0 0;
     transition: all var(--transition-fast);
     position: relative;
-    min-height: 44px;
+    min-height: 48px;
 }
 .modal-tab:hover {
     color: var(--text-primary);
@@ -1756,6 +1775,7 @@ audio {
     padding: 20px 24px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
+    /* UPDATED v0.5.57: Larger border radius */
     border-radius: 16px;
     color: var(--text-primary);
     font-size: 18px;
@@ -1814,6 +1834,7 @@ audio {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .search-result-info {
@@ -1832,7 +1853,8 @@ audio {
 /* Login */
 .login-card {
     background: var(--bg-secondary);
-    border-radius: 16px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 20px;
     padding: 48px;
     width: 100%;
     max-width: 500px;
@@ -1858,7 +1880,8 @@ audio {
     padding: 16px 20px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     color: var(--text-primary);
     font-size: 15px;
     font-family: 'Inter', sans-serif;
@@ -1964,6 +1987,7 @@ audio {
     font-size: 24px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .avatar-large:hover {
@@ -2259,6 +2283,7 @@ input:checked + .toggle-slider:before {
     font-size: 36px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .quick-profile-avatar:hover {
@@ -2342,7 +2367,8 @@ input:checked + .toggle-slider:before {
     position: fixed;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     padding: 8px 0;
     z-index: 5000;
     backdrop-filter: blur(40px);
@@ -2435,6 +2461,7 @@ input:checked + .toggle-slider:before {
 .toast {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
+    /* UPDATED v0.5.57: Larger border radius */
     border-radius: 16px;
     padding: 20px 24px;
     display: flex;
@@ -2481,8 +2508,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 14px;
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2513,14 +2540,15 @@ input:checked + .toggle-slider:before {
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     padding: 12px 20px;
-    border-radius: 12px;
+    /* UPDATED v0.5.57: Larger border radius */
+    border-radius: 16px;
     cursor: pointer;
     z-index: 10;
     font-family: 'Inter', sans-serif;
     font-size: 13px;
     transition: all var(--transition-fast);
     backdrop-filter: blur(20px);
-    min-height: 44px;
+    min-height: 48px;
 }
 .image-modal-download {
     left: 32px;
@@ -2561,7 +2589,7 @@ input:checked + .toggle-slider:before {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
-    min-height: 44px;
+    min-height: 48px;
 }
 .install-app-btn:hover {
     border-color: var(--color-gold);
@@ -2993,8 +3021,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 16px;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -3211,6 +3239,7 @@ input:checked + .toggle-slider:before {
     font-size: 42px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .public-profile-avatar:hover {
@@ -3301,6 +3330,96 @@ input:checked + .toggle-slider:before {
     color: var(--text-secondary);
     font-family: 'Cormorant Garamond', serif;
 }
+
+/* ADDED v0.5.57: Online shimmer animation */
+@keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+/* ADDED v0.5.57: Online username shimmer */
+.online-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(202, 168, 122, 0.15), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 8s linear infinite;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+}
+
+/* ADDED v0.5.57: Cookie banner */
+.cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(5, 5, 5, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-color);
+    padding: 20px 32px;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+}
+
+.cookie-banner.active {
+    display: flex;
+}
+
+.cookie-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.cookie-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.cookie-accept {
+    background: transparent;
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+    padding: 12px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    transition: all var(--transition-fast);
+    min-height: 48px;
+}
+
+.cookie-accept:hover {
+    background: var(--color-gold);
+    color: var(--color-black);
+}
+
+.cookie-decline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 12px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    transition: all var(--transition-fast);
+    min-height: 48px;
+}
+
+.cookie-decline:hover {
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     :root {
@@ -3321,6 +3440,8 @@ input:checked + .toggle-slider:before {
         transition: transform var(--transition-base);
         z-index: 1900;
         width: 300px;
+        /* UPDATED v0.5.57: Added backdrop blur for mobile */
+        backdrop-filter: blur(20px);
     }
     .sidebar.active {
         transform: translateX(0);
@@ -3469,6 +3590,55 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 24px;
     }
+    
+    /* UPDATED v0.5.57: Better mobile heading sizes */
+    .modal-title, .login-title {
+        font-size: 24px;
+    }
+    
+    .welcome-title {
+        font-size: 22px;
+    }
+    
+    .channel-header-name {
+        font-size: 18px;
+    }
+    
+    /* UPDATED v0.5.57: Better modal spacing for thumb reach */
+    .modal-back {
+        padding: 12px;
+        align-items: flex-end;
+    }
+    
+    .modal-content {
+        border-radius: 20px 20px 0 0;
+        max-height: 85vh;
+        padding-bottom: 32px;
+    }
+    
+    .confirmation-actions {
+        flex-direction: column;
+    }
+    
+    .cookie-banner {
+        padding: 16px 20px;
+        text-align: left;
+        align-items: flex-start;
+    }
+    
+    .cookie-text {
+        text-align: left;
+    }
+    
+    .cookie-buttons {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .cookie-accept,
+    .cookie-decline {
+        width: 100%;
+    }
 }
 @media (max-width: 480px) {
     :root {
@@ -3541,6 +3711,19 @@ input:checked + .toggle-slider:before {
     .public-profile-name {
         font-size: 20px;
     }
+    
+    /* UPDATED v0.5.57: Smaller mobile adjustments */
+    .modal-title, .login-title {
+        font-size: 22px;
+    }
+    
+    .cookie-banner {
+        padding: 12px 16px;
+    }
+    
+    .cookie-text {
+        font-size: 13px;
+    }
 }
 @media (max-height: 500px) and (orientation: landscape) {
     .top-bar {
@@ -3608,8 +3791,8 @@ input:checked + .toggle-slider:before {
 .channels-plus-icon {
     color: var(--color-gray);
     font-size: 14px;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3642,8 +3825,8 @@ input:checked + .toggle-slider:before {
     opacity: 0;
     color: var(--color-gray);
     font-size: 18px;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3717,6 +3900,7 @@ input:checked + .toggle-slider:before {
     cursor: pointer;
     transition: background var(--transition-fast);
     border-bottom: 1px solid var(--border-color);
+    min-height: 60px;
 }
 
 .user-search-result:last-child {
@@ -3739,6 +3923,7 @@ input:checked + .toggle-slider:before {
     font-size: 16px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
     flex-shrink: 0;
 }
@@ -3862,6 +4047,7 @@ input:checked + .toggle-slider:before {
     padding: 12px;
     border-radius: 8px;
     background: var(--color-gray-dark);
+    min-height: 56px;
 }
 
 .channel-settings-user-avatar {
@@ -3876,6 +4062,7 @@ input:checked + .toggle-slider:before {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 
@@ -3889,8 +4076,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     font-size: 20px;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3918,6 +4105,7 @@ input:checked + .toggle-slider:before {
     border-radius: 12px;
     cursor: pointer;
     transition: all var(--transition-fast);
+    min-height: 56px;
 }
 
 .notification-option:hover {
@@ -3977,6 +4165,7 @@ input:checked + .toggle-slider:before {
     justify-content: center;
     gap: 10px;
     font-family: 'Inter', sans-serif;
+    min-height: 52px;
 }
 
 .leave-channel-btn:hover {
@@ -4003,6 +4192,7 @@ input:checked + .toggle-slider:before {
     font-size: 36px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 
@@ -4168,6 +4358,7 @@ input:checked + .toggle-slider:before {
     font-size: 16px;
     font-weight: 500;
     color: var(--color-gold);
+    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
     flex-shrink: 0;
 }
@@ -4263,8 +4454,8 @@ input:checked + .toggle-slider:before {
 .channels-plus-icon,
 .dm-item-menu,
 .channel-settings-user-remove {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 48px;
+    min-height: 48px;
 }
 
 /* Responsive adjustments for new DM features */

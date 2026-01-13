@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Terms and Conditions | Labyrinth by BenGurWaves</title>
+<meta name="description" content="Terms and Conditions of Service for Labyrinth™ and LabyrinthChat™." />
+<meta property="og:description" content="Terms and Conditions of Service for Labyrinth™ and LabyrinthChat™." />
+<meta name="twitter:description" content="Terms and Conditions of Service for Labyrinth™ and LabyrinthChat™." />
+<meta name="theme-color" content="#0a0a0a" />
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;350;400&display=swap" rel="stylesheet">
+<style>
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { height: 100%; scroll-behavior: smooth; overflow-x: hidden; }
+body {
+  min-height: 100%;
+  background: #0a0a0a;
+  color: #f5f5f5;
+  font-family: 'Inter', sans-serif;
+  font-weight: 350;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  cursor: none;
+}
+:root {
+  --color-black: #0a0a0a;
+  --color-white: #f5f5f5;
+  --color-gold: rgba(202, 168, 122, 0.9);
+  --color-gold-light: rgba(202, 168, 122, 0.4);
+  --transition-slow: 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-base: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition-fast: 0.2s ease;
+}
+.cursor {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-gold-light);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s, border 0.3s;
+}
+.cursor--active { width: 48px; height: 48px; border-color: var(--color-gold); }
+.grain-overlay {
+  position: fixed;
+  top: -100%; left: -100%;
+  width: 300%; height: 300%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.02;
+  animation: grain 8s steps(10) infinite;
+}
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, -20%); }
+  30% { transform: translate(-10%, -25%); }
+  40% { transform: translate(-20%, -5%); }
+  50% { transform: translate(-25%, -15%); }
+  60% { transform: translate(-15%, -20%); }
+  70% { transform: translate(-20%, -10%); }
+  80% { transform: translate(-5%, -25%); }
+  90% { transform: translate(-25%, -5%); }
+}
+.loader {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--color-black);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-slow), visibility var(--transition-slow);
+}
+.loader__text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--color-gold-light);
+  opacity: 0;
+  animation: loaderPulse 2.4s infinite;
+  margin-bottom: 24px;
+}
+@keyframes loaderPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+.loader__subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(202, 168, 122, 0.4);
+  text-transform: uppercase;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.typing-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background-color: rgba(202, 168, 122, 0.6);
+  margin-left: 2px;
+  animation: blink 1.2s infinite;
+  vertical-align: middle;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.loader--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.nav {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  padding: 2.5rem 3rem;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  mix-blend-mode: difference;
+}
+.nav__logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--color-white);
+  text-decoration: none;
+  pointer-events: auto;
+  position: relative;
+}
+.nav__logo::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width var(--transition-base);
+}
+.nav__logo:hover::after { width: 100%; }
+.nav__toggle {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  color: var(--color-white);
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+  position: relative;
+}
+.nav__toggle::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width var(--transition-base);
+}
+.nav__toggle:hover::after { width: 100%; }
+.menu {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(5, 5, 5, 0.98);
+  backdrop-filter: blur(20px);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-slow), visibility var(--transition-slow);
+}
+.menu--active {
+  opacity: 1;
+  visibility: visible;
+}
+.menu__content {
+  text-align: center;
+}
+.menu__item {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3rem, 6vw, 5rem);
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  margin: 1.5rem 0;
+  transition: color var(--transition-base), letter-spacing var(--transition-base);
+  letter-spacing: 0.02em;
+}
+.menu__item:hover {
+  color: var(--color-gold);
+  letter-spacing: 0.08em;
+}
+
+/* Terms Content */
+.terms {
+  padding: 12rem 10% 8rem;
+  max-width: 800px;
+  margin: 0 auto;
+  opacity: 0;
+  transform: translateY(30px);
+}
+.terms__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;
+  font-size: clamp(3rem, 6vw, 4.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+  color: #f5f5f5;
+}
+.terms__date {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  color: rgba(245, 245, 245, 0.6);
+  margin-bottom: 4rem;
+  text-transform: uppercase;
+}
+.terms__content {
+  font-size: 0.92rem;
+  line-height: 1.68;
+  color: rgba(245, 245, 245, 0.88);
+}
+.terms__content h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  margin: 3rem 0 1rem;
+  color: #f5f5f5;
+}
+.terms__content p {
+  margin-bottom: 1.5rem;
+}
+.terms__content .disclaimer {
+  font-weight: 500;
+  color: #f5f5f5;
+  opacity: 1;
+  font-size: 1rem;
+  margin-bottom: 3rem;
+  border-left: 2px solid var(--color-gold);
+  padding-left: 1rem;
+}
+
+.footer {
+  padding: 5rem 10% 3rem;
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+.footer__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4rem;
+  margin-bottom: 4rem;
+}
+.footer__column h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.7);
+}
+.footer__links {
+  list-style: none;
+}
+.footer__links li {
+  margin-bottom: 0.8rem;
+}
+.footer__links a {
+  color: rgba(255,255,255,0.4);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color var(--transition-base);
+}
+.footer__links a:hover {
+  color: var(--color-gold);
+}
+.footer__bottom {
+  text-align: center;
+  padding-top: 3rem;
+  border-top: 1px solid rgba(255,255,255,0.02);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.05em;
+}
+
+.fade-in {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  transition: opacity 1.4s ease, transform 1.4s ease;
+}
+@media (max-width: 768px) {
+  .nav { padding: 2rem; }
+  .terms { padding: 10rem 5% 6rem; }
+  .footer__grid { grid-template-columns: 1fr; gap: 3rem; }
+}
+@media (max-width: 480px) {
+  .nav { padding: 1.5rem; }
+  .terms { padding: 8rem 5% 4rem; }
+  .footer { padding: 4rem 5% 2rem; }
+}
+</style>
+</head>
+<body>
+<div class="grain-overlay"></div>
+<div class="cursor"></div>
+<div class="loader" id="loader">
+  <div class="loader__text">LABYRINTH</div>
+  <div class="loader__subtitle" id="typingText"></div>
+</div>
+<nav class="nav">
+  <button class="nav__logo nav__toggle" id="companyToggle">LABYRINTH</button>
+  <button class="nav__toggle" id="menuToggle">MENU</button>
+</nav>
+<div class="menu" id="menu">
+  <div class="menu__content">
+    <a href="https://labyrinth.bengurwaves.com" class="menu__item">Home</a>
+    <a href="https://labyrinth.bengurwaves.com/terms-and-conditions" class="menu__item">Terms and Conditions</a>
+    <a href="https://labyrinth.bengurwaves.com/privacy-policy" class="menu__item">Privacy Policy</a>
+    <a href="https://labyrinth.bengurwaves.com/age-assurance-policy" class="menu__item">Age Assurance Policy</a>
+  </div>
+</div>
+<div class="menu" id="companyMenu">
+  <div class="menu__content">
+    <a href="https://www.bengurwaves.com" class="menu__item">BenGurWaves</a>
+    <a href="https://labyrinth.bengurwaves.com" class="menu__item">Labyrinth</a>
+    <a href="https://sync.bengurwaves.com" class="menu__item">Sync</a>
+    <a href="https://pontus.bengurwaves.com" class="menu__item">Pontus</a>
+    <a href="https://marenth.bengurwaves.com" class="menu__item">Marenth</a>
+  </div>
+</div>
+
+<!-- Main Content -->
+<main>
+  <section class="terms" id="terms">
+    <h1 class="terms__title">Terms & Conditions of Service</h1>
+    <p class="terms__date">Last updated: January 10, 2026</p>
+    
+    <div class="terms__content">
+      <p class="disclaimer">
+        IMPORTANT DISCLAIMER (PLEASE READ CAREFULLY)<br>
+        LABYRINTH™ IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITH NO WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED. BENGURWAVES™ MAKES NO GUARANTEES ABOUT THE SERVICE’S RELIABILITY, SECURITY, TIMELINESS, ACCURACY, OR CONTENT. TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL LIABILITY FOR ANY DAMAGES ARISING FROM YOUR USE OF THE SERVICE.
+      </p>
+
+      <h2>1. Introduction and Acceptance</h2>
+      <p>1.1 These Terms and Conditions (“Terms”) form a binding legal agreement between you (“you” or “User”) and BenGurWaves™, a sole proprietorship (“Provider,” “we,” “us,” or “our”).<br>By creating an account, accessing, or using Labyrinth™ (the “Service”), you confirm that you have read, understood, and agree to be bound by these Terms.</p>
+      <p>1.2 If you do not agree to these Terms, you must not use the Service.</p>
+
+      <h2>2. Changes to These Terms</h2>
+      <p>2.1 We may update these Terms from time to time. We will post the revised version here and update the “Last updated” date.<br>Your continued use of the Service after any changes means you accept the updated Terms.</p>
+      <p>2.2 For material changes (for example, changes to privacy practices, prohibited content, or liability limits), we will provide at least 30 days’ advance notice by email or in-Service notification. If you do not agree to material changes, you may delete your account before they take effect.</p>
+
+      <h2>3. Eligibility and Age Requirements</h2>
+      <p>3.1 You must be at least 13 years old to create a public account. If you are under 18, you must have permission from a parent or legal guardian to use the Service and agree to these Terms.</p>
+      <p>3.2 Age Verification and Minor Protection. To comply with California and federal laws (including the California Age-Appropriate Design Code and related age-assurance requirements), we implement age-verification measures for certain features and content categories. Users under 18 may need verified parental consent for features involving adult content, community moderation, or data sharing with other users. We reserve the right to restrict or disable features for minors and to require additional age verification at any time based on legal requirements. For details, see our separate Age Assurance Policy labyrinth.bengurwaves.com/age-assurance-policy .</p>
+
+      <h2>4. Accounts, Realms™, and Realm Creators</h2>
+      <p>4.1 Accounts. You are responsible for keeping your login credentials confidential and for all activity that occurs under your account. Use a strong, unique password and do not share your login with others. We use industry-standard security measures, but we cannot guarantee protection against unauthorized access caused by your own actions.</p>
+      <p>4.2 Realms™ and Realm Creators. Users who create “Realms™” are “Realm Creators.” By creating a Realm, you accept full responsibility for its operation, moderation, rules, membership, and all content within it. Realm Creators must comply with these Terms and all applicable laws.<br>We act as a host for Realms and do not pre-screen or curate their content. We will remove Realms or content that violates these Terms or applicable law upon notice or discovery, and we will respond to valid abuse reports promptly. We are not liable for user-generated content in Realms except in cases of our gross negligence or willful violation of law.</p>
+
+      <h2>5. User Content and License</h2>
+      <p>5.1 “User Content” means any text, images, audio, video, files, or other material you post or upload.</p>
+      <p>5.2 By posting User Content, you grant us a non-exclusive, worldwide, royalty-free license to host, store, reproduce, display, distribute, analyze, and moderate the content as necessary to (a) provide and improve the Service, (b) enforce these Terms and prevent abuse, and (c) maintain backups for business continuity and legal compliance.<br>You retain ownership of your User Content and may request its deletion (subject to Section 8 and any legal preservation requirements).</p>
+
+      <h2>6. Prohibited Content</h2>
+      <p>6.1 The following content is strictly prohibited. We will remove it immediately upon discovery, and serious violations may lead to account termination and reporting to authorities:</p>
+      <p>- Child sexual abuse material (CSAM) or any content sexualizing minors — ZERO TOLERANCE. We will report such content to the National Center for Missing & Exploited Children (NCMEC) and law enforcement as required by law.<br>- Credible threats of physical harm to specific individuals.<br>- Malware, DDoS attacks, or attempts to damage the Service.<br>- Impersonation of Provider staff or official representatives.<br>- Content that facilitates or admits to criminal activity requiring mandatory reporting.<br>- Content that infringes third-party copyrights (see Section 10 for DMCA process).</p>
+      <p>6.2 We reserve the right to remove any content that violates these rules or that we reasonably believe violates applicable law.</p>
+
+      <h2>7. Reporting, Child Safety, and Law Enforcement Cooperation</h2>
+      <p>7.1 We comply with all applicable reporting laws. CSAM and other mandatory-report categories will be reported to NCMEC and law enforcement promptly (typically within 24–48 hours of discovery, depending on urgency).</p>
+      <p>7.2 We use industry-standard tools (such as hash-matching) and manual review processes to detect prohibited content. If we have reason to believe content constitutes CSAM or evidence of a crime, we will preserve it for law enforcement before taking any removal or deletion action.</p>
+
+      <h2>8. Account Deletion and Data Deletion</h2>
+      <p>8.1 You may request account deletion at any time. Upon confirmed request, we will delete your personal data (account details, profile, email) within 30 days and User Content within 60 days, except where retention is required by law, an active abuse report, investigation, or legal hold. Retained data will be deleted as soon as legally permitted after the matter is resolved.</p>
+      <p>8.2 Preservation of Evidence. If we have reason to believe content constitutes CSAM or evidence of a crime, we will preserve it and will not honor deletion requests until law enforcement review is complete.</p>
+
+      <h2>9. Privacy and Third-Party Processors</h2>
+      <p>9.1 We collect limited metadata (IP addresses, timestamps, device/browser information) for security, diagnostics, analytics, and operational purposes. Certain processing is performed by trusted third-party providers, including Supabase (database), Cloudflare (hosting/security/CDN), and Google Analytics (traffic analytics). By using the Service, you consent to the transfer of necessary data to these providers.</p>
+      <p>9.2 Our full Privacy Policy, labyrinth.bengurwaves.com/privacy-policy , provides complete details on data collection, use, retention, your rights (including CCPA/CPRA rights to access, delete, and opt out of sale), subprocessors, and international transfers. The Privacy Policy forms part of these Terms.</p>
+
+      <h2>10. Copyright and DMCA Procedure</h2>
+      <p>10.1 We respect copyright law and will respond promptly to valid DMCA takedown notices. To submit a notice, contact us at: labyrinthchat@gmail.com</p>
+      <p>10.2 We follow the procedures in 17 U.S.C. § 512, including notifying affected users, processing counter-notices, and restoring content when appropriate.</p>
+
+      <h2>11. Your Representations and Warranties</h2>
+      <p>11.1 You represent and warrant that (a) you own or have all necessary rights to the User Content you post, (b) your User Content and use of the Service comply with these Terms and all applicable laws, and (c) your actions will not harm others or infringe their rights.</p>
+
+      <h2>12. Indemnification</h2>
+      <p>12.1 You agree to indemnify, defend, and hold harmless BenGurWaves™ and its agents from any claims, losses, damages, or expenses (including reasonable attorneys’ fees) arising directly from (a) your material breach of these Terms, (b) your User Content infringing third-party rights, or (c) your violation of law.<br>This indemnity does not apply to claims caused by our own negligence, breach of privacy obligations, or failure to moderate content as reasonably required by law.</p>
+
+      <h2>13. Dispute Resolution and Arbitration</h2>
+      <p>13.1 Binding Arbitration. Except for claims that cannot be arbitrated under applicable law, any dispute arising from these Terms or the Service will be resolved through final and binding arbitration administered by JAMS in San Francisco County, California, under its then-current rules. Arbitration will be conducted by a single arbitrator and limited solely to the dispute between you and us.</p>
+      <p>13.2 Class Action and Jury Trial Waiver. To the fullest extent permitted by law, you and we waive the right to participate in class, collective, or representative actions and the right to a jury trial. If any claim cannot be arbitrated, it must be brought in court, and the rest of this arbitration provision remains in effect.<br>We will pay all arbitration fees that are not otherwise required to be paid by you under law.</p>
+
+      <h2>14. Limitation of Liability</h2>
+      <p>14.1 TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR LOSS OF PROFITS, REVENUE, DATA, OR USE.</p>
+      <p>14.2 Our total liability for any claim related to the Service is limited to the greater of (a) $100 or (b) the amount you paid us in the 12 months before the claim arose.</p>
+      <p>14.3 These limitations do not apply to claims involving (a) our gross negligence, intentional misconduct, or willful violation of law, (b) breach of our privacy obligations under California law, (c) CSAM-related claims, or (d) bodily injury or death.</p>
+
+      <h2>15. Termination and Suspension</h2>
+      <p>15.1 We may suspend or terminate accounts for violations of these Terms or for any other reason. For most violations, we will provide notice and a 7-day opportunity to cure (except for severe violations such as CSAM, threats, or malware, which may result in immediate action). You may appeal a termination by contacting support labyrinthchat@gmail.com .</p>
+
+      <h2>16. Governing Law and Venue</h2>
+      <p>16.1 These Terms are governed by California law, without regard to conflict-of-law principles.<br>For any claims not subject to arbitration, venue will be in the state or federal courts in San Francisco County, California.</p>
+
+      <h2>17. Miscellaneous</h2>
+      <p>17.1 Severability. If any part of these Terms is found invalid, the rest remains in effect. The parties will replace the invalid provision with one that most closely achieves the original intent.</p>
+      <p>17.2 Entire Agreement. These Terms, together with the Privacy Policy, Age Assurance Policy, and any other referenced policies, constitute the entire agreement between you and us regarding the Service.</p>
+
+      <h2>18. Notices and Contact</h2>
+      <p>18.1 Legal notices, DMCA requests, or privacy inquiries:  labyrinthchat@gmail.com<br>18.2 General support:  labyrinthchat@gmail.com</p>
+
+      <p>Thank you for using Labyrinth™. We aim to provide a safe and enjoyable experience while operating responsibly within legal requirements.</p>
+    </div>
+  </section>
+
+  <!-- Footer (exact match to homepage) -->
+  <footer class="footer">
+    <div class="footer__grid">
+      <div class="footer__column">
+        <h4>Navigation</h4>
+        <ul class="footer__links">
+          <li><a href="https://labyrinth.bengurwaves.com">Home</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/terms-and-conditions">Terms and Conditions</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/privacy-policy">Privacy Policy</a></li>
+          <li><a href="https://labyrinth.bengurwaves.com/age-assurance-policy">Age Assurance Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer__column">
+        <h4>Connect</h4>
+        <ul class="footer__links">
+          <li><a href="mailto:contact@bengurwaves.com">Email</a></li>
+          <li><a href="https://www.instagram.com/bengurwaves" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+          <li><a href="https://www.youtube.com/@bengurwaves" target="_blank" rel="noopener noreferrer">YouTube</a></li>
+          <li><a href="https://www.tiktok.com/@bengurwaves" target="_blank" rel="noopener noreferrer">TikTok</a></li>
+        </ul>
+      </div>
+      <div class="footer__column">
+        <h4>Entities</h4>
+        <ul class="footer__links">
+          <li><a href="https://www.bengurwaves.com">BenGurWaves</a></li>
+          <li><a href="https://sync.bengurwaves.com">Sync</a></li>
+          <li><a href="https://pontus.bengurwaves.com">Pontus</a></li>
+          <li><a href="https://marenth.bengurwaves.com">Marenth</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      © 2026 BenGurWaves™ | © 2026 Labyrinth™ | © 2026 LabyrinthChat™
+    </div>
+  </footer>
+</main>
+
+<script>
+/* Security Warning */
+console.log('%c⚠ This website is protected. Unauthorized copying is monitored.', 'color: red; font-size: 16px; font-weight: bold;');
+
+/* ============================================================================
+   Initialization
+   ============================================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  initLoader();
+  initCustomCursor();
+  initMenu();
+  initCompanyMenu();
+  initPersonalization();
+  initEasterEgg();
+});
+
+/* ============================================================================
+   Loader with Typing Subtitle (adapted from bio.html)
+   ============================================================================ */
+function initLoader() {
+  const loader = document.getElementById('loader');
+  const typingText = document.getElementById('typingText');
+  const text = "by BenGurWaves";
+  let index = 0;
+
+  function typeCharacter() {
+    if (index < text.length) {
+      typingText.innerHTML = text.substring(0, index + 1) + '<span class="typing-cursor"></span>';
+      index++;
+      setTimeout(typeCharacter, 90);
+    } else {
+      typingText.innerHTML = text + '<span class="typing-cursor"></span>';
+    }
+  }
+
+  setTimeout(() => {
+    typeCharacter();
+  }, 400);
+
+  setTimeout(() => {
+    loader.classList.add('loader--hidden');
+    setTimeout(() => document.getElementById('terms').classList.add('fade-in'), 300);
+  }, 3200);
+}
+
+/* ============================================================================
+   Custom Cursor
+   ============================================================================ */
+function initCustomCursor() {
+  const cursor = document.querySelector('.cursor');
+  if (!cursor || window.matchMedia('(pointer: coarse)').matches) {
+    document.body.style.cursor = 'auto';
+    return;
+  }
+  let mouseX = 0, mouseY = 0;
+  let cursorX = 0, cursorY = 0;
+  const speed = 0.15;
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    cursor.style.opacity = '1';
+  });
+  function animateCursor() {
+    const dx = mouseX - cursorX;
+    const dy = mouseY - cursorY;
+    cursorX += dx * speed;
+    cursorY += dy * speed;
+    cursor.style.left = cursorX + 'px';
+    cursor.style.top = cursorY + 'px';
+    requestAnimationFrame(animateCursor);
+  }
+  animateCursor();
+  document.querySelectorAll('a, button').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('cursor--active'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('cursor--active'));
+  });
+}
+
+/* ============================================================================
+   Menus
+   ============================================================================ */
+function initMenu() {
+  const toggle = document.getElementById('menuToggle');
+  const menu = document.getElementById('menu');
+  toggle.addEventListener('click', () => {
+    if (document.getElementById('companyMenu').classList.contains('menu--active')) {
+      document.getElementById('companyMenu').classList.remove('menu--active');
+      document.getElementById('companyToggle').textContent = 'BENGURWAVES';
+    }
+    menu.classList.toggle('menu--active');
+    toggle.textContent = menu.classList.contains('menu--active') ? 'CLOSE' : 'MENU';
+  });
+}
+function initCompanyMenu() {
+  const toggle = document.getElementById('companyToggle');
+  const menu = document.getElementById('companyMenu');
+  toggle.addEventListener('click', () => {
+    if (document.getElementById('menu').classList.contains('menu--active')) {
+      document.getElementById('menu').classList.remove('menu--active');
+      document.getElementById('menuToggle').textContent = 'MENU';
+    }
+    menu.classList.toggle('menu--active');
+    toggle.textContent = menu.classList.contains('menu--active') ? 'CLOSE' : 'BENGURWAVES';
+  });
+}
+
+/* ============================================================================
+   Personalization
+   ============================================================================ */
+function initPersonalization() {
+  const hour = new Date().getHours();
+  const root = document.documentElement;
+  if (hour >= 18 || hour < 6) {
+    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.95)');
+  } else if (hour >= 6 && hour < 12) {
+    root.style.setProperty('--color-gold', 'rgba(202, 168, 122, 0.75)');
+  }
+}
+
+/* ============================================================================
+   Easter Egg
+   ============================================================================ */
+function initEasterEgg() {
+  let clickCount = 0;
+  const logo = document.getElementById('companyToggle');
+  logo.addEventListener('click', () => {
+    clickCount++;
+    if (clickCount === 3) {
+      const cursor = document.querySelector('.cursor');
+      if (cursor) {
+        cursor.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+        cursor.style.mixBlendMode = 'normal';
+        setTimeout(() => {
+          cursor.style.borderColor = '';
+          cursor.style.mixBlendMode = '';
+        }, 3000);
+      }
+      clickCount = 0;
+    }
+    setTimeout(() => clickCount > 0 && clickCount--, 1000);
+  });
+}
+</script>
+
+<script>
+/* Security Deterrent Measures */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && ['u','s','a','c','x','v'].includes(e.key.toLowerCase()) || e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase()) || e.key === 'F12') {
+    e.preventDefault();
+  }
+});
+document.body.style.userSelect = 'none';
+</script>
+</body>
+</html>

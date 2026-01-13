@@ -1,3 +1,6 @@
+/* Labyrinth Version 0.6.000 ALPHA */
+(Mobile first, Desktop second)
+
 /* Labyrinth Chat v0.5.5607 ALPHA - Complete with DM Features */
 :root { 
     --color-black: #050505;
@@ -129,7 +132,7 @@ html, body {
     min-height: 48px;
 }
 
-/* v0.5.57: Safari emoji scroll fix */
+/* ADDED FOR BUG 4: Safari emoji scroll fix - improved */
 #emojiPickerModal .modal-content,
 .emoji-picker {
     overflow-y: auto;
@@ -137,7 +140,7 @@ html, body {
     max-height: 70vh;
 }
 
-/* v0.5.57: Minimalist search button */
+/* CHANGED FOR BUG 3: Minimalist search button - dark mode improvement */
 #globalSearchBtn {
     background: transparent;
     border: none;
@@ -151,6 +154,8 @@ html, body {
     justify-content: center;
     font-size: 18px;
     transition: all var(--transition-fast);
+    /* Added subtle background for dark mode */
+    background: rgba(202, 168, 122, 0.05);
 }
 
 #globalSearchBtn:hover {
@@ -158,10 +163,10 @@ html, body {
     background: var(--color-gray-dark);
 }
 
-/* v0.5.57: Co-admin avatar size fix */
+/* CHANGED FOR BUG 7: Co-admin avatar - petite circle size */
 .co-admin-item img {
-    width: 36px;
-    height: 36px;
+    width: 32px; /* Changed from 36px to 32px */
+    height: 32px; /* Changed from 36px to 32px */
     border-radius: 50%;
     object-fit: cover;
 }
@@ -457,6 +462,45 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dot.active {
     display: block;
 }
+/* ADDED FOR BUG 6: Notification modal scrollable list */
+.notification-center-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ADDED FOR BUG 6: Clean notification item styling */
+.notification-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: background var(--transition-fast);
+}
+
+.notification-item:hover {
+    background: var(--color-gray-dark);
+}
+
+.notification-item-title {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.notification-item-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.notification-item-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 300;
+    margin-top: 4px;
+}
 /* Notification Dropdown */
 .notification-dropdown {
     position: absolute;
@@ -498,49 +542,12 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     background: var(--color-gold-transparent);
 }
 /* Notification Items Large Touch & Unread Bold */
-.notification-item {
-    padding: 20px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    gap: 16px;
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
-    margin-bottom: 8px;
-    transition: background var(--transition-fast);
-    min-height: 72px;
-}
-.notification-item:last-child {
-    border-bottom: none;
-}
-.notification-item:hover {
-    background: var(--color-gray-dark);
-}
-.notification-item.unread {
-    background: var(--color-gold-transparent);
-    font-weight: 600;
-}
 .notification-item-icon {
     font-size: 18px;
     color: var(--color-gold);
 }
 .notification-item-content {
     flex: 1;
-}
-.notification-item-title {
-    font-size: 14px;
-    margin-bottom: 6px;
-    color: var(--text-primary);
-}
-.notification-item-body {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    font-weight: 300;
-}
-.notification-item-time {
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-weight: 300;
 }
 /* Header Avatar - FIXED: Circle and fallback initials */
 .header-user-btn {
@@ -3521,6 +3528,201 @@ input:checked + .toggle-slider:before {
     color: var(--text-primary);
 }
 
+/* ADDED FOR BUG 8: Enhanced profile modals - streak and messages stylish */
+.public-profile-stats {
+    display: flex;
+    gap: 20px;
+    margin: 24px 0;
+    justify-content: center;
+}
+
+.public-profile-streak, .public-profile-messages {
+    flex: 1;
+    padding: 20px;
+    background: var(--color-gray-dark);
+    border-radius: 16px;
+    border: 1px solid var(--color-gold-transparent);
+    text-align: center;
+    min-width: 120px;
+}
+
+.public-profile-streak {
+    color: var(--color-gold);
+    font-weight: 700;
+    font-size: 20px;
+    position: relative;
+}
+
+.public-profile-streak::before {
+    content: "🔥 ";
+    font-size: 24px;
+}
+
+.public-profile-messages {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 20px;
+}
+
+.public-profile-bio {
+    margin: 24px 0;
+    padding: 20px;
+    background: var(--color-gray-dark);
+    border-radius: 12px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.public-profile-social-links {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.social-link-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-gray-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-gold);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border-color);
+}
+
+.social-link-icon:hover {
+    background: var(--color-gold-transparent);
+    transform: translateY(-2px);
+}
+
+/* ADDED FOR BUG 9: General modal scrolling improvement */
+.modal-content {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ADDED FOR BUG 14: Desktop message hover reactions */
+@media (min-width: 769px) {
+    .msg {
+        position: relative;
+    }
+
+    .hover-reactions {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        display: flex;
+        gap: 4px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        padding: 6px 8px;
+        backdrop-filter: blur(20px);
+        opacity: 0;
+        visibility: hidden;
+        transition: all var(--transition-fast);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+
+    .msg:hover .hover-reactions {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .hover-reaction-btn {
+        background: transparent;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        color: var(--text-secondary);
+    }
+
+    .hover-reaction-btn:hover {
+        background: var(--color-gray-dark);
+        color: var(--color-gold);
+        transform: scale(1.1);
+    }
+
+    .hover-reaction-btn.plus {
+        font-size: 18px;
+        margin-left: 4px;
+    }
+}
+
+/* ADDED FOR BUG 15: Saved messages list styling */
+.saved-messages-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 20px;
+}
+
+.saved-message-item {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    transition: background var(--transition-fast);
+}
+
+.saved-message-item:hover {
+    background: var(--color-gray-dark);
+}
+
+.saved-message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.saved-message-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    word-break: break-word;
+}
+
+.saved-message-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 12px;
+}
+
+.saved-message-remove {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.saved-message-remove:hover {
+    background: var(--danger);
+    color: var(--color-white);
+}
 /* Responsive */
 @media (max-width: 768px) {
     :root {
@@ -3718,6 +3920,21 @@ input:checked + .toggle-slider:before {
     .cookie-buttons {
         width: 100%;
         flex-direction: column;
+    }
+    
+    /* ADDED FOR BUG 14: Hide hover reactions on mobile */
+    .hover-reactions {
+        display: none;
+    }
+    
+    /* ADDED FOR BUG 8: Mobile profile adjustments */
+    .public-profile-stats {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .public-profile-streak, .public-profile-messages {
+        min-width: auto;
     }
 }
 @media (max-width: 480px) {

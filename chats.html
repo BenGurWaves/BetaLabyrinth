@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.560 Beta</title>
+<!-- v0.5.57: Updated version number -->
+<title>Labyrinth Chat v0.5.57 ALPHA</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -129,17 +130,13 @@
                 <div class="realm-icon-section">
                     <div class="realm-icon-preview" id="realmSettingsIconPreview"></div>
                     <div class="realm-icon-buttons">
-                        <button id="realmSettingsChooseEmojiBtn" class="btn-secondary">Choose Emoji</button>
+                        <!-- v0.5.57: Removed "Choose Emoji" button -->
                         <button id="realmSettingsIconUploadBtn" class="btn-secondary">Upload Image</button>
                         <input type="file" id="realmSettingsIconUpload" accept="image/*" style="display: none;">
                     </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Realm Background</label>
-                <button id="realmSettingsBackgroundUploadBtn" class="btn-secondary" style="width: 100%;">Upload Background</button>
-                <input type="file" id="realmSettingsBackgroundUpload" accept="image/*" style="display: none;">
-            </div>
+            <!-- v0.5.57: Removed Realm Background upload section -->
             <div class="form-group">
                 <label class="form-label">Announcement Message</label>
                 <textarea id="realmSettingsAnnouncement" class="form-input bio-textarea" placeholder="Important announcements for all users..." rows="4"></textarea>
@@ -199,7 +196,8 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.5.560 Beta • Fully Functional</div>
+                <!-- v0.5.57: Updated version number -->
+                <div class="login-subtitle">v0.5.57 ALPHA • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -239,7 +237,8 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.560 Beta</span>
+            <!-- v0.5.57: Updated version number -->
+            <span class="version">v0.5.57 ALPHA</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -345,14 +344,7 @@
             </button>
             <div class="input-area">
                 <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
-                <div class="input-buttons">
-                    <button class="input-btn" id="attachmentBtn" title="Attach file">
-                        <i class="fas fa-paperclip"></i>
-                    </button>
-                    <button class="input-btn" id="emojiBtn" title="Insert emoji">
-                        <i class="fas fa-smile"></i>
-                    </button>
-                </div>
+                <!-- v0.5.57: Removed attachment/emoji buttons -->
                 <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
                 <button class="send-btn" id="sendBtn" disabled>↑</button>
             </div>
@@ -602,8 +594,8 @@
                 </div>
             </div>
             
-            <!-- ADDED v0.5.57: Public Profile enhancements -->
-            <div class="public-profile-section" id="publicProfileStreakSection" style="display: none;">
+            <!-- v0.5.57: Updated Public Profile sections -->
+            <div class="public-profile-section" id="publicProfileStreakSection">
                 <h3>Streak</h3>
                 <div class="public-profile-streak" id="publicProfileStreak">🔥 0 day streak</div>
             </div>
@@ -866,7 +858,7 @@
     </div>
 </template>
 
-<!-- ADDED v0.5.57: Age / DOB collection modal -->
+<!-- v0.5.57: Age / DOB collection modal -->
 <div class="modal-back" id="dobModal" style="display: none;">
     <div class="modal-content">
         <button class="modal-close-btn" id="dobModalClose">×</button>

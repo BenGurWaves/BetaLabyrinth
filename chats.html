@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- v0.5.57: Updated version number -->
-<title>Labyrinth Chat v0.5.57 ALPHA</title>
+<!-- Labyrinth Version 0.6.000 ALPHA -->
+<title>Labyrinth Chat v0.6.000 ALPHA</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -130,13 +130,13 @@
                 <div class="realm-icon-section">
                     <div class="realm-icon-preview" id="realmSettingsIconPreview"></div>
                     <div class="realm-icon-buttons">
-                        <!-- v0.5.57: Removed "Choose Emoji" button -->
+                        <!-- REMOVED FOR 0.6.000: "Choose Emoji" button -->
                         <button id="realmSettingsIconUploadBtn" class="btn-secondary">Upload Image</button>
                         <input type="file" id="realmSettingsIconUpload" accept="image/*" style="display: none;">
                     </div>
                 </div>
             </div>
-            <!-- v0.5.57: Removed Realm Background upload section -->
+            <!-- REMOVED FOR 0.6.000: Realm Background upload section -->
             <div class="form-group">
                 <label class="form-label">Announcement Message</label>
                 <textarea id="realmSettingsAnnouncement" class="form-input bio-textarea" placeholder="Important announcements for all users..." rows="4"></textarea>
@@ -191,79 +191,50 @@
     <div class="loading-spinner"></div>
     <div style="color: var(--text-secondary); font-size: 14px;">Entering the Labyrinth...</div>
 </div>
-<div class="modal-back" id="loginOverlay" role="dialog" aria-modal="true">
-    <div class="login-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
-            <div>
-                <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <!-- v0.5.57: Updated version number -->
-                <div class="login-subtitle">v0.5.57 ALPHA • Fully Functional</div>
-            </div>
-        </div>
-        <div class="form-group">
-            <input id="loginEmail" class="form-input" placeholder="Email" autocomplete="email" />
-        </div>
-        <div class="form-group">
-            <input id="loginPassword" class="form-input" type="password" placeholder="Password" autocomplete="current-password" />
-        </div>
-        
-        <!-- ADDED v0.5.57: Terms & Age confirmation on signup -->
-        <div class="form-group">
-          <label class="toggle">
-            <input type="checkbox" id="over13Checkbox">
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-label">I confirm I am over 13 years of age</span>
-        </div>
-        <div class="form-group">
-          <label class="toggle">
-            <input type="checkbox" id="termsCheckbox">
-            <span class="toggle-slider"></span>
-          </label>
-          <span class="toggle-label">I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></span>
-        </div>
-        
-        <div class="action-row">
-            <div style="flex:1">
-                <button id="signInBtn" class="btn-primary">Sign in</button>
-            </div>
-            <div style="flex:1">
-                <button id="signUpBtn" class="btn-secondary">Create account</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- REMOVED FOR 0.6.000: Entire loginOverlay modal (sign-in/auth code) -->
 <div id="app" style="display: none;">
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <!-- v0.5.57: Updated version number -->
-            <span class="version">v0.5.57 ALPHA</span>
+            <!-- UPDATED FOR 0.6.000: Version number -->
+            <span class="version">v0.6.000 ALPHA</span>
         </div>
         <div class="top-bar-right">
-            <button class="search-btn" id="globalSearchBtn" title="Search">
+            <!-- CHANGED FOR 0.6.000: Search button - clean styling -->
+            <button class="search-btn clean-search-btn" id="globalSearchBtn" title="Search">
                 <span>🔍</span>
             </button>
             <button class="notification-bell" id="notificationBell" title="Notifications">
                 🔔
                 <div class="notification-dot" id="notificationDot"></div>
             </button>
+            <!-- UPDATED FOR 0.6.000: Notification dropdown with scrollable structure -->
             <div class="notifications-dropdown" id="notificationsDropdown" style="display: none;">
                 <div class="notifications-header">
                     <h3>Notifications</h3>
                     <button id="markAllReadBtn">Mark all read</button>
                 </div>
-                <div class="notifications-list" id="notificationsList">
+                <div class="notifications-list scrollable-list" id="notificationsList" style="max-height: 300px; overflow-y: auto;">
                     <div class="loading-placeholder">
                         <div class="loading-spinner"></div>
                     </div>
+                    <!-- Notification items will be added here with structure:
+                    <div class="notification-item" data-notification-id="..." onclick="handleNotificationClick(...)">
+                        <div class="notification-title">Title</div>
+                        <div class="notification-preview">Preview message...</div>
+                        <div class="notification-timestamp">2 hours ago</div>
+                    </div>
+                    -->
                 </div>
                 <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
             </div>
+            <!-- UPDATED FOR 0.6.000: Header user section with proper elements -->
             <button class="header-user-btn" id="headerUserBtn">
-                <div class="header-user-avatar" id="headerUserAvatar" style="border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: var(--color-gray-dark); color: white; width: 36px; height: 36px;">U</div>
+                <div class="header-user-avatar" id="headerUserAvatar">
+                    <img id="header-avatar" src="" alt="User avatar" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                </div>
                 <div>
-                    <div class="header-user-name" id="headerUserName">Loading...</div>
+                    <div class="header-user-name" id="headerUserName"><span id="header-username">Loading...</span></div>
                     <div class="header-user-status online" id="headerUserStatus">Online</div>
                 </div>
             </button>
@@ -287,6 +258,12 @@
                     </div>
                 </div>
             </div>
+            <!-- ADDED FOR 0.6.000: DMs button in sidebar -->
+            <div class="sidebar-section" style="margin-top: 10px; padding: 10px;">
+                <a href="https://labyrinth.bengurwaves.com/dm_chats" target="_blank" class="btn-secondary" style="width: 100%; text-align: center; display: block; text-decoration: none;">
+                    DMs
+                </a>
+            </div>
             <div class="sidebar-section">
                 <div class="section-header" id="channelsHeader">
                     <div class="section-title">Channels</div>
@@ -304,13 +281,7 @@
                             <span>Create Channel</span>
                         </button>
                     </div>
-                    <!-- DM Realm + Button -->
-                    <div id="dmAddConversationContainer" style="display: none;">
-                        <button class="channel-item" id="dmAddConversationBtn" style="color: var(--color-gold-light); justify-content: center;">
-                            <span>+</span>
-                            <span>New Conversation</span>
-                        </button>
-                    </div>
+                    <!-- REMOVED FOR 0.6.000: DM Realm + Button -->
                 </div>
             </div>
             <div class="sidebar-footer">
@@ -344,7 +315,7 @@
             </button>
             <div class="input-area">
                 <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
-                <!-- v0.5.57: Removed attachment/emoji buttons -->
+                <!-- REMOVED FOR 0.6.000: Attachment and emoji buttons -->
                 <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
                 <button class="send-btn" id="sendBtn" disabled>↑</button>
             </div>
@@ -356,6 +327,8 @@
         <button class="modal-close-btn" id="userModalCloseBtn">×</button>
         <div class="modal-tabs">
             <button class="modal-tab active" data-tab="profile">Profile</button>
+            <!-- ADDED FOR 0.6.000: Saved tab -->
+            <button class="modal-tab" data-tab="saved">Saved</button>
             <button class="modal-tab" data-tab="settings">Settings</button>
         </div>
         <div class="modal-tab-content active" id="profileTab">
@@ -435,6 +408,14 @@
                 </button>
             </div>
         </div>
+        <!-- ADDED FOR 0.6.000: Saved tab content -->
+        <div class="modal-tab-content" id="savedTab">
+            <h2 class="modal-title">Saved Messages</h2>
+            <div class="modal-subtitle">Messages you've saved for later</div>
+            <div id="saved-messages-list" class="scrollable-list" style="max-height: 400px; overflow-y: auto; margin-top: 20px;">
+                <!-- Saved messages will be loaded here -->
+            </div>
+        </div>
         <div class="modal-tab-content" id="settingsTab">
             <h2 class="modal-title">Settings</h2>
             <div class="modal-subtitle">Customize your Labyrinth experience</div>
@@ -508,7 +489,6 @@
                 </div>
             </div>
             
-            <!-- ADDED v0.5.57: Install button -->
             <button class="btn-secondary" id="installAppBtn" style="width: 100%; margin-bottom: 16px;">
                 <span>↓</span>
                 <span>Install Labyrinth Chat</span>
@@ -551,10 +531,12 @@
         <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
         <h2 class="modal-title">Notifications</h2>
         <div class="modal-subtitle">Your recent notifications</div>
-        <div id="notificationsListFull" class="notifications-list-full">
+        <!-- UPDATED FOR 0.6.000: Notification list with scrollable structure -->
+        <div id="notificationsListFull" class="notifications-list-full scrollable-list" style="max-height: 400px; overflow-y: auto;">
             <div class="loading-placeholder">
                 <div class="loading-spinner"></div>
             </div>
+            <!-- Notification items will be added here -->
         </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="notificationsCloseBtn" class="btn-secondary">Close</button>
@@ -594,7 +576,6 @@
                 </div>
             </div>
             
-            <!-- v0.5.57: Updated Public Profile sections -->
             <div class="public-profile-section" id="publicProfileStreakSection">
                 <h3>Streak</h3>
                 <div class="public-profile-streak" id="publicProfileStreak">🔥 0 day streak</div>
@@ -706,13 +687,13 @@
             </label>
         </div>
         
-        <!-- ADDED v0.5.57: Realm creation disclaimer -->
+        <!-- UPDATED FOR 0.6.000: Realm creation disclaimer with new text -->
         <div class="form-group">
             <label class="toggle">
                 <input type="checkbox" id="realmDisclaimerCheckbox" required>
                 <span class="toggle-slider"></span>
             </label>
-            <span class="toggle-label">By creating a Realm™, the Creator assumes all legal responsibility for moderation, content, and the behavior of members within that Realm. BenGurWaves™ acts only as a passive host.</span>
+            <span class="toggle-label">By creating a Realm™, you, as the Realm Creator, assumes all legal responsibility for moderation, content, and the behavior of members within that Realm. BenGurWaves™ and Labyrinth Chat™ acts only as a passive host.</span>
         </div>
         
         <div class="action-row">
@@ -785,7 +766,9 @@
     <div class="modal-content" style="max-width: 500px;">
         <h2 class="modal-title">React with Emoji</h2>
         <div class="modal-subtitle">Select an emoji to react</div>
-        <div class="emoji-picker" id="emojiPicker" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 32px 32px 60px;"></div>
+        <!-- UPDATED FOR 0.6.000: Emoji picker with scrollable container -->
+        <div class="emoji-picker scrollable-list" id="emojiPicker" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 32px 32px 60px; max-height: 400px; overflow-y: auto;">
+        </div>
         <div class="action-row" style="margin-top: 24px;">
             <button id="closeEmojiPickerBtn" class="btn-secondary">Close</button>
         </div>
@@ -814,6 +797,11 @@
     <div class="context-menu-item" data-action="viewProfile">
         <span>👤</span>
         <span>View Profile</span>
+    </div>
+    <!-- ADDED FOR 0.6.000: Save Message option -->
+    <div class="context-menu-item" data-action="save">
+        <span>💾</span>
+        <span>Save Message</span>
     </div>
     <div class="context-menu-item" data-action="edit" style="display: none;">
         <span>✏️</span>
@@ -858,36 +846,7 @@
     </div>
 </template>
 
-<!-- v0.5.57: Age / DOB collection modal -->
-<div class="modal-back" id="dobModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="dobModalClose">×</button>
-        <h2 class="modal-title">Complete Your Profile</h2>
-        <div class="modal-subtitle">Please enter your date of birth</div>
-        <div class="form-group">
-            <label class="form-label">Date of Birth</label>
-            <input type="date" id="dobInput" class="form-input">
-        </div>
-        <div class="toggle-switch">
-            <span class="toggle-label">Show Date of Birth on public profile</span>
-            <label class="toggle">
-                <input type="checkbox" id="showDobToggle">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="action-row">
-            <button id="saveDobBtn" class="btn-primary">Save & Continue</button>
-        </div>
-    </div>
-</div>
-
-<!-- ADDED v0.5.57: Cookie / Cache consent banner -->
-<div class="cookie-banner" id="cookieBanner">
-    <div class="cookie-content">
-        <div>We use cookies and cache to improve your experience.</div>
-        <button id="acceptCookiesBtn" class="btn-primary">Accept</button>
-    </div>
-</div>
+<!-- REMOVED FOR 0.6.000: Cookie consent banner -->
 
 <script src="script.js" defer></script>
 </body>

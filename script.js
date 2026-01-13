@@ -1,5 +1,5 @@
 parseInt(dot.getAttribute('data-step')) === stepNumber);
-            });
+            }); 
            
             // Show correct step content
             document.getElementById('usernameStep').classList.toggle('active', stepNumber === 1);

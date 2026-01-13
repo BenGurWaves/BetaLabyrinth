@@ -3,6 +3,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const STORAGE_BUCKET = 'avatars';
 const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves', 'direct-messages'];
 const ADMIN_USERNAME = 'TheRealBenGurWaves';
+const VAPID_PUBLIC_KEY = 'BLdyBIqH3Z-rl3Sw8O0a4gK3A8qB4MVyzzXxLhFhHwz8u4VYvQ8c2zQ6n8Xq0n8n4s8K3X8qB4MVyzzXxLhFhHwz8u4VYvQ8c'; // ADDED v0.5.57: VAPID public key for push notifications
 
 let state = {
     supabase: null,
@@ -43,6 +44,37 @@ let state = {
     channelDeleteStep: 1,
     systemThemeListener: null
 };
+
+// SQL for required new columns/tables:
+/*
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS dob DATE,
+ADD COLUMN IF NOT EXISTS show_dob BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS push_subscription JSONB,
+ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS total_messages_sent INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_active_date DATE;
+
+-- For future DM system (v0.6.0):
+CREATE TABLE IF NOT EXISTS dm_channels (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user1_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    user2_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    UNIQUE(user1_id, user2_id)
+);
+
+CREATE TABLE IF NOT EXISTS dm_messages (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    dm_channel_id UUID REFERENCES dm_channels(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    read_at TIMESTAMP WITH TIME ZONE,
+    edited_at TIMESTAMP WITH TIME ZONE
+);
+*/
 
 function hideLoader() {
     try {
@@ -139,13 +171,414 @@ function hideToast(toast) {
     }
 }
 
+// ADDED v0.5.57: Cookie consent banner
+function checkCookieConsent() {
+    try {
+        if (!localStorage.getItem('cookie_consent_accepted')) {
+            document.getElementById('cookieBanner').style.display = 'block';
+        }
+    } catch (error) {
+        console.log('Error checking cookie consent:', error);
+    }
+}
+
+// ADDED v0.5.57: Accept cookies
+function acceptCookies() {
+    try {
+        localStorage.setItem('cookie_consent_accepted', 'true');
+        document.getElementById('cookieBanner').style.display = 'none';
+    } catch (error) {
+        console.log('Error accepting cookies:', error);
+    }
+}
+
+// ADDED v0.5.57: Update streak and message count
+async function updateStreakAndCount() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Get current profile data
+        const { data: profile, error } = await state.supabase
+            .from('profiles')
+            .select('streak_count, total_messages_sent, last_active_date')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        if (error) return;
+        
+        let streakCount = profile.streak_count || 0;
+        let totalMessages = profile.total_messages_sent || 0;
+        const lastActive = profile.last_active_date;
+        
+        // Check if last active was yesterday to continue streak
+        if (lastActive) {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            
+            if (lastActive === yesterdayStr) {
+                streakCount += 1;
+            } else if (lastActive !== today) {
+                streakCount = 1; // Reset streak if missed a day
+            }
+        } else {
+            streakCount = 1; // First time
+        }
+        
+        // Update profile
+        await state.supabase
+            .from('profiles')
+            .update({
+                streak_count: streakCount,
+                last_active_date: today
+            })
+            .eq('id', state.currentUser.id);
+            
+        // Update UI if available
+        const streakElement = document.getElementById('streakCount');
+        if (streakElement) {
+            streakElement.textContent = streakCount;
+        }
+        
+    } catch (error) {
+        console.log('Error updating streak:', error);
+    }
+}
+
+// ADDED v0.5.57: Increment message count on send
+async function incrementMessageCount() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        await state.supabase.rpc('increment_message_count', {
+            user_id: state.currentUser.id
+        });
+        
+        // Update UI if available
+        const { data: profile } = await state.supabase
+            .from('profiles')
+            .select('total_messages_sent')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        if (profile && document.getElementById('messageCount')) {
+            document.getElementById('messageCount').textContent = profile.total_messages_sent;
+        }
+        
+    } catch (error) {
+        console.log('Error incrementing message count:', error);
+    }
+}
+
+// ADDED v0.5.57: Push notification subscription
+async function subscribeToPushNotifications() {
+    try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            showToast('Info', 'Push notifications not supported in this browser', 'info');
+            return null;
+        }
+        
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Check current subscription
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            return subscription;
+        }
+        
+        // Request permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            showToast('Info', 'Push notification permission denied', 'info');
+            return null;
+        }
+        
+        // Subscribe with VAPID key
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        
+        return subscription;
+        
+    } catch (error) {
+        console.log('Error subscribing to push notifications:', error);
+        showToast('Error', 'Failed to enable push notifications', 'error');
+        return null;
+    }
+}
+
+// ADDED v0.5.57: Helper for VAPID key conversion
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// ADDED v0.5.57: Save push subscription to profile
+async function savePushSubscription(subscription) {
+    try {
+        if (!state.currentUser || !state.supabase || !subscription) return false;
+        
+        const { error } = await state.supabase
+            .from('profiles')
+            .update({ 
+                push_subscription: subscription,
+                push_notifications: true
+            })
+            .eq('id', state.currentUser.id);
+            
+        if (error) {
+            console.log('Error saving push subscription:', error);
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.log('Error saving push subscription:', error);
+        return false;
+    }
+}
+
+// ADDED v0.5.57: Unsubscribe from push notifications
+async function unsubscribeFromPushNotifications() {
+    try {
+        if (!('serviceWorker' in navigator)) return;
+        
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            await subscription.unsubscribe();
+            
+            // Remove from profile
+            if (state.currentUser && state.supabase) {
+                await state.supabase
+                    .from('profiles')
+                    .update({ 
+                        push_subscription: null,
+                        push_notifications: false
+                    })
+                    .eq('id', state.currentUser.id);
+            }
+        }
+    } catch (error) {
+        console.log('Error unsubscribing from push notifications:', error);
+    }
+}
+
+// ADDED v0.5.57: Check and resubscribe to push notifications on load
+async function checkPushNotificationSubscription() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        // Check if push notifications are enabled in profile
+        const { data: profile } = await state.supabase
+            .from('profiles')
+            .select('push_notifications, push_subscription')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        if (!profile || !profile.push_notifications) return;
+        
+        // Check if we have a valid subscription
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            
+            if (!subscription && profile.push_subscription) {
+                // Resubscribe if enabled but no active subscription
+                const newSubscription = await subscribeToPushNotifications();
+                if (newSubscription) {
+                    await savePushSubscription(newSubscription);
+                }
+            }
+        }
+    } catch (error) {
+        console.log('Error checking push notification subscription:', error);
+    }
+}
+
+// ADDED v0.5.57: Check if DOB is required
+async function checkDOBRequirement() {
+    try {
+        if (!state.currentUser || !state.supabase) return false;
+        
+        const { data: profile } = await state.supabase
+            .from('profiles')
+            .select('dob')
+            .eq('id', state.currentUser.id)
+            .single();
+            
+        // Show DOB modal if no DOB set
+        if (!profile || !profile.dob) {
+            setTimeout(() => {
+                document.getElementById('dobModal').style.display = 'flex';
+            }, 1000);
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.log('Error checking DOB requirement:', error);
+        return false;
+    }
+}
+
+// ADDED v0.5.57: Save DOB
+async function saveDOB() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const dobInput = document.getElementById('dobInput').value;
+        const showDob = document.getElementById('showDobToggle').checked;
+        
+        if (!dobInput) {
+            showToast('Error', 'Please enter your date of birth', 'error');
+            return;
+        }
+        
+        // Calculate age
+        const dob = new Date(dobInput);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        
+        // Check if under 13
+        if (age < 13) {
+            showToast('Error', 'You must be at least 13 years old to use this service', 'error');
+            return;
+        }
+        
+        const { error } = await state.supabase
+            .from('profiles')
+            .update({
+                dob: dobInput,
+                show_dob: showDob
+            })
+            .eq('id', state.currentUser.id);
+            
+        if (error) throw error;
+        
+        document.getElementById('dobModal').style.display = 'none';
+        showToast('Success', 'Date of birth saved successfully', 'success');
+        
+    } catch (error) {
+        console.log('Error saving DOB:', error);
+        showToast('Error', 'Failed to save date of birth', 'error');
+    }
+}
+
+// ADDED v0.5.57: Format age for display
+function formatAge(dobString) {
+    try {
+        const dob = new Date(dobString);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        return age;
+    } catch (error) {
+        return null;
+    }
+}
+
+// ADDED v0.5.57: Account deletion
+async function deleteAccount() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        // Soft delete: mark as deleted and cascade remove data
+        const { error: updateError } = await state.supabase
+            .from('profiles')
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                username: `deleted_user_${state.currentUser.id.slice(0, 8)}`,
+                email: `deleted_${state.currentUser.id}@example.com`,
+                avatar_url: null,
+                bio: null,
+                social_links: null,
+                show_realms: false,
+                stealth_mode: true,
+                push_subscription: null
+            })
+            .eq('id', state.currentUser.id);
+            
+        if (updateError) throw updateError;
+        
+        // Delete user's messages
+        const { error: messagesError } = await state.supabase
+            .from('messages')
+            .delete()
+            .eq('user_id', state.currentUser.id);
+            
+        if (messagesError) console.log('Error deleting messages:', messagesError);
+        
+        // Delete user from user_realms
+        const { error: realmsError } = await state.supabase
+            .from('user_realms')
+            .delete()
+            .eq('user_id', state.currentUser.id);
+            
+        if (realmsError) console.log('Error removing from realms:', realmsError);
+        
+        // Delete user's channels if they own them
+        const { error: channelsError } = await state.supabase
+            .from('channels')
+            .delete()
+            .eq('created_by', state.currentUser.id);
+            
+        if (channelsError) console.log('Error deleting channels:', channelsError);
+        
+        // Delete user's realms if they own them (soft delete)
+        const { error: ownedRealmsError } = await state.supabase
+            .from('realms')
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                is_public: false 
+            })
+            .eq('created_by', state.currentUser.id);
+            
+        if (ownedRealmsError) console.log('Error deleting owned realms:', ownedRealmsError);
+        
+        // Sign out
+        await state.supabase.auth.signOut();
+        
+        showToast('Success', 'Account deleted successfully', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    } catch (error) {
+        console.log('Error deleting account:', error);
+        showToast('Error', 'Failed to delete account', 'error');
+    }
+}
+
 async function fetchAndUpdateProfile(immediate = false) {
     try {
         if (!state.currentUser || !state.supabase) return;        
         console.log('Fetching latest profile from Supabase...');        
         const { data: profile, error } = await state.supabase
             .from('profiles')
-            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts')
+            .select('username, avatar_url, bio, social_links, show_realms, stealth_mode, theme_preference, in_app_notifications, push_notifications, email_notifications, send_with_enter, open_links_in_app, send_read_receipts, dob, show_dob, streak_count, total_messages_sent, last_active_date') // ADDED v0.5.57: New fields
             .eq('id', state.currentUser.id)
             .single();            
         if (error) {
@@ -166,6 +599,12 @@ async function fetchAndUpdateProfile(immediate = false) {
             state.userSettings.send_with_enter = profile.send_with_enter !== false;
             state.userSettings.open_links_in_app = profile.open_links_in_app === true;
             state.userSettings.send_read_receipts = profile.send_read_receipts !== false;
+            // ADDED v0.5.57: New fields
+            state.userSettings.dob = profile.dob;
+            state.userSettings.show_dob = profile.show_dob === true;
+            state.userSettings.streak_count = profile.streak_count || 0;
+            state.userSettings.total_messages_sent = profile.total_messages_sent || 0;
+            state.userSettings.last_active_date = profile.last_active_date;
         }
         updateHeaderUserButton();
         updateProfileModal();        
@@ -247,7 +686,13 @@ async function loadUserProfile() {
                 send_read_receipts: true,
                 bio: '',
                 social_links: {},
-                show_realms: true
+                show_realms: true,
+                // ADDED v0.5.57: New fields
+                dob: null,
+                show_dob: false,
+                streak_count: 0,
+                total_messages_sent: 0,
+                last_active_date: null
             };
         }        
         console.log('Loading user profile from Supabase...');        
@@ -278,7 +723,13 @@ async function loadUserProfile() {
                 send_read_receipts: true,
                 bio: '',
                 social_links: {},
-                show_realms: true
+                show_realms: true,
+                // ADDED v0.5.57: New fields
+                dob: null,
+                show_dob: false,
+                streak_count: 0,
+                total_messages_sent: 0,
+                last_active_date: null
             };
         }
         const defaultProfile = {
@@ -297,7 +748,13 @@ async function loadUserProfile() {
             send_read_receipts: profile.send_read_receipts !== false,
             bio: profile.bio || '',
             social_links: profile.social_links || {},
-            show_realms: profile.show_realms !== false
+            show_realms: profile.show_realms !== false,
+            // ADDED v0.5.57: New fields
+            dob: profile.dob || null,
+            show_dob: profile.show_dob === true,
+            streak_count: profile.streak_count || 0,
+            total_messages_sent: profile.total_messages_sent || 0,
+            last_active_date: profile.last_active_date || null
         };        
         console.log('User profile loaded from Supabase');
         return defaultProfile;
@@ -319,7 +776,13 @@ async function loadUserProfile() {
             send_read_receipts: true,
             bio: '',
             social_links: {},
-            show_realms: true
+            show_realms: true,
+            // ADDED v0.5.57: New fields
+            dob: null,
+            show_dob: false,
+            streak_count: 0,
+            total_messages_sent: 0,
+            last_active_date: null
         };
     }
 }
@@ -1002,6 +1465,7 @@ async function loadPinnedMessage() {
             return;
         }
         
+        // FIXED v0.5.57: Improved pinned message reliability with better error handling
         const { data: message, error } = await state.supabase
             .from('messages')
             .select(`
@@ -1015,6 +1479,12 @@ async function loadPinnedMessage() {
             .single();
             
         if (error || !message) {
+            console.log('Pinned message not found, clearing pin:', error);
+            // Clear invalid pinned message
+            await state.supabase
+                .from('channels')
+                .update({ pinned_message_id: null })
+                .eq('id', state.currentChannel.id);
             document.getElementById('pinnedMessageContainer').style.display = 'none';
             state.pinnedMessage = null;
             return;
@@ -1764,6 +2234,10 @@ function sendMessage() {
                 if (error) {
                     console.log('Error sending message:', error);
                     showToast('Error', 'Failed to send message', 'error');
+                } else {
+                    // ADDED v0.5.57: Update streak and message count
+                    updateStreakAndCount();
+                    incrementMessageCount();
                 }
             });            
     } catch (error) {
@@ -1917,14 +2391,14 @@ async function loadOtherUserRealms(userId) {
         if (!state.supabase || !userId) return null;
         const { data: profile, error: profileError } = await state.supabase
             .from('profiles')
-            .select('show_realms')
+            .select('show_realms, dob, show_dob') // ADDED v0.5.57: Include DOB fields
             .eq('id', userId)
             .single();            
         if (profileError || !profile) {
-            return { show_realms: true, realms: [] };
+            return { show_realms: true, realms: [], show_dob: false, dob: null };
         }        
         if (profile.show_realms === false) {
-            return { show_realms: false, realms: [] };
+            return { show_realms: false, realms: [], show_dob: profile.show_dob, dob: profile.dob };
         }
         const { data: userRealms, error } = await state.supabase
             .from('user_realms')
@@ -1933,13 +2407,13 @@ async function loadOtherUserRealms(userId) {
             `)
             .eq('user_id', userId);           
         if (error) {
-            return { show_realms: true, realms: [] };
+            return { show_realms: true, realms: [], show_dob: profile.show_dob, dob: profile.dob };
         }        
         const realms = userRealms.map(item => item.realms).filter(Boolean);
-        return { show_realms: true, realms };       
+        return { show_realms: true, realms, show_dob: profile.show_dob, dob: profile.dob };       
     } catch (error) {
         console.log('Error loading other user realms:', error);
-        return { show_realms: true, realms: [] };
+        return { show_realms: true, realms: [], show_dob: false, dob: null };
     }
 }
 
@@ -1988,7 +2462,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.56 Beta...');
+        console.log('Initializing Supabase v0.5.57 Alpha...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2049,6 +2523,21 @@ function showLoginScreen() {
         document.getElementById('loginPassword').onkeypress = function(e) {
             if (e.key === 'Enter') signIn();
         };
+        
+        // ADDED v0.5.57: Terms and over-13 checkboxes
+        const termsCheckbox = document.getElementById('termsCheckbox');
+        const ageCheckbox = document.getElementById('ageCheckbox');
+        const signUpBtn = document.getElementById('signUpBtn');
+        
+        function updateSignupButton() {
+            signUpBtn.disabled = !(termsCheckbox.checked && ageCheckbox.checked);
+        }
+        
+        termsCheckbox.addEventListener('change', updateSignupButton);
+        ageCheckbox.addEventListener('change', updateSignupButton);
+        
+        // Initialize button state
+        updateSignupButton();
     } catch (error) {
         console.log('Error showing login screen:', error);
     }
@@ -2092,7 +2581,11 @@ async function signUp() {
             email,
             password,
             options: {
-                emailRedirectTo: window.location.origin
+                emailRedirectTo: window.location.origin,
+                data: {
+                    // ADDED v0.5.57: Store signup timestamp for DOB flow
+                    signed_up_at: new Date().toISOString()
+                }
             }
         });        
         if (error) throw error;        
@@ -2107,7 +2600,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.56 Beta...');
+        console.log('Initializing app v0.5.57 Alpha...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2157,9 +2650,20 @@ async function initializeApp() {
             state.loaderTimeout = null;
         }
         hideLoader();
-        setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.56 Beta', 'success');
+        
+        // ADDED v0.5.57: Check for DOB requirement
+        setTimeout(async () => {
+            const needsDOB = await checkDOBRequirement();
+            if (!needsDOB) {
+                showToast('Welcome', 'Connected to Labyrinth v0.5.57 Alpha', 'success');
+            }
         }, 500);
+        
+        // ADDED v0.5.57: Update streak on app open
+        await updateStreakAndCount();
+        
+        // ADDED v0.5.57: Check push notification subscription
+        await checkPushNotificationSubscription();
         
         setTimeout(checkWelcomeMessages, 1000);
     } catch (error) {
@@ -2415,11 +2919,29 @@ function setupEventListeners() {
             const toggle = document.getElementById(toggleId);
             if (toggle) {
                 toggle.addEventListener('change', async function() {
+                    // MODIFIED v0.5.57: Push notifications now fully working
                     if (toggleId === 'settingsPushNotifications') {
-                        showToast('Coming Soon', 'Push notifications will be available in a future update', 'info');
-                        this.checked = false;
+                        if (this.checked) {
+                            const subscription = await subscribeToPushNotifications();
+                            if (subscription) {
+                                const saved = await savePushSubscription(subscription);
+                                if (saved) {
+                                    state.userSettings.push_notifications = true;
+                                    showToast('Success', 'Push notifications enabled', 'success');
+                                } else {
+                                    this.checked = false;
+                                }
+                            } else {
+                                this.checked = false;
+                            }
+                        } else {
+                            await unsubscribeFromPushNotifications();
+                            state.userSettings.push_notifications = false;
+                            showToast('Info', 'Push notifications disabled', 'info');
+                        }
                         return;
                     }
+                    
                     if (toggleId === 'settingsEmailNotifications') {
                         showToast('Coming Soon', 'Email notifications will be available in a future update', 'info');
                         this.checked = false;
@@ -2654,6 +3176,7 @@ function setupEventListeners() {
                     showToast('Error', 'Failed to logout', 'error');
                 });
         });
+        // MODIFIED v0.5.57: Actual account deletion
         document.getElementById('deleteAccountBtn').addEventListener('click', function() {
             document.getElementById('confirmationModal').style.display = 'flex';
             document.getElementById('confirmationIcon').textContent = '🗑️';
@@ -2663,7 +3186,7 @@ function setupEventListeners() {
             const cancelBtn = document.getElementById('confirmationCancel');            
             const handleConfirm = async () => {
                 try {
-                    showToast('Info', 'Account deletion coming in a future update', 'info');
+                    await deleteAccount();
                     document.getElementById('confirmationModal').style.display = 'none';
                 } catch (error) {
                     console.log('Error deleting account:', error);
@@ -2758,6 +3281,8 @@ function setupEventListeners() {
                 document.getElementById('notificationsModal').style.display = 'none';
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
+                // ADDED v0.5.57: Close DOB modal
+                document.getElementById('dobModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -2923,6 +3448,65 @@ function setupEventListeners() {
         document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
+        
+        // ADDED v0.5.57: DOB modal events
+        document.getElementById('dobModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('dobModal').style.display = 'none';
+        });
+        
+        document.getElementById('cancelDobBtn').addEventListener('click', function() {
+            document.getElementById('dobModal').style.display = 'none';
+        });
+        
+        document.getElementById('saveDobBtn').addEventListener('click', saveDOB);
+        
+        document.getElementById('dobModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
+        
+        // ADDED v0.5.57: Realm disclaimer checkbox
+        const realmDisclaimerCheckbox = document.getElementById('realmDisclaimerCheckbox');
+        const confirmCreateRealmBtn = document.getElementById('confirmCreateRealmBtn');
+        
+        if (realmDisclaimerCheckbox && confirmCreateRealmBtn) {
+            realmDisclaimerCheckbox.addEventListener('change', function() {
+                confirmCreateRealmBtn.disabled = !this.checked;
+            });
+            // Initialize disabled state
+            confirmCreateRealmBtn.disabled = true;
+        }
+        
+        // ADDED v0.5.57: PWA install button
+        document.getElementById('installAppBtn').addEventListener('click', async function() {
+            if (state.deferredPrompt) {
+                state.deferredPrompt.prompt();
+                const { outcome } = await state.deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('PWA installed successfully');
+                    state.deferredPrompt = null;
+                }
+            } else {
+                // Show instructions for iOS/Android
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                let instructions = '';
+                if (isIOS) {
+                    instructions = 'Tap the share button and then "Add to Home Screen"';
+                } else if (isAndroid) {
+                    instructions = 'Tap the menu button (⋮) and then "Install app" or "Add to Home Screen"';
+                } else {
+                    instructions = 'Use your browser\'s install option (usually in the menu or address bar)';
+                }
+                
+                showToast('Install App', instructions, 'info', 8000);
+            }
+        });
+        
+        // ADDED v0.5.57: Cookie consent events
+        document.getElementById('acceptCookiesBtn').addEventListener('click', acceptCookies);
         
     } catch (error) {
         console.log('Error setting up event listeners:', error);
@@ -3927,6 +4511,15 @@ async function showUserProfile(userId, profileData = null) {
         
         document.getElementById('publicProfileBio').textContent = profile.bio || 'No bio provided';
         
+        // ADDED v0.5.57: Show age if user has enabled it
+        const profileInfoContainer = document.getElementById('publicProfileInfo');
+        if (profile.show_dob && profile.dob) {
+            const age = formatAge(profile.dob);
+            if (age) {
+                profileInfoContainer.innerHTML = `<div style="margin-top: 8px; color: var(--text-secondary); font-size: 14px;">Age: ${age}</div>`;
+            }
+        }
+        
         const socialLinks = profile.social_links || {};
         const socialContainer = document.getElementById('publicProfileSocialLinks');
         socialContainer.innerHTML = '';
@@ -4064,7 +4657,7 @@ function renderRealmsList(realms) {
                     await joinRealm(realm.id);
                 });
             }
-        });       
+        }       
     } catch (error) {
         console.log('Error rendering realms list:', error);
     }
@@ -4359,12 +4952,21 @@ function initializePWA() {
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('beforeinstallprompt event fired');
             e.preventDefault();
-            deferredPrompt = e;
-            console.log('PWA install prompt available - relying on native browser install');
+            state.deferredPrompt = e; // FIXED v0.5.57: Store in state
+            console.log('PWA install prompt available - showing install button');
+            // Show install button if hidden
+            const installBtn = document.getElementById('installAppBtn');
+            if (installBtn) {
+                installBtn.style.display = 'flex';
+            }
         });
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed successfully');
-            deferredPrompt = null;
+            state.deferredPrompt = null;
+            const installBtn = document.getElementById('installAppBtn');
+            if (installBtn) {
+                installBtn.style.display = 'none';
+            }
             console.log('PWA installed successfully via native browser install');
         });
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -4387,6 +4989,10 @@ function initializePWA() {
         if (window.matchMedia('(display-mode: standalone)').matches || 
             window.navigator.standalone === true) {
             console.log('App is already installed');
+            const installBtn = document.getElementById('installAppBtn');
+            if (installBtn) {
+                installBtn.style.display = 'none';
+            }
         }        
     } catch (error) {
         console.log('Error initializing PWA (non-critical):', error);
@@ -5198,15 +5804,22 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.56 Beta...');
-    document.title = 'Labyrinth Chat v0.5.56 Beta';
-    document.querySelector('.version').textContent = 'v0.5.56 Beta';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.56 Beta • Fully Functional';
+    console.log('Initializing Labyrinth Chat v0.5.57 Alpha...');
+    document.title = 'Labyrinth Chat v0.5.57 Alpha';
+    document.querySelector('.version').textContent = 'v0.5.57 Alpha';
+    document.querySelector('.login-subtitle').textContent = 'v0.5.57 Alpha • Push Notifications + DOB Flow';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);
+    
+    // ADDED v0.5.57: Check cookie consent on load
+    setTimeout(checkCookieConsent, 1000);
 });
 window.openMediaFullscreen = openMediaFullscreen;
 window.openEnhancedMedia = openEnhancedMedia;
 window.openAvatarFullscreen = openAvatarFullscreen;
 window.openUserProfile = openUserProfile;
+// ADDED v0.5.57: Expose new functions
+window.acceptCookies = acceptCookies;
+window.saveDOB = saveDOB;
+window.subscribeToPushNotifications = subscribeToPushNotifications;

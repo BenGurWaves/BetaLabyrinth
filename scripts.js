@@ -5,7 +5,7 @@ const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves', 'direct-messages'];
 const ADMIN_USERNAME = 'TheRealBenGurWaves';
 
 let state = {
-    supabase: null,
+    supabase: null, 
     currentUser: null,
     currentRealm: null,
     currentChannel: null,

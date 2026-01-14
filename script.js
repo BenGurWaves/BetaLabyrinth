@@ -49,26 +49,6 @@ let state = {
     savedMessages: [] // ADDED FOR BUG 15: Save Message
 };
 
-// SQL for required new columns/tables:
-/*
-ALTER TABLE profiles 
-ADD COLUMN IF NOT EXISTS dob DATE,
-ADD COLUMN IF NOT EXISTS show_dob BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS push_subscription JSONB,
-ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS total_messages_sent INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS last_active_date DATE;
-
--- For saved messages (v0.6.0):
-CREATE TABLE IF NOT EXISTS saved_messages (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
-    saved_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-    UNIQUE(user_id, message_id)
-);
-*/
-
 function hideLoader() {
     try {
         const loadingOverlay = document.getElementById('loadingOverlay');

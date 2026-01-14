@@ -11,7 +11,7 @@
     <style>
         /* Imported and adapted from style.css */
         :root { 
-            --color-black: #050505; 
+            --color-black: #050505;
             --color-dark: #0a0a0a;
             --color-white: #f5f5f5;
             --color-gray: rgba(255, 255, 255, 0.15);
@@ -796,20 +796,20 @@
         </div>
     </div>
 
- <script>
-    // Supabase configuration
-    const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
-    
-    // Initialize Supabase
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    // State management
-    let currentUser = null;
-    let currentProfile = null;
-    let usernameCheckTimeout = null;
-    
-    // DOM Elements
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
+        
+        // Initialize Supabase with unique name to avoid conflicts
+        const supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // State management
+        let currentUser = null;
+        let currentProfile = null;
+        let usernameCheckTimeout = null;
+        
+        // DOM Elements
         const loadingOverlay = document.getElementById('loadingOverlay');
         const authModal = document.getElementById('authModal');
         const profileModal = document.getElementById('profileModal');
@@ -892,7 +892,7 @@
         // Check for existing session
         async function checkSession() {
             try {
-                const { data: { session }, error } = await supabase.auth.getSession();
+                const { data: { session }, error } = await supabaseInstance.auth.getSession();
                 
                 if (error) throw error;
                 
@@ -913,7 +913,7 @@
         // Fetch user profile
         async function fetchUserProfile() {
             try {
-                const { data: profile, error } = await supabase
+                const { data: profile, error } = await supabaseInstance
                     .from('profiles')
                     .select('*')
                     .eq('id', currentUser.id)
@@ -1069,7 +1069,7 @@
             button.disabled = true;
             
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await supabaseInstance.auth.signInWithPassword({
                     email,
                     password
                 });
@@ -1104,7 +1104,7 @@
             button.disabled = true;
             
             try {
-                const { data, error } = await supabase.auth.signUp({
+                const { data, error } = await supabaseInstance.auth.signUp({
                     email,
                     password
                 });
@@ -1112,7 +1112,7 @@
                 if (error) throw error;
                 
                 // Automatically sign in the user
-                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                const { data: signInData, error: signInError } = await supabaseInstance.auth.signInWithPassword({
                     email,
                     password
                 });
@@ -1168,7 +1168,7 @@
             // Debounce the username check
             usernameCheckTimeout = setTimeout(async () => {
                 try {
-                    const { data, error } = await supabase
+                    const { data, error } = await supabaseInstance
                         .from('profiles')
                         .select('username')
                         .eq('username', username)
@@ -1205,7 +1205,7 @@
             button.disabled = true;
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseInstance
                     .from('profiles')
                     .upsert({
                         id: currentUser.id,
@@ -1321,7 +1321,7 @@
             button.disabled = true;
             
             try {
-                const { error } = await supabase
+                const { error } = await supabaseInstance
                     .from('profiles')
                     .upsert({
                         id: currentUser.id,

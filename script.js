@@ -1,4 +1,3 @@
-```javascript
 const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
 const STORAGE_BUCKET = 'avatars';
@@ -4802,4 +4801,3 @@ window.openEnhancedMedia = openEnhancedMedia;
 window.openAvatarFullscreen = openAvatarFullscreen;
 window.openUserProfile = openUserProfile;
 window.unpinMessage = unpinMessage;
-```

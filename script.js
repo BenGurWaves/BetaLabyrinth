@@ -403,7 +403,25 @@ async function checkDOBRequirement() {
         // Show DOB modal if no DOB set
         if (!profile || !profile.dob) {
             setTimeout(() => {
-                document.getElementById('dobModal').style.display = 'flex';
+                // FIX: Changed from 'dobModal' to 'profileModal' and added null check
+                const modal = document.getElementById('profileModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    // FIX: Trigger step 2 for birthday input in profile modal
+                    const birthdayStep = document.getElementById('birthdayStep');
+                    if (birthdayStep) {
+                        birthdayStep.classList.add('active');
+                        // Also ensure step 1 is inactive
+                        const personalStep = document.getElementById('personalStep');
+                        if (personalStep) {
+                            personalStep.classList.remove('active');
+                        }
+                    }
+                    // Alternatively, if there's a showStep function
+                    if (typeof showStep === 'function') {
+                        showStep(2);
+                    }
+                }
             }, 1000);
             return true;
         }
@@ -453,7 +471,11 @@ async function saveDOB() {
             
         if (error) throw error;
         
-        document.getElementById('dobModal').style.display = 'none';
+        // FIX: Changed from 'dobModal' to 'profileModal' and added null check
+        const modal = document.getElementById('profileModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
         showToast('Success', 'Date of birth saved successfully', 'success');
         
         // Refresh profile data
@@ -6065,3 +6087,64 @@ window.saveDOB = saveDOB;
 window.subscribeToPushNotifications = subscribeToPushNotifications;
 // ADDED FOR BUG 15 & 16
 window.loadSavedMessages = loadSavedMessages;
+
+// v0.5.57: DOB modal events with proper initialization
+const profileModalCloseBtn = document.getElementById('profileModalCloseBtn');
+if (profileModalCloseBtn) {
+    profileModalCloseBtn.addEventListener('click', function() {
+        const modal = document.getElementById('profileModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+const cancelDobBtn = document.getElementById('cancelDobBtn');
+if (cancelDobBtn) {
+    cancelDobBtn.addEventListener('click', function() {
+        const modal = document.getElementById('profileModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+const saveDobBtn = document.getElementById('saveDobBtn');
+if (saveDobBtn) {
+    saveDobBtn.addEventListener('click', saveDOB);
+}
+
+const profileModal = document.getElementById('profileModal');
+if (profileModal) {
+    profileModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+}
+// ADDED: Helper function to show steps in multi-step modals
+function showStep(stepNumber) {
+    try {
+        // Hide all steps
+        document.querySelectorAll('.modal-step').forEach(step => {
+            step.classList.remove('active');
+        });
+        
+        // Show the requested step
+        const stepElement = document.getElementById(`step${stepNumber}`);
+        if (stepElement) {
+            stepElement.classList.add('active');
+        }
+        
+        // Update step indicators
+        document.querySelectorAll('.step-indicator').forEach(indicator => {
+            indicator.classList.remove('active');
+        });
+        const stepIndicator = document.querySelector(`.step-indicator[data-step="${stepNumber}"]`);
+        if (stepIndicator) {
+            stepIndicator.classList.add('active');
+        }
+    } catch (error) {
+        console.log('Error showing step:', error);
+    }
+}

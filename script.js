@@ -5407,11 +5407,16 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing Labyrinth Chat v0.6.11 ALPHA...');
     document.title = 'Labyrinth Chat v0.6.11 ALPHA';
     document.querySelector('.version').textContent = 'v0.6.11 ALPHA';
-    document.querySelector('.login-subtitle')?.textContent = 'v0.6.11 ALPHA • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);
+    
 });
+    // This checks for either class name so it works on all your pages
+const subtitle = document.querySelector('.login-subtitle, .modal-subtitle');
+if (subtitle) {
+    subtitle.textContent = 'v0.6.11 ALPHA • Fully Functional';
+}
 window.openMediaFullscreen = openMediaFullscreen;
 window.openEnhancedMedia = openEnhancedMedia;
 window.openAvatarFullscreen = openAvatarFullscreen;

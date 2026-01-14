@@ -1,8 +1,6 @@
-/* Labyrinth Version 0.6.000 ALPHA */
-(Mobile first, Desktop second)
-
+/* Labyrinth Version 0.6.11 ALPHA */
 /* Labyrinth Chat v0.5.5607 ALPHA - Complete with DM Features */
-:root { 
+:root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
     --color-white: #f5f5f5;
@@ -20,15 +18,13 @@
     --header-height: 72px;
     --input-height: 88px;
     --top-bar-height: 72px;
-    /* UPDATED v0.5.57: Smoother, longer transition */
-    --transition-base: 0.45s cubic-bezier(0.23, 1, 0.32, 1);
-    --transition-fast: 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+    --transition-base: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    --transition-fast: 0.2s ease;
     --bg-primary: #050505;
     --bg-secondary: #0a0a0a;
     --bg-sidebar: #0a0a0a;
     --text-primary: #f5f5f5;
     --text-secondary: rgba(255, 255, 255, 0.6);
-    /* UPDATED v0.5.57: Reduced border opacity */
     --border-color: rgba(255, 255, 255, 0.15);
     --msg-bg: rgba(255, 255, 255, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.03);
@@ -54,7 +50,6 @@
     --bg-sidebar: #ffffff;
     --text-primary: #1a1a1a;
     --text-secondary: rgba(26, 26, 26, 0.6);
-    /* UPDATED v0.5.57: Reduced border opacity for light theme */
     --border-color: rgba(0, 0, 0, 0.1);
     --msg-bg: rgba(0, 0, 0, 0.02);
     --msg-bg-me: rgba(202, 168, 122, 0.08);
@@ -79,184 +74,12 @@ html, body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
-
-/* v0.5.57: Overall polish - increased modal border-radius */
-.modal-content {
-    background: var(--bg-secondary);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 20px;
-    padding: 40px;
-    width: 100%;
-    max-width: 500px;
-    border: 1px solid var(--border-color);
-    /* v0.5.57: Added stronger backdrop blur */
-    backdrop-filter: blur(30px);
-    max-height: 90vh;
-    overflow-y: auto;
-    position: relative;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
-}
-
-/* v0.5.57: Overall polish - ensure all buttons have min-height */
-.btn-primary,
-.btn-secondary,
-.modal-tab,
-.realm-settings-btn-large,
-.join-realm-btn,
-.leave-realm-btn,
-.cookie-accept,
-.cookie-decline,
-.confirmation-actions .btn-primary,
-.confirmation-actions .btn-secondary,
-.icon-btn,
-.send-btn,
-.mobile-menu-btn,
-.notification-bell,
-.realm-dropdown-btn,
-.realm-settings-btn,
-.header-user-btn,
-.install-app-btn,
-.force-refresh-btn,
-.quick-profile-btn,
-.context-menu-item,
-.emoji-btn,
-.youtube-btn,
-.download-attachment-btn,
-.image-modal-download,
-#imageModalClose,
-.media-fullscreen-close,
-.enhanced-media-close,
-.avatar-fullscreen-close,
-.leave-channel-btn {
-    min-height: 48px;
-}
-
-/* ADDED FOR BUG 4: Safari emoji scroll fix - improved */
-#emojiPickerModal .modal-content,
+/* ADDED/CHANGED FOR #2: Emoji modal scroll fix for Safari */
 .emoji-picker {
-    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    max-height: 70vh;
-}
-
-/* CHANGED FOR BUG 3: Minimalist search button - dark mode improvement */
-#globalSearchBtn {
-    background: transparent;
-    border: none;
-    color: var(--color-gold-light);
-    cursor: pointer;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    transition: all var(--transition-fast);
-    /* Added subtle background for dark mode */
-    background: rgba(202, 168, 122, 0.05);
-}
-
-#globalSearchBtn:hover {
-    color: var(--color-gold);
-    background: var(--color-gray-dark);
-}
-
-/* CHANGED FOR BUG 7: Co-admin avatar - petite circle size */
-.co-admin-item img {
-    width: 32px; /* Changed from 36px to 32px */
-    height: 32px; /* Changed from 36px to 32px */
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-/* v0.5.57: Streak and messages more stylish in profiles */
-.public-profile-streak, .public-profile-messages {
-    font-size: 18px;
-    text-align: center;
-    padding: 20px;
-    background: var(--color-gray-dark);
-    border-radius: 12px;
-    border: 1px solid var(--color-gold-transparent);
-}
-
-.public-profile-streak { 
-    color: var(--color-gold); 
-    font-weight: 600; 
-}
-
-/* v0.5.57: Overall polish - increased backdrop blur on more surfaces */
-.sidebar {
-    width: var(--sidebar-width);
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    position: relative;
-    z-index: 900;
-    /* UPDATED v0.5.57: Added stronger backdrop blur */
-    backdrop-filter: blur(30px);
-    flex-shrink: 0;
-    transition: transform var(--transition-base);
     overflow-y: auto;
-    max-height: 100vh;
+    max-height: 60vh;
 }
-
-.top-bar {
-    height: var(--top-bar-height);
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 28px;
-    /* UPDATED v0.5.57: Added stronger backdrop blur */
-    backdrop-filter: blur(30px);
-    flex-shrink: 0;
-    z-index: 1000;
-}
-
-.input-area {
-    min-height: var(--input-height);
-    padding: 20px 32px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    /* UPDATED v0.5.57: Added stronger backdrop blur */
-    backdrop-filter: blur(30px);
-    display: flex;
-    align-items: flex-end;
-    gap: 16px;
-    position: relative;
-    z-index: 100;
-    flex-shrink: 0;
-    touch-action: manipulation;
-}
-
-/* v0.5.57: Overall polish - subtle gold accents on hover/focus */
-.message-input:focus {
-    border-color: var(--color-gold);
-    box-shadow: 0 0 0 1px var(--color-gold-transparent);
-}
-
-.icon-btn:hover {
-    color: var(--color-gold);
-    background: var(--color-gray-dark);
-}
-
-.send-btn:hover:not(:disabled) {
-    background: var(--color-gold);
-    color: var(--color-black);
-    transform: scale(1.05);
-}
-
-.btn-primary:hover:not(:disabled) {
-    background: var(--color-gold);
-    color: var(--color-black);
-    transform: translateY(-1px);
-}
-
 /* Realm Icon Container - FIXED: Circle container and larger emoji */
 .realm-icon-container {
     display: flex;
@@ -398,7 +221,23 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     overflow: hidden;
     flex-direction: column;
 }
-
+.top-bar {
+    height: var(--top-bar-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+    z-index: 1000;
+}
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
 .mobile-menu-btn {
     display: none;
     background: transparent;
@@ -406,8 +245,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-primary);
     font-size: 20px;
     cursor: pointer;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     justify-content: center;
     align-items: center;
@@ -417,10 +256,15 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     background: var(--color-gray-dark);
     color: var(--color-gold);
 }
-.top-bar-left {
-    display: flex;
-    align-items: center;
-    gap: 24px;
+/* ADDED/CHANGED FOR #3: Header search button minimalist */
+.top-bar-right .icon-btn.search-btn {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.top-bar-right .icon-btn.search-btn:hover {
+    background: var(--color-gold-transparent);
+    color: var(--color-gold);
 }
 .top-bar-right {
     display: flex;
@@ -433,8 +277,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     font-size: 18px;
     cursor: pointer;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -462,45 +306,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dot.active {
     display: block;
 }
-/* ADDED FOR BUG 6: Notification modal scrollable list */
-.notification-center-content {
-    max-height: 60vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-/* ADDED FOR BUG 6: Clean notification item styling */
-.notification-item {
-    padding: 16px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    transition: background var(--transition-fast);
-}
-
-.notification-item:hover {
-    background: var(--color-gray-dark);
-}
-
-.notification-item-title {
-    font-size: 14px;
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.notification-item-body {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.4;
-}
-
-.notification-item-time {
-    font-size: 11px;
-    color: var(--text-secondary);
-    font-weight: 300;
-    margin-top: 4px;
-}
 /* Notification Dropdown */
 .notification-dropdown {
     position: absolute;
@@ -510,8 +315,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     max-height: 400px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     backdrop-filter: blur(40px);
     z-index: 2000;
     display: none;
@@ -541,13 +345,52 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dropdown-item.unread {
     background: var(--color-gold-transparent);
 }
-/* Notification Items Large Touch & Unread Bold */
-.notification-item-icon {
-    font-size: 18px;
-    color: var(--color-gold);
+/* ADDED/CHANGED FOR #4: Notification items with title, body, time and scrollable */
+.notification-center-content {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 0 20px;
 }
-.notification-item-content {
-    flex: 1;
+.notification-item {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    gap: 16px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: background var(--transition-fast);
+    min-height: 72px;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.notification-item:last-child {
+    border-bottom: none;
+}
+.notification-item:hover {
+    background: var(--color-gray-dark);
+}
+.notification-item.unread {
+    background: var(--color-gold-transparent);
+}
+.notification-item-title {
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+}
+.notification-item-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-weight: 300;
+    line-height: 1.4;
+}
+.notification-item-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 300;
+    align-self: flex-end;
 }
 /* Header Avatar - FIXED: Circle and fallback initials */
 .header-user-btn {
@@ -561,6 +404,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     cursor: pointer;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
+    min-height: 44px;
 }
 .header-user-btn:hover {
     border-color: var(--color-gold);
@@ -579,7 +423,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background, never black */
     background: var(--color-gold-transparent);
     overflow: hidden; /* Ensure circle mask */
 }
@@ -620,23 +463,21 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     overflow: hidden;
 }
 /* Sidebar */
-
-/* v0.5.57: Overall polish - increased backdrop blur on mobile sidebar */
-@media (max-width: 768px) {
-    .sidebar {
-        position: fixed;
-        top: var(--top-bar-height);
-        left: 0;
-        bottom: 0;
-        transform: translateX(-100%);
-        transition: transform var(--transition-base);
-        z-index: 1900;
-        width: 300px;
-        /* UPDATED v0.5.57: Added stronger backdrop blur for mobile */
-        backdrop-filter: blur(30px);
-    }
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    z-index: 900;
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+    transition: transform var(--transition-base);
+    overflow-y: auto;
+    max-height: 100vh;
 }
-
 .realm-section {
     padding: 24px 28px;
     border-bottom: 1px solid var(--border-color);
@@ -684,8 +525,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     cursor: pointer;
     font-size: 16px;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -704,8 +545,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-bottom: none;
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 0 0 16px 16px;
+    border-radius: 0 0 12px 12px;
     display: none;
     flex-direction: column;
     backdrop-filter: blur(20px);
@@ -728,7 +568,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border: none;
     background: transparent;
     cursor: pointer;
-    min-height: 48px;
+    min-height: 44px;
     display: flex;
     align-items: center;
     border-bottom: 1px solid var(--border-color);
@@ -786,8 +626,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     cursor: pointer;
     font-size: 12px;
     transition: all var(--transition-fast);
-    min-width: 48px;
-    min-height: 48px;
+    min-width: 44px;
+    min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -809,8 +649,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 }
 .channel-item, .dm-item {
     padding: 12px 16px;
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 12px;
+    border-radius: 6px;
     margin-bottom: 4px;
     cursor: pointer;
     display: flex;
@@ -820,7 +659,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     position: relative;
     color: var(--text-secondary);
-    min-height: 48px;
+    min-height: 44px;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -863,8 +702,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     padding: 4px;
     margin-right: 4px;
     transition: opacity var(--transition-fast), color var(--transition-fast);
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 24px;
+    min-height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -895,7 +734,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 12px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .dm-info {
@@ -999,8 +837,8 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--color-gray);
     cursor: pointer;
     font-size: 20px;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1049,8 +887,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     animation: fadeIn 0.4s ease;
     padding: 20px 24px;
     background: var(--msg-bg);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     position: relative;
     backdrop-filter: blur(10px);
     border: 1px solid transparent;
@@ -1079,6 +916,56 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     border-color: var(--color-gold);
     box-shadow: 0 0 0 1px var(--color-gold-transparent);
 }
+/* ADDED/CHANGED FOR #7: Desktop message hover reaction bar */
+@media (min-width: 769px) {
+    .msg {
+        position: relative;
+    }
+    .msg-reaction-bar {
+        position: absolute;
+        top: -40px;
+        right: 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity var(--transition-fast), transform var(--transition-fast);
+        backdrop-filter: blur(20px);
+        z-index: 10;
+    }
+    .msg:hover .msg-reaction-bar {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .msg-reaction-btn {
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-fast);
+        color: var(--text-secondary);
+    }
+    .msg-reaction-btn:hover {
+        background: var(--color-gold-transparent);
+        color: var(--color-gold);
+        transform: scale(1.1);
+    }
+    .msg-reaction-btn.plus {
+        font-size: 16px;
+        color: var(--color-gray);
+    }
+}
 .message-avatar {
     width: 36px;
     height: 36px;
@@ -1095,7 +982,6 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .message-avatar:hover {
@@ -1251,6 +1137,7 @@ audio {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
+    min-height: 44px;
 }
 .new-messages-btn:hover {
     background: var(--color-gold);
@@ -1258,7 +1145,20 @@ audio {
     transform: translateX(-50%) translateY(-2px);
 }
 /* Input area */
-
+.input-area {
+    min-height: var(--input-height);
+    padding: 20px 32px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+    touch-action: manipulation;
+}
 .message-input {
     flex: 1;
     min-height: 48px;
@@ -1266,8 +1166,7 @@ audio {
     padding: 16px 20px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     color: var(--text-primary);
     font-size: 15px;
     resize: none;
@@ -1289,7 +1188,9 @@ audio {
     -webkit-user-select: auto;
     user-select: auto;
 }
-
+.message-input:focus {
+    border-color: var(--color-gold);
+}
 .message-input:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1317,8 +1218,8 @@ audio {
     border: none;
     color: var(--color-gray);
     cursor: pointer;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1327,7 +1228,10 @@ audio {
     transition: all var(--transition-fast);
     -webkit-tap-highlight-color: transparent;
 }
-
+.icon-btn:hover {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
 .icon-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1339,8 +1243,8 @@ audio {
     background: transparent;
     border: 1px solid var(--color-gold);
     color: var(--color-gold);
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1351,7 +1255,10 @@ audio {
     margin-bottom: 8px;
     -webkit-tap-highlight-color: transparent;
 }
-
+.send-btn:hover:not(:disabled) {
+    background: var(--color-gold);
+    color: var(--color-black);
+}
 .send-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
@@ -1388,8 +1295,8 @@ audio {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 18px;
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1405,8 +1312,7 @@ audio {
 .welcome-message {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     padding: 40px;
     margin-bottom: 32px;
     max-width: 800px;
@@ -1453,7 +1359,20 @@ audio {
 [data-theme="light"] .modal-back {
     background: rgba(248, 245, 242, 0.85);
 }
-
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 500px;
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gold-transparent) rgba(255, 255, 255, 0.02);
+}
 .modal-title {
     font-size: 28px;
     color: var(--text-primary);
@@ -1474,8 +1393,8 @@ audio {
     color: var(--text-secondary);
     font-size: 28px;
     cursor: pointer;
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1537,7 +1456,21 @@ audio {
     font-size: 12px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
+    background: var(--color-gold-transparent);
+}
+/* ADDED/CHANGED FOR #5: Co-admin avatars small */
+.small-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-gold);
     background: var(--color-gold-transparent);
 }
 .coadmin-list {
@@ -1651,8 +1584,7 @@ audio {
 }
 .realm-grid-item {
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     padding: 20px;
     cursor: pointer;
     transition: all var(--transition-fast);
@@ -1789,6 +1721,11 @@ audio {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
+    min-height: 36px;
+}
+.join-realm-btn:hover:not(:disabled) {
+    background: var(--color-gold);
+    color: var(--color-black);
 }
 .join-realm-btn:disabled {
     opacity: 0.5;
@@ -1804,6 +1741,7 @@ audio {
     border-radius: 8px;
     font-size: 13px;
     font-style: italic;
+    min-height: 36px;
     display: flex;
     align-items: center;
 }
@@ -1819,6 +1757,7 @@ audio {
     font-family: 'Inter', sans-serif;
     font-weight: 350;
     margin-left: 8px;
+    min-height: 36px;
 }
 .leave-realm-btn:hover {
     background: var(--danger);
@@ -1856,6 +1795,7 @@ audio {
     border-radius: 12px 12px 0 0;
     transition: all var(--transition-fast);
     position: relative;
+    min-height: 44px;
 }
 .modal-tab:hover {
     color: var(--text-primary);
@@ -1901,7 +1841,6 @@ audio {
     padding: 20px 24px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
     border-radius: 16px;
     color: var(--text-primary);
     font-size: 18px;
@@ -1960,7 +1899,6 @@ audio {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .search-result-info {
@@ -1979,8 +1917,7 @@ audio {
 /* Login */
 .login-card {
     background: var(--bg-secondary);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 20px;
+    border-radius: 16px;
     padding: 48px;
     width: 100%;
     max-width: 500px;
@@ -2006,13 +1943,13 @@ audio {
     padding: 16px 20px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     color: var(--text-primary);
     font-size: 15px;
     font-family: 'Inter', sans-serif;
     font-weight: 350;
     transition: border-color var(--transition-fast);
+    min-height: 48px;
 }
 .form-input:focus {
     outline: none;
@@ -2045,6 +1982,11 @@ audio {
     font-size: 14px;
     transition: all var(--transition-fast);
     flex: 1;
+    min-height: 48px;
+}
+.btn-primary:hover:not(:disabled) {
+    background: var(--color-gold);
+    color: var(--color-black);
 }
 .btn-primary:disabled {
     opacity: 0.3;
@@ -2061,6 +2003,7 @@ audio {
     font-size: 14px;
     transition: all var(--transition-fast);
     flex: 1;
+    min-height: 48px;
 }
 .btn-secondary:hover:not(:disabled) {
     border-color: var(--text-primary);
@@ -2106,7 +2049,6 @@ audio {
     font-size: 24px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .avatar-large:hover {
@@ -2305,6 +2247,31 @@ audio {
 .auto-save-indicator.show {
     opacity: 1;
 }
+/* ADDED/CHANGED FOR #6: Profile modals streak and total messages styling */
+.profile-streak {
+    color: var(--color-gold);
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+}
+.profile-total-messages {
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+}
+.profile-highlight-section {
+    background: var(--color-gold-transparent);
+    border: 1px solid var(--color-gold-light);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
 /* Toggle switch */
 .toggle-switch {
     display: flex;
@@ -2402,7 +2369,6 @@ input:checked + .toggle-slider:before {
     font-size: 36px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .quick-profile-avatar:hover {
@@ -2486,8 +2452,7 @@ input:checked + .toggle-slider:before {
     position: fixed;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     padding: 8px 0;
     z-index: 5000;
     backdrop-filter: blur(40px);
@@ -2516,6 +2481,7 @@ input:checked + .toggle-slider:before {
     width: 100%;
     font-family: 'Inter', sans-serif;
     font-weight: 350;
+    min-height: 52px;
 }
 .context-menu-item:hover {
     background: var(--color-gray-dark);
@@ -2579,7 +2545,6 @@ input:checked + .toggle-slider:before {
 .toast {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    /* UPDATED v0.5.57: Larger border radius */
     border-radius: 16px;
     padding: 20px 24px;
     display: flex;
@@ -2626,8 +2591,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 14px;
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2658,14 +2623,14 @@ input:checked + .toggle-slider:before {
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     padding: 12px 20px;
-    /* UPDATED v0.5.57: Larger border radius */
-    border-radius: 16px;
+    border-radius: 12px;
     cursor: pointer;
     z-index: 10;
     font-family: 'Inter', sans-serif;
     font-size: 13px;
     transition: all var(--transition-fast);
     backdrop-filter: blur(20px);
+    min-height: 44px;
 }
 .image-modal-download {
     left: 32px;
@@ -2706,6 +2671,7 @@ input:checked + .toggle-slider:before {
     transition: all var(--transition-fast);
     font-family: 'Inter', sans-serif;
     font-weight: 350;
+    min-height: 44px;
 }
 .install-app-btn:hover {
     border-color: var(--color-gold);
@@ -2782,6 +2748,7 @@ input:checked + .toggle-slider:before {
     cursor: pointer;
     transition: all var(--transition-fast);
     flex: 1;
+    min-height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3136,8 +3103,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     cursor: pointer;
     font-size: 16px;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -3354,7 +3321,6 @@ input:checked + .toggle-slider:before {
     font-size: 42px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 .public-profile-avatar:hover {
@@ -3445,280 +3411,57 @@ input:checked + .toggle-slider:before {
     color: var(--text-secondary);
     font-family: 'Cormorant Garamond', serif;
 }
-
-/* ADDED v0.5.57: Online shimmer animation */
-@keyframes shimmer {
-    0% { background-position: -200% center; }
-    100% { background-position: 200% center; }
-}
-
-/* ADDED v0.5.57: Online username shimmer */
-.online-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(202, 168, 122, 0.15), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 8s linear infinite;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-}
-
-/* ADDED v0.5.57: Cookie banner */
-.cookie-banner {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(5, 5, 5, 0.95);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid var(--border-color);
-    padding: 20px 32px;
-    z-index: 9999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
-}
-
-.cookie-banner.active {
-    display: flex;
-}
-
-.cookie-text {
-    font-size: 14px;
-    color: var(--text-secondary);
-    max-width: 600px;
-    line-height: 1.6;
-}
-
-.cookie-buttons {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.cookie-accept {
-    background: transparent;
-    border: 1px solid var(--color-gold);
-    color: var(--color-gold);
-    padding: 12px 24px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    transition: all var(--transition-fast);
-}
-
-.cookie-decline {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    padding: 12px 24px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    transition: all var(--transition-fast);
-}
-
-.cookie-decline:hover {
-    border-color: var(--text-primary);
-    color: var(--text-primary);
-}
-
-/* ADDED FOR BUG 8: Enhanced profile modals - streak and messages stylish */
-.public-profile-stats {
-    display: flex;
-    gap: 20px;
-    margin: 24px 0;
-    justify-content: center;
-}
-
-.public-profile-streak, .public-profile-messages {
-    flex: 1;
-    padding: 20px;
-    background: var(--color-gray-dark);
-    border-radius: 16px;
-    border: 1px solid var(--color-gold-transparent);
-    text-align: center;
-    min-width: 120px;
-}
-
-.public-profile-streak {
-    color: var(--color-gold);
-    font-weight: 700;
-    font-size: 20px;
-    position: relative;
-}
-
-.public-profile-streak::before {
-    content: "🔥 ";
-    font-size: 24px;
-}
-
-.public-profile-messages {
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 20px;
-}
-
-.public-profile-bio {
-    margin: 24px 0;
-    padding: 20px;
-    background: var(--color-gray-dark);
-    border-radius: 12px;
-    line-height: 1.6;
-    text-align: center;
-}
-
-.public-profile-social-links {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-top: 16px;
-}
-
-.social-link-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--color-gray-dark);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-gold);
-    text-decoration: none;
-    transition: all var(--transition-fast);
-    border: 1px solid var(--border-color);
-}
-
-.social-link-icon:hover {
-    background: var(--color-gold-transparent);
-    transform: translateY(-2px);
-}
-
-/* ADDED FOR BUG 9: General modal scrolling improvement */
-.modal-content {
-    -webkit-overflow-scrolling: touch;
-}
-
-/* ADDED FOR BUG 14: Desktop message hover reactions */
-@media (min-width: 769px) {
-    .msg {
-        position: relative;
-    }
-
-    .hover-reactions {
-        position: absolute;
-        top: -40px;
-        left: 50%;
-        transform: translateX(-50%) translateY(10px);
-        display: flex;
-        gap: 4px;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 24px;
-        padding: 6px 8px;
-        backdrop-filter: blur(20px);
-        opacity: 0;
-        visibility: hidden;
-        transition: all var(--transition-fast);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        z-index: 10;
-    }
-
-    .msg:hover .hover-reactions {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(-50%) translateY(0);
-    }
-
-    .hover-reaction-btn {
-        background: transparent;
-        border: none;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        color: var(--text-secondary);
-    }
-
-    .hover-reaction-btn:hover {
-        background: var(--color-gray-dark);
-        color: var(--color-gold);
-        transform: scale(1.1);
-    }
-
-    .hover-reaction-btn.plus {
-        font-size: 18px;
-        margin-left: 4px;
-    }
-}
-
-/* ADDED FOR BUG 15: Saved messages list styling */
+/* ADDED/CHANGED FOR #8: Saved messages list styling */
 .saved-messages-list {
-    max-height: 60vh;
+    max-height: 50vh;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-top: 20px;
+    margin: 20px 0;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--input-bg);
 }
-
 .saved-message-item {
-    padding: 16px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
     transition: background var(--transition-fast);
 }
-
+.saved-message-item:last-child {
+    border-bottom: none;
+}
 .saved-message-item:hover {
     background: var(--color-gray-dark);
 }
-
 .saved-message-content {
     flex: 1;
     min-width: 0;
 }
-
 .saved-message-text {
     font-size: 14px;
-    line-height: 1.5;
     color: var(--text-primary);
-    margin-bottom: 8px;
+    line-height: 1.5;
+    margin-bottom: 6px;
     word-break: break-word;
 }
-
 .saved-message-meta {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     display: flex;
-    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
 }
-
 .saved-message-remove {
     background: transparent;
     border: 1px solid var(--danger);
     color: var(--danger);
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 11px;
     transition: all var(--transition-fast);
-    flex-shrink: 0;
 }
-
 .saved-message-remove:hover {
     background: var(--danger);
     color: var(--color-white);
@@ -3734,7 +3477,19 @@ input:checked + .toggle-slider:before {
     .mobile-menu-btn {
         display: flex;
     }
-
+    .sidebar {
+        position: fixed;
+        top: var(--top-bar-height);
+        left: 0;
+        bottom: 0;
+        transform: translateX(-100%);
+        transition: transform var(--transition-base);
+        z-index: 1900;
+        width: 300px;
+    }
+    .sidebar.active {
+        transform: translateX(0);
+    }
     .main-chat {
         width: 100%;
     }
@@ -3823,6 +3578,7 @@ input:checked + .toggle-slider:before {
     }
     .channel-item {
         padding: 12px;
+        min-height: 48px;
     }
     .quick-profile-content {
         padding: 24px;
@@ -3846,6 +3602,7 @@ input:checked + .toggle-slider:before {
     }
     .context-menu-item {
         padding: 16px 24px;
+        min-height: 56px;
         font-size: 16px;
     }
     .search-input-large {
@@ -3876,65 +3633,6 @@ input:checked + .toggle-slider:before {
     }
     .public-profile-name {
         font-size: 24px;
-    }
-    
-    /* UPDATED v0.5.57: Better mobile heading sizes */
-    .modal-title, .login-title {
-        font-size: 24px;
-    }
-    
-    .welcome-title {
-        font-size: 22px;
-    }
-    
-    .channel-header-name {
-        font-size: 18px;
-    }
-    
-    /* UPDATED v0.5.57: Better modal spacing for thumb reach */
-    .modal-back {
-        padding: 12px;
-        align-items: flex-end;
-    }
-    
-    .modal-content {
-        border-radius: 20px 20px 0 0;
-        max-height: 85vh;
-        padding-bottom: 32px;
-    }
-    
-    .confirmation-actions {
-        flex-direction: column;
-    }
-    
-    .cookie-banner {
-        padding: 16px 20px;
-        text-align: left;
-        align-items: flex-start;
-    }
-    
-    .cookie-text {
-        text-align: left;
-    }
-    
-    .cookie-buttons {
-        width: 100%;
-        flex-direction: column;
-    }
-    
-    /* ADDED FOR BUG 14: Hide hover reactions on mobile */
-    .hover-reactions {
-        display: none;
-    }
-    
-    /* ADDED FOR BUG 8: Mobile profile adjustments */
-    .public-profile-stats {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .public-profile-streak, .public-profile-messages {
-        min-width: auto;
     }
 }
 @media (max-width: 480px) {
@@ -3974,6 +3672,7 @@ input:checked + .toggle-slider:before {
     .message-input {
         font-size: 14px;
         padding: 12px 16px;
+        min-height: 48px;
     }
     .modal-content {
         padding: 20px 16px;
@@ -4006,19 +3705,6 @@ input:checked + .toggle-slider:before {
     }
     .public-profile-name {
         font-size: 20px;
-    }
-    
-    /* UPDATED v0.5.57: Smaller mobile adjustments */
-    .modal-title, .login-title {
-        font-size: 22px;
-    }
-    
-    .cookie-banner {
-        padding: 12px 16px;
-    }
-    
-    .cookie-text {
-        font-size: 13px;
     }
 }
 @media (max-height: 500px) and (orientation: landscape) {
@@ -4087,8 +3773,8 @@ input:checked + .toggle-slider:before {
 .channels-plus-icon {
     color: var(--color-gray);
     font-size: 14px;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4121,8 +3807,8 @@ input:checked + .toggle-slider:before {
     opacity: 0;
     color: var(--color-gray);
     font-size: 18px;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4137,6 +3823,32 @@ input:checked + .toggle-slider:before {
 }
 
 .dm-item-menu:hover {
+    color: var(--color-gold);
+    background: var(--color-gray-dark);
+}
+
+/* ADDED/CHANGED FOR #9: New DMs button to match sidebar buttons */
+.new-dm-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    transition: all var(--transition-fast);
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+    min-height: 44px;
+    width: 100%;
+    margin-top: 12px;
+    justify-content: center;
+}
+.new-dm-btn:hover {
+    border-color: var(--color-gold);
     color: var(--color-gold);
     background: var(--color-gray-dark);
 }
@@ -4197,6 +3909,7 @@ input:checked + .toggle-slider:before {
     transition: background var(--transition-fast);
     border-bottom: 1px solid var(--border-color);
 }
+
 .user-search-result:last-child {
     border-bottom: none;
 }
@@ -4217,7 +3930,6 @@ input:checked + .toggle-slider:before {
     font-size: 16px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
     flex-shrink: 0;
 }
@@ -4281,6 +3993,7 @@ input:checked + .toggle-slider:before {
 .confirmation-buttons .btn-primary,
 .confirmation-buttons .btn-secondary {
     flex: 1;
+    min-height: 48px;
 }
 
 /* 4. Modals - Channel Settings Modal */
@@ -4354,7 +4067,6 @@ input:checked + .toggle-slider:before {
     font-size: 14px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 
@@ -4368,8 +4080,8 @@ input:checked + .toggle-slider:before {
     color: var(--color-gray);
     font-size: 20px;
     cursor: pointer;
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4482,7 +4194,6 @@ input:checked + .toggle-slider:before {
     font-size: 36px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
 }
 
@@ -4648,7 +4359,6 @@ input:checked + .toggle-slider:before {
     font-size: 16px;
     font-weight: 500;
     color: var(--color-gold);
-    /* FIXED v0.5.57: Use gold-transparent background */
     background: var(--color-gold-transparent);
     flex-shrink: 0;
 }
@@ -4744,8 +4454,20 @@ input:checked + .toggle-slider:before {
 .channels-plus-icon,
 .dm-item-menu,
 .channel-settings-user-remove {
-    min-width: 48px;
-    min-height: 48px;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* ADDED/CHANGED FOR #10: Ensure all modals with long content are scrollable */
+.modal-back {
+    overflow-y: auto;
+    align-items: flex-start;
+    padding-top: 40px;
+    padding-bottom: 40px;
+}
+.modal-content {
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 /* Responsive adjustments for new DM features */
@@ -4851,6 +4573,7 @@ input:checked + .toggle-slider:before {
     
     .user-search-result {
         padding: 16px;
+        min-height: 64px;
     }
     
     .user-search-avatar {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.6.1 Beta</title>
+<title>Labyrinth Chat v0.6.1021 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -212,7 +212,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.6.1 Beta • Fully Functional</div>
+                <div class="login-subtitle">v0.6.1021 Beta • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -235,7 +235,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.6.1 Beta</span>
+            <span class="version">v0.6.1021 Beta</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search (Ctrl+K / Cmd+K)">
@@ -251,9 +251,11 @@
                     <button id="markAllReadBtn">Mark all read</button>
                 </div>
                 <div class="notifications-list-container">
-                    <div class="notifications-list-tiles" id="notificationsListTiles">
-                        <div class="loading-placeholder">
-                            <div class="loading-spinner"></div>
+                    <div class="notifications-list" id="notificationsList">
+                        <div class="notifications-tiles" id="notificationsTiles">
+                            <div class="loading-placeholder">
+                                <div class="loading-spinner"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="notification-full-view" id="notificationFullView" style="display: none;">
@@ -611,16 +613,17 @@
 </div>
 <div class="modal-back" id="quickProfileModal" style="display: none;">
     <div class="modal-content scrollable-modal">
-        <button class="modal-close-btn" id="quickProfileModalCloseBtn">×</button>
+        <button class="modal-close-btn" id="quickProfileCloseBtn">×</button>
         <div class="quick-profile-header" style="text-align: center; margin-bottom: 24px;">
             <div class="quick-profile-avatar-container" style="display: flex; justify-content: center; margin-bottom: 20px;">
-                <div class="quick-profile-avatar-large" id="quickProfileAvatarLarge" style="width: 140px; height: 140px; border-radius: 50%; background-color: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; overflow: hidden; background-size: cover; background-position: center;">
+                <div class="quick-profile-avatar" id="quickProfileAvatar" style="width: 140px; height: 140px; border-radius: 50%; background-color: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; overflow: hidden; background-size: cover; background-position: center;">
                     <!-- Avatar will be inserted here -->
                 </div>
             </div>
-            <div class="quick-profile-name" id="quickProfileName" style="font-size: 24px; margin-bottom: 4px;">Loading...</div>
-            <div class="quick-profile-status" id="quickProfileStatus" style="font-size: 14px;">
-                <!-- Status will be inserted here -->
+            <div class="quick-profile-name" id="quickProfileName" style="font-size: 24px; margin-bottom: 4px; text-align: center;">Loading...</div>
+            <div class="quick-profile-status" style="text-align: center; margin-bottom: 24px;">
+                <div class="quick-profile-status-dot" id="quickProfileStatusDot"></div>
+                <span id="quickProfileStatusText">Loading...</span>
             </div>
         </div>
         <div class="quick-profile-content" style="overflow-y: auto; max-height: 60vh;">
@@ -644,7 +647,7 @@
         </div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="quickProfileContactBtn" class="btn-primary">Contact</button>
-            <button id="quickProfileCloseBtn" class="btn-secondary">Close</button>
+            <button id="quickProfileModalCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>

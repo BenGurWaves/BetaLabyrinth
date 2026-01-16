@@ -311,7 +311,7 @@ async function acceptInvite() {
         location.hash = '';
         
         // Reload realms and switch to the new one
-        await loadAllRealms();
+        await loadJoinedRealms();
         
         const realm = await loadRealmFromUrl(realmId, isPrivate);
         if (realm) {
@@ -346,9 +346,12 @@ function declineInvite() {
     }
 }
 
-async function loadAllRealms() {
+async function loadJoinedRealms() {
     try {
         if (!state.currentUser || !state.supabase) return;
+        
+        console.log('Loading joined realms (optimized)...');
+        showSkeletonUI();
         
         // Load public realms user has joined
         const { data: joinedRealms, error: joinedError } = await state.supabase
@@ -383,8 +386,13 @@ async function loadAllRealms() {
         }
         
         console.log('Loaded', state.joinedRealms.length, 'public realms and', state.privateRealms.length, 'private realms');
+        
+        renderRealmDropdown();
+        hideLoader();
     } catch (error) {
-        console.log('Error loading all realms:', error);
+        console.log('Error in loadJoinedRealms:', error);
+        hideLoader();
+        showToast('Error', 'Failed to load realms', 'error');
     }
 }
 
@@ -722,35 +730,6 @@ async function ensureProtectedRealmsJoined() {
         console.log('Protected realms ensured');        
     } catch (error) {
         console.log('Error in ensureProtectedRealmsJoined:', error);
-    }
-}
-
-async function loadJoinedRealmsFast() {
-    try {
-        if (!state.currentUser || !state.supabase) {
-            console.log('Cannot load realms: no user or supabase');
-            return [];
-        }        
-        console.log('Loading joined realms (optimized)...');
-        const { data: joinedRealms, error } = await state.supabase
-            .from('user_realms')
-            .select(`
-                realm_id,
-                realms:realm_id (*)
-            `)
-            .eq('user_id', state.currentUser.id);            
-        if (error) {
-            console.log('Error loading joined realms:', error);
-            return [];
-        }
-        const realms = joinedRealms
-            .map(item => item.realms)
-            .filter(Boolean);            
-        console.log('Found', realms.length, 'joined realms');
-        return realms;
-    } catch (error) {
-        console.log('Error in loadJoinedRealmsFast:', error);
-        return [];
     }
 }
 
@@ -1741,7 +1720,7 @@ function setupMessageContextMenu(msgElement, message) {
         
         contextMenu.querySelector('.view-profile').addEventListener('click', (e) => {
             e.stopPropagation();
-            showUserProfileFromMessage(message.user_id, message.profiles);
+            openQuickProfile(message.user_id);
             removeMenu();
         });
         
@@ -1955,13 +1934,14 @@ function appendMessage(message) {
         const formattedContent = formatMessageContent(message.content);
         
         // Add click handlers for avatar and username
-        const avatarClick = `showUserProfileFromMessage('${message.user_id}', ${JSON.stringify(message.profiles || {}).replace(/'/g, "\\'")})`;
+        const avatarClick = `openQuickProfile('${message.user_id}')`;
+        const usernameClick = `openQuickProfile('${message.user_id}')`;
         
         msgElement.innerHTML = `
-            <img class="message-avatar" src="${avatarUrl ? avatarUrl + '?t=' + Date.now() : ''}" alt="${username}" onerror="this.style.display='none';" onclick="${avatarClick}">
+            <img class="message-avatar" src="${avatarUrl ? avatarUrl + '?t=' + Date.now() : ''}" alt="${username}" onerror="this.style.display='none';" onclick="${avatarClick}" data-user-id="${message.user_id}">
             <div class="msg-body">
                 <div class="message-header">
-                    <div class="message-username" onclick="${avatarClick}" style="cursor: pointer;">${escapeHtml(username)}</div>
+                    <div class="message-username" onclick="${usernameClick}" style="cursor: pointer;" data-user-id="${message.user_id}">${escapeHtml(username)}</div>
                     <div class="message-time">${timeStr} ${editedTag}</div>
                 </div>
                 <div class="message-text">${formattedContent}</div>
@@ -1973,6 +1953,23 @@ function appendMessage(message) {
             </div>
         `;        
         messagesContainer.appendChild(msgElement);
+        
+        // Add event listeners for avatar and username clicks
+        const avatar = msgElement.querySelector('.message-avatar');
+        const usernameEl = msgElement.querySelector('.message-username');
+        if (avatar) {
+            avatar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openQuickProfile(message.user_id);
+            });
+        }
+        if (usernameEl) {
+            usernameEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openQuickProfile(message.user_id);
+            });
+        }
+        
         setupMessageContextMenu(msgElement, message);
         setTimeout(() => {
             msgElement.style.opacity = '1';
@@ -2589,7 +2586,7 @@ async function initializeApp() {
             fetchAndUpdateProfile(true);
         }
         await ensureProtectedRealmsJoined();
-        await loadAllRealms();
+        await loadJoinedRealms();
         
         // Check for invite link in URL
         const urlParams = parseUrlHash();
@@ -2780,31 +2777,6 @@ function showWelcomeModal(realm) {
         });
     } catch (error) {
         console.log('Error showing welcome modal:', error);
-    }
-}
-
-async function loadInitialData() {
-    try {
-        await loadAllRealms();        
-        if (state.joinedRealms.length === 0 && state.privateRealms.length === 0) {
-            console.log('No realms after protected realms join');
-            return;
-        }
-        let realmToSelect = null;
-        const lastRealmId = state.userSettings?.last_realm_id;       
-        if (lastRealmId) {
-            realmToSelect = [...state.joinedRealms, ...state.privateRealms].find(r => r.id === lastRealmId);
-        }      
-        if (!realmToSelect && (state.joinedRealms.length > 0 || state.privateRealms.length > 0)) {
-            realmToSelect = [...state.joinedRealms, ...state.privateRealms].find(r => r.slug === 'labyrinth') || 
-                           [...state.joinedRealms, ...state.privateRealms][0];
-        }
-        if (realmToSelect) {
-            const isPrivate = state.privateRealms.some(r => r.id === realmToSelect.id);
-            await switchRealm(realmToSelect.id, isPrivate);
-        }
-    } catch (error) {
-        console.log('Error in loadInitialData:', error);
     }
 }
 
@@ -3114,6 +3086,7 @@ function setupEventListeners() {
         document.getElementById('createNewRealmBtn').addEventListener('click', function() {
             document.getElementById('allRealmsModal').style.display = 'none';
             document.getElementById('createRealmModal').style.display = 'flex';
+            document.getElementById('newRealmNameModal').focus();
         });
         document.getElementById('createRealmModalCloseBtn').addEventListener('click', function() {
             document.getElementById('createRealmModal').style.display = 'none';
@@ -3334,7 +3307,7 @@ function setupEventListeners() {
         });
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden && state.supabase && state.currentUser) {
-                loadInitialData();
+                loadJoinedRealms();
             }
         });
         
@@ -4229,7 +4202,7 @@ async function deleteRealm() {
                 document.getElementById('confirmationModal').style.display = 'none';
                 document.getElementById('realmSettingsModal').style.display = 'none';
                 
-                await loadAllRealms();
+                await loadJoinedRealms();
                 renderRealmDropdown();
                 
                 if (state.joinedRealms.length > 0 || state.privateRealms.length > 0) {
@@ -4499,7 +4472,7 @@ async function performGlobalSearch(query) {
                 `;
                 
                 resultItem.addEventListener('click', async () => {
-                    showUserProfileFromMessage(profile.id);
+                    openQuickProfile(profile.id);
                     document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
@@ -4812,26 +4785,23 @@ function updateNotificationBell() {
     }
 }
 
-async function showUserProfileFromMessage(userId, profileData = null) {
+async function openQuickProfile(userId) {
     try {
-        if (!state.supabase) return;
+        if (!state.supabase || !userId) return;
         
-        let profile;
-        if (profileData) {
-            profile = { id: userId, ...profileData };
-        } else {
-            const { data: fetchedProfile, error } = await state.supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-                
-            if (error) {
-                console.log('Error fetching user profile:', error);
-                showToast('Error', 'Failed to load user profile', 'error');
-                return;
-            }
-            profile = fetchedProfile;
+        console.log('Opening quick profile for user:', userId);
+        
+        // Fetch user profile
+        const { data: profile, error } = await state.supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+            
+        if (error) {
+            console.log('Error fetching user profile:', error);
+            showToast('Error', 'Failed to load user profile', 'error');
+            return;
         }
         
         // Populate quick profile modal
@@ -4844,6 +4814,7 @@ async function showUserProfileFromMessage(userId, profileData = null) {
         const socialLinks = document.getElementById('quickProfileSocialLinks');
         const realmsContainer = document.getElementById('quickProfileRealms');
         
+        // Set avatar with cache busting
         if (profile.avatar_url) {
             const timestamp = Date.now();
             avatar.src = `${profile.avatar_url}?t=${timestamp}`;
@@ -4891,23 +4862,39 @@ async function showUserProfileFromMessage(userId, profileData = null) {
         
         name.textContent = profile.username || 'User';
         
+        // Set status
         const isStealth = profile.stealth_mode === true;
         const status = isStealth ? 'offline' : (profile.status || 'offline');
         statusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
+        statusDot.className = `quick-profile-status-dot ${status === 'online' && !isStealth ? 'online' : ''}`;
         
+        // Set bio
         bio.textContent = profile.bio || 'No bio provided';
         
+        // Set social links
         const socialLinksData = profile.social_links || {};
         socialLinks.innerHTML = '';
+        
+        const openLink = (url) => {
+            if (state.userSettings?.open_links_in_app) {
+                openEnhancedMedia(url);
+            } else {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        };
+        
         if (socialLinksData.twitter) {
             const link = document.createElement('a');
             link.href = socialLinksData.twitter;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
+            link.onclick = (e) => {
+                e.preventDefault();
+                openLink(socialLinksData.twitter);
+            };
             link.textContent = 'Twitter';
             link.style.color = 'var(--color-gold)';
             link.style.textDecoration = 'none';
+            link.style.cursor = 'pointer';
+            link.style.marginRight = '8px';
             socialLinks.appendChild(link);
         }
         if (socialLinksData.instagram) {
@@ -4916,11 +4903,15 @@ async function showUserProfileFromMessage(userId, profileData = null) {
             }
             const link = document.createElement('a');
             link.href = socialLinksData.instagram;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
+            link.onclick = (e) => {
+                e.preventDefault();
+                openLink(socialLinksData.instagram);
+            };
             link.textContent = 'Instagram';
             link.style.color = 'var(--color-gold)';
             link.style.textDecoration = 'none';
+            link.style.cursor = 'pointer';
+            link.style.marginRight = '8px';
             socialLinks.appendChild(link);
         }
         if (socialLinksData.website) {
@@ -4929,11 +4920,15 @@ async function showUserProfileFromMessage(userId, profileData = null) {
             }
             const link = document.createElement('a');
             link.href = socialLinksData.website;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
+            link.onclick = (e) => {
+                e.preventDefault();
+                openLink(socialLinksData.website);
+            };
             link.textContent = 'Website';
             link.style.color = 'var(--color-gold)';
             link.style.textDecoration = 'none';
+            link.style.cursor = 'pointer';
+            link.style.marginRight = '8px';
             socialLinks.appendChild(link);
         }
         if (socialLinksData.other) {
@@ -4942,11 +4937,15 @@ async function showUserProfileFromMessage(userId, profileData = null) {
             }
             const link = document.createElement('a');
             link.href = socialLinksData.other;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
+            link.onclick = (e) => {
+                e.preventDefault();
+                openLink(socialLinksData.other);
+            };
             link.textContent = 'Other';
             link.style.color = 'var(--color-gold)';
             link.style.textDecoration = 'none';
+            link.style.cursor = 'pointer';
+            link.style.marginRight = '8px';
             socialLinks.appendChild(link);
         }
         
@@ -4978,7 +4977,7 @@ async function showUserProfileFromMessage(userId, profileData = null) {
         state.selectedUserForProfile = profile.id;
         modal.style.display = 'flex';
     } catch (error) {
-        console.log('Error showing user profile from message:', error);
+        console.log('Error in openQuickProfile:', error);
         showToast('Error', 'Failed to load user profile', 'error');
     }
 }
@@ -5289,7 +5288,7 @@ async function joinRealm(realmId, isPrivate = false) {
             }
         } else {
             showToast('Success', 'Successfully joined realm', 'success');
-            await loadAllRealms();
+            await loadJoinedRealms();
             renderRealmDropdown();
             setTimeout(() => {
                 document.getElementById('allRealmsModal').style.display = 'none';
@@ -5332,7 +5331,7 @@ async function leaveRealm(realmId, isPrivate = false) {
                     
                 if (error) throw error;                
                 showToast('Success', 'Left realm successfully', 'success');
-                await loadAllRealms();
+                await loadJoinedRealms();
                 renderRealmDropdown();
                 if (isCurrentRealm && (state.joinedRealms.length > 0 || state.privateRealms.length > 0)) {
                     const nextRealm = [...state.joinedRealms, ...state.privateRealms][0];
@@ -5498,7 +5497,7 @@ async function createRealmModal() {
         legalCheckbox.checked = false;
         document.getElementById('confirmCreateRealmBtn').disabled = true;
         
-        await loadAllRealms();
+        await loadJoinedRealms();
         renderRealmDropdown();        
         await switchRealm(newRealm.id, !isPublic);
         document.getElementById('createRealmModal').style.display = 'none';        
@@ -5744,7 +5743,22 @@ function openEnhancedMedia(embedUrl) {
     try {
         const modal = document.getElementById('enhancedMediaModal');
         const iframe = document.getElementById('enhancedMediaIframe');
-        iframe.src = embedUrl;
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { margin: 0; padding: 0; overflow: hidden; }
+                    iframe { width: 100%; height: 100vh; border: none; }
+                </style>
+            </head>
+            <body>
+                <iframe src="${embedUrl}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+            </body>
+            </html>
+        `;
         modal.style.display = 'flex';
     } catch (error) {
         console.log('Error opening enhanced media:', error);
@@ -5759,158 +5773,6 @@ function openAvatarFullscreen(avatarUrl) {
         modal.style.display = 'flex';
     } catch (error) {
         console.log('Error opening avatar fullscreen:', error);
-    }
-}
-
-function openUserProfile(userId) {
-    try {
-        showUserProfileFromMessage(userId);
-    } catch (error) {
-        console.log('Error opening user profile:', error);
-    }
-}
-
-async function displayUserProfile(profileOrUserId) {
-    try {
-        let profile;
-        if (typeof profileOrUserId === 'string') {
-            const { data: fetchedProfile, error } = await state.supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', profileOrUserId)
-                .single();          
-            if (error) {
-                console.log('Error fetching user profile:', error);
-                showToast('Error', 'Failed to load user profile', 'error');
-                return;
-            }
-            profile = fetchedProfile;
-        } else {
-            profile = profileOrUserId;
-        }
-        
-        const modal = document.getElementById('quickProfileModal');
-        const avatar = document.getElementById('quickProfileAvatar');
-        const name = document.getElementById('quickProfileName');
-        const statusDot = document.getElementById('quickProfileStatusDot');
-        const statusText = document.getElementById('quickProfileStatusText');
-        const emailEl = document.getElementById('quickProfileEmail');
-        const bioEl = document.getElementById('quickProfileBio');
-        const socialContainer = document.getElementById('quickProfileSocial');
-        const socialLinks = document.getElementById('quickProfileSocialLinks');
-        const realmsContainer = document.getElementById('quickProfileRealms');
-        
-        if (profile.avatar_url) {
-            const timestamp = Date.now();
-            avatar.src = `${profile.avatar_url}?t=${timestamp}`;
-            avatar.onclick = function() {
-                openAvatarFullscreen(profile.avatar_url);
-            };
-            avatar.onerror = function() {
-                const initials = (profile.username || 'U').charAt(0).toUpperCase();
-                this.style.display = 'none';
-                const fallback = document.createElement('div');
-                fallback.style.width = '80px';
-                fallback.style.height = '80px';
-                fallback.style.borderRadius = '50%';
-                fallback.style.background = 'var(--color-gold-transparent)';
-                fallback.style.color = 'var(--color-gold)';
-                fallback.style.display = 'flex';
-                fallback.style.alignItems = 'center';
-                fallback.style.justifyContent = 'center';
-                fallback.style.fontSize = '24px';
-                fallback.style.fontWeight = '500';
-                fallback.style.margin = '0 auto 16px';
-                fallback.style.cursor = 'pointer';
-                fallback.textContent = initials;
-                fallback.onclick = function() {
-                    if (profile.avatar_url) {
-                        openAvatarFullscreen(profile.avatar_url);
-                    }
-                };
-                avatar.parentNode.insertBefore(fallback, avatar);
-            };
-        } else {
-            const initials = (profile.username || 'U').charAt(0).toUpperCase();
-            avatar.style.display = 'none';
-            const fallback = document.createElement('div');
-            fallback.style.width = '80px';
-            fallback.style.height = '80px';
-            fallback.style.borderRadius = '50%';
-            fallback.style.background = 'var(--color-gold-transparent)';
-            fallback.style.color = 'var(--color-gold)';
-            fallback.style.display = 'flex';
-            fallback.style.alignItems = 'center';
-            fallback.style.justifyContent = 'center';
-            fallback.style.fontSize = '24px';
-            fallback.style.fontWeight = '500';
-            fallback.style.margin = '0 auto 16px';
-            fallback.style.cursor = 'default';
-            fallback.textContent = initials;
-            avatar.parentNode.insertBefore(fallback, avatar);
-        }
-        
-        name.textContent = profile.username || 'User';
-        const isStealth = profile.stealth_mode === true;
-        const status = isStealth ? 'offline' : (profile.status || 'offline');       
-        statusText.textContent = status === 'online' ? 'Online' : 'Offline';
-        statusDot.className = `quick-profile-status-dot ${status === 'online' ? 'online' : ''}`;
-        
-        if (profile.id === state.currentUser.id || profile.show_realms) {
-            emailEl.textContent = profile.email || '';
-        } else {
-            emailEl.textContent = '';
-        }
-        
-        bioEl.textContent = profile.bio || 'No bio provided';
-        
-        const socialLinksData = profile.social_links || {};
-        if (Object.keys(socialLinksData).length > 0) {
-            socialContainer.style.display = 'block';
-            socialLinks.innerHTML = '';
-            if (socialLinksData.twitter) {
-                socialLinks.innerHTML += `<a href="${socialLinksData.twitter}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Twitter</a>`;
-            }
-            if (socialLinksData.instagram) {
-                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                socialLinks.innerHTML += `<a href="${socialLinksData.instagram}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Instagram</a>`;
-            }
-            if (socialLinksData.website) {
-                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                socialLinks.innerHTML += `<a href="${socialLinksData.website}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Website</a>`;
-            }
-            if (socialLinksData.other) {
-                if (socialLinks.innerHTML) socialLinks.innerHTML += ' • ';
-                socialLinks.innerHTML += `<a href="${socialLinksData.other}" target="_blank" style="color: var(--color-gold); text-decoration: none;">Other</a>`;
-            }
-        } else {
-            socialContainer.style.display = 'none';
-        }
-        
-        if (realmsContainer) {
-            realmsContainer.innerHTML = '<div style="color: var(--text-secondary); font-style: italic;">Loading realms...</div>';            
- const realmsData = await loadOtherUserRealms(profile.id);           
-            if (realmsData.show_realms === false) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Realms hidden by user</div>';
-            } else if (realmsData.realms.length === 0) {
-                realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
-            } else {
-                realmsContainer.innerHTML = realmsData.realms.map(realm => {
-                    let iconHtml = '';
-                    if (realm.icon_url) {
-                        iconHtml = `<img src="${realm.icon_url}" style="width: 16px; height: 16px; border-radius: 3px; margin-right: 6px; object-fit: cover;">`;
-                    } else {
-                        iconHtml = `<span style="margin-right: 6px;">${realm.icon_url || '🏰'}</span>`;
-                    }
-                    return `<div class="realm-chip">${iconHtml}${escapeHtml(realm.name)}</div>`;
-                }).join('');
-            }
-        }
-        
-        state.selectedUserForProfile = profile.id;
-        modal.style.display = 'flex';        
-    } catch (error) {
-        console.log('Error displaying user profile:', error);
     }
 }
 
@@ -6527,7 +6389,7 @@ document.addEventListener('DOMContentLoaded', function() {
 window.openMediaFullscreen = openMediaFullscreen;
 window.openEnhancedMedia = openEnhancedMedia;
 window.openAvatarFullscreen = openAvatarFullscreen;
-window.openUserProfile = openUserProfile;
-window.showUserProfileFromMessage = showUserProfileFromMessage;
+window.openQuickProfile = openQuickProfile;
+window.showUserProfileFromMessage = openQuickProfile;
 window.acceptInvite = acceptInvite;
 window.declineInvite = declineInvite;

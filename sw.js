@@ -43,3 +43,14 @@ self.addEventListener('push', event => {
   console.log('Push received');
   // Add notification show when ready
 });
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+// Ensure new SW claims clients immediately after activation
+self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});

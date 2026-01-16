@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.6.120 Beta</title>
+<title>Labyrinth Chat v0.6.1 Beta</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -129,10 +129,16 @@
                 <div class="realm-icon-section">
                     <div class="realm-icon-preview" id="realmSettingsIconPreview"></div>
                     <div class="realm-icon-buttons">
+                        <button id="realmSettingsChooseEmojiBtn" class="btn-secondary">Choose Emoji</button>
                         <button id="realmSettingsIconUploadBtn" class="btn-secondary">Upload Image</button>
                         <input type="file" id="realmSettingsIconUpload" accept="image/*" style="display: none;">
                     </div>
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Realm Background</label>
+                <button id="realmSettingsBackgroundUploadBtn" class="btn-secondary" style="width: 100%;">Upload Background</button>
+                <input type="file" id="realmSettingsBackgroundUpload" accept="image/*" style="display: none;">
             </div>
             <div class="form-group">
                 <label class="form-label">Announcement Message</label>
@@ -147,7 +153,20 @@
                 </label>
             </div>
             <div id="privateRealmSection" style="display: none; margin-top: 20px;">
-                <button id="realmSettingsInviteBtn" class="btn-primary" style="width: 100%;">Invite Users</button>
+                <div class="form-group">
+                    <label class="form-label">Share Realm</label>
+                    <div style="color: var(--color-gray); font-size: 12px; margin-bottom: 8px;">Invite More Users to the private realm</div>
+                    <button id="realmSettingsInviteBtn" class="btn-primary" style="width: 100%;">Share Realm</button>
+                </div>
+                <div id="realmInviteUrlSection" style="display: none; margin-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Invite URL</label>
+                        <div class="copy-input-group">
+                            <input type="text" id="realmInviteUrlInput" class="form-input" readonly>
+                            <button id="copyInviteUrlBtn" class="btn-secondary">Copy</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">Co-Admins</label>
@@ -193,7 +212,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom: 40px;">
             <div>
                 <h1 class="login-title">Welcome to the Labyrinth</h1>
-                <div class="login-subtitle">v0.6.120 Beta • Fully Functional</div>
+                <div class="login-subtitle">v0.6.1 Beta • Fully Functional</div>
             </div>
         </div>
         <div class="form-group">
@@ -216,10 +235,10 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.6.120 Beta</span>
+            <span class="version">v0.6.1 Beta</span>
         </div>
         <div class="top-bar-right">
-            <button class="search-btn" id="globalSearchBtn" title="Search" style="background: none; border: none; padding: 0; margin: 0; color: var(--color-gold);">
+            <button class="search-btn" id="globalSearchBtn" title="Search (Ctrl+K / Cmd+K)">
                 <span>🔍</span>
             </button>
             <button class="notification-bell" id="notificationBell" title="Notifications">
@@ -231,9 +250,20 @@
                     <h3>Notifications</h3>
                     <button id="markAllReadBtn">Mark all read</button>
                 </div>
-                <div class="notifications-list scrollable-list" id="notificationsList">
-                    <div class="loading-placeholder">
-                        <div class="loading-spinner"></div>
+                <div class="notifications-list-container">
+                    <div class="notifications-list-tiles" id="notificationsListTiles">
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    <div class="notification-full-view" id="notificationFullView" style="display: none;">
+                        <div class="notification-full-header">
+                            <button class="notification-back-btn" id="notificationBackBtn">← Back</button>
+                            <h3 id="notificationFullTitle"></h3>
+                            <div class="notification-full-subtitle" id="notificationFullSubtitle"></div>
+                        </div>
+                        <div class="notification-full-body" id="notificationFullBody"></div>
+                        <div class="notification-full-footer" id="notificationFullFooter"></div>
                     </div>
                 </div>
                 <button id="viewAllNotificationsBtn" class="btn-secondary">View All</button>
@@ -300,7 +330,7 @@
         </div>
         <div class="main-chat">
             <div id="pinnedMessageContainer" style="display: none;"></div>
-            <div class="messages-container clickable-username" id="messagesContainer">
+            <div class="messages-container" id="messagesContainer">
                 <div class="empty-state" id="emptyState">
                     Select a channel to view messages
                 </div>
@@ -322,6 +352,14 @@
             </button>
             <div class="input-area">
                 <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
+                <div class="input-buttons">
+                    <button class="input-btn" id="attachmentBtn" title="Attach file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="input-btn" id="emojiBtn" title="Insert emoji">
+                        <i class="fas fa-smile"></i>
+                    </button>
+                </div>
                 <textarea class="message-input" id="messageInput" placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
                 <button class="send-btn" id="sendBtn" disabled>↑</button>
             </div>
@@ -466,7 +504,7 @@
                 <label class="toggle">
                     <input type="checkbox" id="settingsSendWithEnter" checked>
                     <span class="toggle-slider"></span>
-                </label>
+                    </label>
             </div>
             <div class="toggle-switch">
                 <span class="toggle-label">Open Links In App</span>
@@ -507,7 +545,7 @@
                 <input type="checkbox" id="globalSearchPrivateToggle">
                 <span class="toggle-slider"></span>
             </label>
-            <span class="toggle-label">Include private messages</span>
+            <span class="toggle-label">Include My Private Realms</span>
         </div>
         <div id="globalSearchResults" class="search-results" style="max-height: 400px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--border-color);">
             <div class="search-result-list"></div>
@@ -522,7 +560,7 @@
         <button class="modal-close-btn" id="notificationsModalCloseBtn">×</button>
         <h2 class="modal-title">Notifications</h2>
         <div class="modal-subtitle">Your recent notifications</div>
-        <div id="notificationsListFull" class="notifications-list-full scrollable-list">
+        <div id="notificationsListFull" class="notifications-list-full">
             <div class="loading-placeholder">
                 <div class="loading-spinner"></div>
             </div>
@@ -571,37 +609,42 @@
         </div>
     </div>
 </div>
-<div class="quick-profile-modal" id="quickProfileModal">
-    <div class="quick-profile-content">
-        <img class="quick-profile-avatar" id="quickProfileAvatar" alt="User avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; max-width: 120px; max-height: 120px;">
-        <div class="quick-profile-name" id="quickProfileName">Loading...</div>
-        <div class="quick-profile-status">
-            <div class="quick-profile-status-dot" id="quickProfileStatusDot"></div>
-            <span id="quickProfileStatusText">Loading...</span>
+<div class="modal-back" id="quickProfileModal" style="display: none;">
+    <div class="modal-content scrollable-modal">
+        <button class="modal-close-btn" id="quickProfileModalCloseBtn">×</button>
+        <div class="quick-profile-header" style="text-align: center; margin-bottom: 24px;">
+            <div class="quick-profile-avatar-container" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <div class="quick-profile-avatar-large" id="quickProfileAvatarLarge" style="width: 140px; height: 140px; border-radius: 50%; background-color: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; font-size: 48px; color: white; overflow: hidden; background-size: cover; background-position: center;">
+                    <!-- Avatar will be inserted here -->
+                </div>
+            </div>
+            <div class="quick-profile-name" id="quickProfileName" style="font-size: 24px; margin-bottom: 4px;">Loading...</div>
+            <div class="quick-profile-status" id="quickProfileStatus" style="font-size: 14px;">
+                <!-- Status will be inserted here -->
+            </div>
         </div>
-        <div class="quick-profile-email" id="quickProfileEmail" style="text-align: center; margin: 16px 0; color: var(--text-secondary); font-size: 14px;"></div>
-        <div class="quick-profile-bio" id="quickProfileBio" style="margin: 20px 0; padding: 16px; background: var(--color-gray-dark); border-radius: 8px; font-size: 14px; line-height: 1.6;"></div>
-        <div class="social-links-section" id="quickProfileSocial" style="display: none;">
-            <div class="social-links-title">Social Links</div>
-            <div id="quickProfileSocialLinks" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        <div class="quick-profile-content" style="overflow-y: auto; max-height: 60vh;">
+            <div class="quick-profile-section">
+                <div class="quick-profile-bio" id="quickProfileBio" style="text-align: center; margin: 20px 0; padding: 16px; font-size: 14px; line-height: 1.6; color: var(--text-secondary);">
+                    <!-- Bio will be inserted here -->
+                </div>
+            </div>
+            <div class="quick-profile-section" id="quickProfileSocialSection" style="display: none; margin: 24px 0;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; text-align: center;">Social Links</h3>
+                <div class="quick-profile-social-links" id="quickProfileSocialLinks" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                    <!-- Social links will be added here -->
+                </div>
+            </div>
+            <div class="quick-profile-section" id="quickProfileRealmsSection" style="display: none; margin: 24px 0; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; text-align: center;">Realms</h3>
+                <div class="quick-profile-realms" id="quickProfileRealms" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                    <!-- Realms will be added here -->
+                </div>
+            </div>
         </div>
-        <div class="realms-section" style="margin: 24px 0; border-top: 1px solid var(--border-color); padding-top: 20px;">
-            <div class="realms-section-title" style="margin-bottom: 12px;">Realms</div>
-            <div id="quickProfileRealms"></div>
-        </div>
-        <div class="quick-profile-buttons">
-            <button class="quick-profile-btn contact" id="quickProfileContactBtn">
-                <span>✉️</span>
-                <span>Contact</span>
-            </button>
-            <button class="quick-profile-btn report" id="quickProfileReportBtn">
-                <span>⚠️</span>
-                <span>Report User</span>
-            </button>
-            <button class="quick-profile-btn" id="quickProfileCloseBtn" style="margin-top: 8px;">
-                <span>✕</span>
-                <span>Close</span>
-            </button>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="quickProfileContactBtn" class="btn-primary">Contact</button>
+            <button id="quickProfileCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>
@@ -641,7 +684,7 @@
         </div>
     </div>
 </div>
-<div class="modal-back" id="createRealmModal">
+<div class="modal-back" id="createRealmModal" style="display: none;">
     <div class="modal-content">
         <button class="modal-close-btn" id="createRealmModalCloseBtn">×</button>
         <h2 class="modal-title">Create New Realm</h2>
@@ -655,15 +698,48 @@
             <textarea id="newRealmDescriptionModal" class="form-input" placeholder="What is this realm about?" rows="3"></textarea>
         </div>
         <div class="toggle-switch">
+            <span class="toggle-label">Public Realm</span>
+            <label class="toggle">
+                <input type="checkbox" id="newRealmPublic" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="toggle-switch">
             <span class="toggle-label">Show me as creator</span>
             <label class="toggle">
                 <input type="checkbox" id="newRealmShowCreator" checked>
                 <span class="toggle-slider"></span>
             </label>
         </div>
-        <div class="action-row">
+        <div class="legal-checkbox" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+            <label class="checkbox-label">
+                <input type="checkbox" id="newRealmLegalCheckbox">
+                <span>By creating a Realm™, you, as the Realm Creator, assume all legal responsibility for moderation, content, and the behavior of members within that Realm. BenGurWaves™ and Labyrinth Chat™ acts only as a passive host.</span>
+            </label>
+        </div>
+        <div class="action-row" style="margin-top: 32px;">
             <button id="cancelCreateRealmBtn" class="btn-secondary">Cancel</button>
-            <button id="confirmCreateRealmBtn" class="btn-primary">Create Realm</button>
+            <button id="confirmCreateRealmBtn" class="btn-primary" disabled>Create Realm</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="inviteJoinModal" style="display: none;">
+    <div class="modal-content">
+        <button class="modal-close-btn" id="inviteJoinModalCloseBtn">×</button>
+        <h2 class="modal-title" id="inviteJoinTitle">You were invited to [Realm Name] by @[Inviter Username]</h2>
+        <div class="modal-subtitle" id="inviteJoinSubtitle"></div>
+        <div class="invite-join-message" id="inviteJoinMessage" style="margin: 20px 0; padding: 16px; background: var(--color-gray-dark); border-radius: 8px;">
+            <!-- Invite message will be inserted here -->
+        </div>
+        <div class="legal-checkbox" style="margin: 24px 0;">
+            <label class="checkbox-label">
+                <input type="checkbox" id="inviteJoinLegalCheckbox">
+                <span>By joining this Realm™, you acknowledge that the Realm Creator assumes all legal responsibility for moderation, content, and member behavior. BenGurWaves™ and Labyrinth Chat™ acts only as a passive host.</span>
+            </label>
+        </div>
+        <div class="action-row" style="margin-top: 32px;">
+            <button id="declineInviteBtn" class="btn-secondary">Decline</button>
+            <button id="acceptInviteBtn" class="btn-primary" disabled>Accept</button>
         </div>
     </div>
 </div>
@@ -748,19 +824,6 @@
         <div class="search-results" id="userSearchResults" style="display: none;"></div>
         <div class="action-row" style="margin-top: 32px;">
             <button id="cancelStartConversationBtn" class="btn-secondary">Cancel</button>
-        </div>
-    </div>
-</div>
-<div class="modal-back" id="notificationDetailModal" style="display: none;">
-    <div class="modal-content">
-        <button class="modal-close-btn" id="notificationDetailModalCloseBtn">×</button>
-        <h2 class="modal-title" id="notificationDetailTitle">Notification Detail</h2>
-        <div class="modal-subtitle" id="notificationDetailTime"></div>
-        <div class="notification-detail-content" id="notificationDetailContent">
-            <!-- Notification detail will be inserted here -->
-        </div>
-        <div class="action-row" style="margin-top: 32px;">
-            <button id="closeNotificationDetailBtn" class="btn-secondary">Close</button>
         </div>
     </div>
 </div>

@@ -1,4 +1,4 @@
-/* Labyrinth Chat v0.6.1 ALPHA - Complete with DM Features */
+/* Labyrinth Chat v0.6.62032 - Complete with Mention & PWA Features */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -80,7 +80,7 @@ html, body {
     justify-content: center;
     width: 48px;
     height: 48px;
-    border-radius: 50%; /* Changed from 12px to 50% for circle */
+    border-radius: 50%;
     overflow: hidden;
     background: var(--color-gray-dark);
     border: 1px solid var(--border-color);
@@ -90,10 +90,10 @@ html, body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%; /* Changed from 12px to 50% for circle */
+    border-radius: 50%;
 }
 .realm-icon-container .emoji-icon {
-    font-size: 32px; /* Increased from 28px */
+    font-size: 32px;
     line-height: 1;
 }
 /* Main Chat with Realm Background */
@@ -160,14 +160,14 @@ html, body {
 h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title, 
 .section-title, .welcome-title, .toast-title, .message-username, 
 #quickProfileName, .search-result-name,
-.dm-name, .user-name, .reply-author, .notification-item-title {
+.dm-name, .user-name, .reply-author, .notification-title {
     font-family: 'Cormorant Garamond', serif;
     font-weight: 400;
     letter-spacing: 0.02em;
 }
 .body-text, .message-text, .form-input, .message-input, .login-subtitle,
 .modal-subtitle, .user-status, .dm-status, .message-time, .timestamp,
-.chat-description, .toast-message, .notification-item-body, .upload-name {
+.chat-description, .toast-message, .notification-message, .upload-name {
     font-family: 'Inter', sans-serif;
     font-weight: 350;
     letter-spacing: 0.01em;
@@ -353,16 +353,16 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 .notification-dropdown-item.unread {
     background: var(--color-gold-transparent);
 }
-/* Notification Items Large Touch & Unread Bold - FIXED for v0.6.1021 */
+/* Notification Items Large Touch & Unread Bold - UPDATED for v0.6.62032 */
 .notification-item {
-    padding: 16px 20px;
+    padding: 16px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     gap: 16px;
     border-radius: 12px;
     margin-bottom: 8px;
     transition: background var(--transition-fast);
-    min-height: 64px;
+    min-height: 72px;
     align-items: flex-start;
 }
 .notification-item:last-child {
@@ -382,23 +382,23 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     flex: 1;
     min-width: 0;
 }
-.notification-item-title {
+.notification-title {
     font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 4px;
+    font-weight: 600;
     color: var(--text-primary);
     line-height: 1.3;
 }
-.notification-item-body {
-    font-size: 13px;
+.notification-message {
+    font-size: 14px;
     color: var(--text-secondary);
-    margin-bottom: 4px;
+    margin: 8px 0;
     font-weight: 300;
 }
-.notification-item-time {
-    font-size: 13px;
+.notification-time {
+    font-size: 12px;
     color: var(--text-secondary);
     font-weight: 300;
+    opacity: 0.7;
 }
 /* Notification Type Tag */
 .notification-type-tag {
@@ -467,7 +467,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-weight: 500;
     color: var(--color-gold);
     background: var(--color-gold-transparent);
-    overflow: hidden; /* Ensure circle mask */
+    overflow: hidden;
 }
 .header-user-avatar img {
     width: 100%;
@@ -1007,6 +1007,29 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     color: var(--text-primary);
     opacity: 0.85;
     white-space: pre-wrap;
+}
+/* Clickable Mentions in Messages - NEW v0.6.62032 */
+.mention-link {
+    color: var(--color-gold);
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+.mention-link:hover {
+    color: var(--color-gold-light);
+    text-decoration: none;
+}
+.mention-user {
+    background: rgba(202, 168, 122, 0.1);
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+.mention-channel {
+    background: rgba(202, 168, 122, 0.15);
+}
+.mention-realm {
+    background: rgba(202, 168, 122, 0.2);
 }
 .message-edited {
     font-size: 11px;
@@ -1602,7 +1625,7 @@ audio {
 .realm-grid-icon {
     width: 48px;
     height: 48px;
-    border-radius: 50%; /* Changed from 12px to 50% */
+    border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--border-color);
     display: flex;
@@ -1902,14 +1925,14 @@ audio {
     background: var(--input-bg);
 }
 .search-result {
-    padding: 20px 16px; /* Increased vertical padding */
+    padding: 20px 16px;
     display: flex;
     align-items: center;
-    gap: 20px; /* Increased gap */
+    gap: 20px;
     cursor: pointer;
     transition: background var(--transition-fast);
     border-bottom: 1px solid var(--border-color);
-    min-height: 60px; /* Increased min-height for better touch */
+    min-height: 60px;
 }
 .search-result:last-child {
     border-bottom: none;
@@ -1953,6 +1976,107 @@ audio {
     font-size: 12px;
     color: var(--text-secondary);
     font-weight: 300;
+}
+/* Mention Modals - NEW v0.6.62032 */
+.mention-modal .modal-content {
+    max-width: 480px;
+    width: 100%;
+    padding: 32px;
+}
+.mention-search-input {
+    width: 100%;
+    padding: 18px 24px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    margin-bottom: 24px;
+    transition: border-color var(--transition-fast);
+    font-family: 'Inter', sans-serif;
+}
+.mention-search-input:focus {
+    border-color: var(--color-gold);
+    outline: none;
+}
+.mention-results {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
+.mention-result {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+    min-height: 72px;
+}
+.mention-result:last-child {
+    border-bottom: none;
+}
+.mention-result:hover {
+    background: var(--color-gray-dark);
+}
+.mention-result.selected {
+    background: var(--color-gold-transparent);
+}
+.mention-result-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    flex-shrink: 0;
+}
+.mention-result-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--color-gold);
+    background: var(--color-gold-transparent);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.mention-result-info {
+    flex: 1;
+    min-width: 0;
+}
+.mention-result-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+.mention-result-type {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+.mention-result-type.user {
+    color: var(--online-emerald);
+}
+.mention-result-type.channel {
+    color: var(--color-gold);
+}
+.mention-result-type.realm {
+    color: var(--warning);
 }
 /* Login */
 .login-card {
@@ -2113,9 +2237,6 @@ audio {
 }
 .avatar-large:hover::after {
     opacity: 1;
-}
-.avatar-upload-controls {
-    flex: 1;
 }
 .avatar-upload-preview {
     width: 80px;
@@ -2712,6 +2833,69 @@ input:checked + .toggle-slider:before {
 }
 .toast-close:hover {
     color: var(--text-primary);
+    background: var(--color-gray-dark);
+}
+/* PWA Update Toast - NEW v0.6.62032 */
+.pwa-update-toast {
+    width: 100%;
+    max-width: 500px;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 0 20px;
+}
+.pwa-update-toast .toast {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px;
+    opacity: 0;
+    transform: translateY(100px);
+    pointer-events: auto;
+}
+.pwa-update-toast .toast.active {
+    transform: translateY(0);
+}
+.pwa-update-toast .toast-content {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.pwa-update-toast .toast-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+@media (min-width: 768px) {
+    .pwa-update-toast .toast-actions {
+        flex-direction: row;
+    }
+}
+.pwa-update-btn {
+    background: transparent;
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+    padding: 16px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all var(--transition-fast);
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    min-height: 48px;
+}
+.pwa-update-btn:hover {
+    background: var(--color-gold);
+    color: var(--color-black);
+}
+.pwa-update-btn.secondary {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+.pwa-update-btn.secondary:hover {
+    border-color: var(--text-primary);
     background: var(--color-gray-dark);
 }
 .notification-center-content {
@@ -3612,13 +3796,74 @@ input:checked + .toggle-slider:before {
 .public-profile-section:last-child {
     border-bottom: none;
 }
-.section-title {
-    font-size: 14px;
-    color: var(--color-gold);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 16px;
+/* Public Realm Preview - NEW v0.6.62032 */
+.public-realm-preview {
     text-align: center;
+    padding: 40px 32px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+.public-realm-icon {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-gold);
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    background: var(--color-gold-transparent);
+    color: var(--color-gold);
+}
+@media (min-width: 768px) {
+    .public-realm-icon {
+        width: 160px;
+        height: 160px;
+        font-size: 64px;
+    }
+}
+.public-realm-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    line-height: 1.3;
+}
+@media (min-width: 768px) {
+    .public-realm-name {
+        font-size: 32px;
+    }
+}
+.public-realm-description {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 32px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+.public-realm-button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--color-gold);
+    color: var(--color-gold);
+    padding: 18px 32px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: 'Inter', sans-serif;
+    font-weight: 350;
+    min-height: 52px;
+}
+.public-realm-button:hover {
+    background: var(--color-gold);
+    color: var(--color-black);
 }
 /* Offline Overlay */
 .offline-overlay {
@@ -3722,6 +3967,10 @@ input:checked + .toggle-slider:before {
         max-width: none;
         width: calc(100% - 20px);
     }
+    .pwa-update-toast {
+        max-width: 90%;
+        padding: 0 16px;
+    }
     .emoji-picker {
         grid-template-columns: repeat(5, 1fr);
         gap: 8px;
@@ -3813,12 +4062,37 @@ input:checked + .toggle-slider:before {
     .search-modal-header {
         margin-bottom: 24px;
     }
+    .mention-modal .modal-content {
+        padding: 24px 20px;
+    }
+    .mention-result {
+        padding: 16px;
+        min-height: 64px;
+        gap: 12px;
+    }
+    .mention-result-avatar,
+    .mention-result-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    .public-realm-preview {
+        padding: 32px 24px;
+    }
+    .public-realm-icon {
+        width: 120px;
+        height: 120px;
+        font-size: 48px;
+    }
+    .public-realm-name {
+        font-size: 24px;
+    }
     /* Notification item mobile adjustments */
-    .notification-item-title {
+    .notification-title {
         font-size: 16px;
     }
     .notification-item {
-        min-height: 64px;
+        min-height: 72px;
         padding: 16px;
     }
     /* Search Results Mobile */
@@ -3896,6 +4170,13 @@ input:checked + .toggle-slider:before {
     .toast {
         padding: 16px;
     }
+    .pwa-update-toast .toast {
+        padding: 20px;
+    }
+    .pwa-update-btn {
+        padding: 14px 20px;
+        font-size: 14px;
+    }
     .realm-section {
         padding: 16px;
         min-height: 64px;
@@ -3923,8 +4204,32 @@ input:checked + .toggle-slider:before {
         font-size: 14px;
     }
     .notification-item {
-        min-height: 68px;
+        min-height: 72px;
         padding: 16px;
+    }
+    .mention-result {
+        padding: 14px;
+        min-height: 60px;
+    }
+    .mention-result-avatar,
+    .mention-result-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    .public-realm-preview {
+        padding: 24px 16px;
+    }
+    .public-realm-icon {
+        width: 100px;
+        height: 100px;
+        font-size: 40px;
+    }
+    .public-realm-name {
+        font-size: 20px;
+    }
+    .public-realm-description {
+        font-size: 14px;
     }
     .public-profile-avatar {
         width: 80px;
@@ -3974,11 +4279,20 @@ input:checked + .toggle-slider:before {
     .notification-dropdown {
         max-height: 50vh;
     }
+    .pwa-update-toast {
+        bottom: 10px;
+    }
+    .mention-modal .modal-content {
+        max-height: 80vh;
+    }
 }
 @media (min-width: 768px) {
     /* Desktop notification title size */
-    .notification-item-title {
+    .notification-title {
         font-size: 18px;
+    }
+    .pwa-update-toast .toast-actions {
+        flex-direction: row;
     }
 }
 @media (min-width: 1200px) {
@@ -3991,6 +4305,12 @@ input:checked + .toggle-slider:before {
     #searchModal .modal-content {
         max-width: 800px;
         margin: 0 auto;
+    }
+    .mention-modal .modal-content {
+        max-width: 500px;
+    }
+    .public-realm-preview {
+        max-width: 700px;
     }
 }
 

@@ -1,3 +1,4 @@
+```javascript
 const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
 const STORAGE_BUCKET = 'avatars';
@@ -46,7 +47,12 @@ let state = {
     notifications: [],
     unreadNotifications: 0,
     notificationsSubscription: null,
-    currentInvite: null
+    currentInvite: null,
+    mentionSearchResults: [],
+    mentionSearchType: null,
+    mentionSearchTimer: null,
+    updateSW: null,
+    realmNotificationSetting: 'all'
 };
 
 function hideLoader() {
@@ -1461,6 +1467,10 @@ function extractRumbleId(url) {
 function formatMessageContent(content) {
     if (!content) return '';
     let escapedContent = escapeHtml(content);
+    
+    // Parse mentions first
+    escapedContent = parseMentions(escapedContent);
+    
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return escapedContent.replace(urlRegex, function(url) {
         const cleanUrl = url.replace(/[.,!?;:]$/, '');
@@ -1574,6 +1584,30 @@ function formatMessageContent(content) {
         }        
         return mediaHtml + trailingChar;
     });
+}
+
+function parseMentions(text) {
+    try {
+        // Parse @username mentions
+        text = text.replace(/@(\w+)/g, (match, username) => {
+            return `<span class="mention-link mention-user" data-username="${username}">@${username}</span>`;
+        });
+        
+        // Parse #channel mentions
+        text = text.replace(/#(\w+)/g, (match, channelName) => {
+            return `<span class="mention-link mention-channel" data-channel-name="${channelName}">#${channelName}</span>`;
+        });
+        
+        // Parse $realm mentions
+        text = text.replace(/\$(\w+)/g, (match, realmName) => {
+            return `<span class="mention-link mention-realm" data-realm-name="${realmName}">$${realmName}</span>`;
+        });
+        
+        return text;
+    } catch (error) {
+        console.log('Error parsing mentions:', error);
+        return text;
+    }
 }
 
 function renderMessages() {
@@ -1969,6 +2003,31 @@ function appendMessage(message) {
                 openQuickProfile(message.user_id);
             });
         }
+        
+        // Add mention click handlers
+        msgElement.querySelectorAll('.mention-user').forEach(mention => {
+            mention.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const username = mention.dataset.username;
+                await handleUserMentionClick(username);
+            });
+        });
+        
+        msgElement.querySelectorAll('.mention-channel').forEach(mention => {
+            mention.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const channelName = mention.dataset.channelName;
+                await handleChannelMentionClick(channelName);
+            });
+        });
+        
+        msgElement.querySelectorAll('.mention-realm').forEach(mention => {
+            mention.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const realmName = mention.dataset.realmName;
+                await handleRealmMentionClick(realmName);
+            });
+        });
         
         setupMessageContextMenu(msgElement, message);
         setTimeout(() => {
@@ -2457,7 +2516,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.6.1...');
+        console.log('Initializing Supabase v0.6.62032 Beta...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2576,7 +2635,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.6.1...');
+        console.log('Initializing app v0.6.62032 Beta...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2677,7 +2736,7 @@ async function initializeApp() {
         }
         hideLoader();
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.6.1', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.6.62032 Beta', 'success');
         }, 500);
         
         setTimeout(checkWelcomeMessages, 1000);
@@ -2841,7 +2900,30 @@ function setupEventListeners() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
             updateSendButtonState();
-        });        
+        });
+        
+        // Mention detection
+        messageInput.addEventListener('keyup', function(e) {
+            try {
+                const value = this.value;
+                const cursorPos = this.selectionStart;
+                const lastChar = value.substring(cursorPos - 1, cursorPos);
+                
+                if (lastChar === '@' || lastChar === '#' || lastChar === '$') {
+                    const prevChar = cursorPos > 1 ? value.substring(cursorPos - 2, cursorPos - 1) : '';
+                    if (prevChar === ' ' || cursorPos === 1) {
+                        state.mentionSearchType = lastChar;
+                        document.getElementById('mentionHelperModal').style.display = 'flex';
+                        document.getElementById('mentionSearchInput').focus();
+                        document.getElementById('mentionSearchInput').value = '';
+                        document.getElementById('mentionResults').innerHTML = '';
+                    }
+                }
+            } catch (error) {
+                console.log('Error in mention detection:', error);
+            }
+        });
+        
         messageInput.addEventListener('keydown', function(e) {
             if (state.userSettings?.send_with_enter) {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -3128,14 +3210,26 @@ function setupEventListeners() {
             document.getElementById('confirmationModal').style.display = 'flex';
             document.getElementById('confirmationIcon').textContent = '↻';
             document.getElementById('confirmationTitle').textContent = 'Force Refresh';
-            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            document.getElementById('confirmationMessage').textContent = 'This will clear cache and reload the application. Continue?';
             
             const confirmBtn = document.getElementById('confirmationConfirm');
             const cancelBtn = document.getElementById('confirmationCancel');
             
-            const handleConfirm = () => {
-                localStorage.clear();
-                window.location.reload(true);
+            const handleConfirm = async () => {
+                try {
+                    // Clear all caches
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    }
+                    // Clear localStorage
+                    localStorage.clear();
+                    // Force reload
+                    window.location.reload(true);
+                } catch (error) {
+                    console.log('Error clearing cache:', error);
+                    window.location.reload(true);
+                }
             };
             
             const handleCancel = () => {
@@ -3151,14 +3245,26 @@ function setupEventListeners() {
             document.getElementById('confirmationModal').style.display = 'flex';
             document.getElementById('confirmationIcon').textContent = '↻';
             document.getElementById('confirmationTitle').textContent = 'Force Refresh';
-            document.getElementById('confirmationMessage').textContent = 'This will reload the application and clear local cache. Continue?';
+            document.getElementById('confirmationMessage').textContent = 'This will clear cache and reload the application. Continue?';
             
             const confirmBtn = document.getElementById('confirmationConfirm');
             const cancelBtn = document.getElementById('confirmationCancel');
             
-            const handleConfirm = () => {
-                localStorage.clear();
-                window.location.reload(true);
+            const handleConfirm = async () => {
+                try {
+                    // Clear all caches
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    }
+                    // Clear localStorage
+                    localStorage.clear();
+                    // Force reload
+                    window.location.reload(true);
+                } catch (error) {
+                    console.log('Error clearing cache:', error);
+                    window.location.reload(true);
+                }
             };
             
             const handleCancel = () => {
@@ -3170,16 +3276,20 @@ function setupEventListeners() {
             confirmBtn.addEventListener('click', handleConfirm);
             cancelBtn.addEventListener('click', handleCancel);
         });
-        document.getElementById('profileLogoutBtn').addEventListener('click', function() {
+        
+        // Profile modal logout button
+        document.getElementById('logoutBtn').addEventListener('click', function() {
             state.supabase.auth.signOut()
                 .then(() => {
-                    window.location.href = '/';
+                    window.location.href = 'signin.html';
                 })
                 .catch(error => {
                     console.log('Logout error:', error);
                     showToast('Error', 'Failed to logout', 'error');
                 });
         });
+        
+        // Profile modal delete account button
         document.getElementById('deleteAccountBtn').addEventListener('click', function() {
             document.getElementById('confirmationModal').style.display = 'flex';
             document.getElementById('confirmationIcon').textContent = '🗑️';
@@ -3189,8 +3299,12 @@ function setupEventListeners() {
             const cancelBtn = document.getElementById('confirmationCancel');            
             const handleConfirm = async () => {
                 try {
-                    showToast('Info', 'Account deletion coming in a future update', 'info');
-                    document.getElementById('confirmationModal').style.display = 'none';
+                    // Call Supabase auth delete user
+                    const { error: deleteError } = await state.supabase.auth.deleteUser();
+                    if (deleteError) throw deleteError;
+                    
+                    // Redirect to signin page
+                    window.location.href = 'signin.html';
                 } catch (error) {
                     console.log('Error deleting account:', error);
                     showToast('Error', 'Failed to delete account', 'error');
@@ -3207,6 +3321,7 @@ function setupEventListeners() {
             confirmBtn.addEventListener('click', handleConfirm);
             cancelBtn.addEventListener('click', handleCancel);
         });
+        
         document.getElementById('emailToggleBtn').addEventListener('click', function() {
             state.emailVisible = !state.emailVisible;
             this.textContent = state.emailVisible ? 'Hide Email' : 'Show Email';
@@ -3259,6 +3374,9 @@ function setupEventListeners() {
                         document.getElementById('userSearchInput').value = '';
                         document.getElementById('userSearchResults').style.display = 'none';
                     }
+                    if (this.id === 'mentionHelperModal') {
+                        state.mentionSearchType = null;
+                    }
                 }
             });
         });
@@ -3285,6 +3403,7 @@ function setupEventListeners() {
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
                 document.getElementById('inviteJoinModal').style.display = 'none';
+                document.getElementById('mentionHelperModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -3470,8 +3589,314 @@ function setupEventListeners() {
         document.getElementById('inviteDeclineBtn').addEventListener('click', declineInvite);
         document.getElementById('inviteJoinModalCloseBtn').addEventListener('click', declineInvite);
         
+        // Mention modal handlers
+        document.getElementById('mentionSearchInput').addEventListener('input', function() {
+            clearTimeout(state.mentionSearchTimer);
+            state.mentionSearchTimer = setTimeout(() => {
+                performMentionSearch(this.value.trim());
+            }, 300);
+        });
+        
+        document.getElementById('mentionCloseBtn').addEventListener('click', function() {
+            document.getElementById('mentionHelperModal').style.display = 'none';
+            state.mentionSearchType = null;
+        });
+        
+        document.getElementById('mentionHelperModalCloseBtn').addEventListener('click', function() {
+            document.getElementById('mentionHelperModal').style.display = 'none';
+            state.mentionSearchType = null;
+        });
+        
+        // Realm notification settings
+        document.querySelectorAll('input[name="realmNotificationSetting"]').forEach(radio => {
+            radio.addEventListener('change', async function() {
+                if (!state.currentRealm || !state.currentUser) return;
+                
+                try {
+                    const setting = this.value;
+                    let query;
+                    if (state.currentRealm.isPrivate) {
+                        query = state.supabase
+                            .from('private_user_realms')
+                            .update({ notification_setting: setting });
+                    } else {
+                        query = state.supabase
+                            .from('user_realms')
+                            .update({ notification_setting: setting });
+                    }
+                    
+                    const { error } = await query
+                        .eq('user_id', state.currentUser.id)
+                        .eq('realm_id', state.currentRealm.id);
+                        
+                    if (error) throw error;
+                    
+                    showToast('Success', 'Notification settings updated', 'success');
+                } catch (error) {
+                    console.log('Error updating notification settings:', error);
+                    showToast('Error', 'Failed to update notification settings', 'error');
+                }
+            });
+        });
+        
     } catch (error) {
         console.log('Error setting up event listeners:', error);
+    }
+}
+
+async function performMentionSearch(query) {
+    try {
+        if (!state.supabase || !state.mentionSearchType) return;
+        
+        const resultsContainer = document.getElementById('mentionResults');
+        resultsContainer.innerHTML = '';
+        
+        if (!query) {
+            resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">Start typing to search...</div>';
+            return;
+        }
+        
+        if (state.mentionSearchType === '@') {
+            // Search users
+            const { data: users, error } = await state.supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .ilike('username', `%${query}%`)
+                .neq('id', state.currentUser.id)
+                .limit(10);
+                
+            if (error) {
+                console.log('Error searching users:', error);
+                return;
+            }
+            
+            if (users.length === 0) {
+                resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No users found</div>';
+                return;
+            }
+            
+            users.forEach(user => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'mention-result';
+                resultItem.innerHTML = `
+                    <img src="${user.avatar_url ? user.avatar_url + '?t=' + Date.now() : ''}" alt="${user.username}" onerror="this.style.display='none';">
+                    <div>${escapeHtml(user.username)}</div>
+                `;
+                
+                resultItem.addEventListener('click', () => {
+                    insertMention(`@${user.username} `);
+                });
+                
+                resultsContainer.appendChild(resultItem);
+            });
+            
+        } else if (state.mentionSearchType === '#') {
+            // Search channels in current realm
+            if (!state.currentRealm) return;
+            
+            const { data: channels, error } = await state.supabase
+                .from('channels')
+                .select('id, name')
+                .eq('realm_id', state.currentRealm.id)
+                .ilike('name', `%${query}%`)
+                .limit(10);
+                
+            if (error) {
+                console.log('Error searching channels:', error);
+                return;
+            }
+            
+            if (channels.length === 0) {
+                resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No channels found</div>';
+                return;
+            }
+            
+            channels.forEach(channel => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'mention-result';
+                resultItem.innerHTML = `
+                    <div style="width: 24px; height: 24px; border-radius: 4px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 8px;">#</div>
+                    <div>${escapeHtml(channel.name)}</div>
+                `;
+                
+                resultItem.addEventListener('click', () => {
+                    insertMention(`#${channel.name} `);
+                });
+                
+                resultsContainer.appendChild(resultItem);
+            });
+            
+        } else if (state.mentionSearchType === '$') {
+            // Search realms user is a member of
+            const realmIds = [
+                ...state.joinedRealms.map(r => r.id),
+                ...state.privateRealms.map(r => r.id)
+            ];
+            
+            if (realmIds.length === 0) return;
+            
+            const { data: publicRealms, error: publicError } = await state.supabase
+                .from('realms')
+                .select('id, name, icon_url')
+                .ilike('name', `%${query}%`)
+                .in('id', realmIds)
+                .limit(10);
+                
+            const { data: privateRealms, error: privateError } = await state.supabase
+                .from('private_realms')
+                .select('id, name, icon_url')
+                .ilike('name', `%${query}%`)
+                .in('id', realmIds)
+                .limit(10);
+                
+            const realms = [...(publicRealms || []), ...(privateRealms || [])];
+            
+            if (realms.length === 0) {
+                resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic;">No realms found</div>';
+                return;
+            }
+            
+            realms.forEach(realm => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'mention-result';
+                resultItem.innerHTML = `
+                    <div style="width: 24px; height: 24px; border-radius: 4px; background: var(--color-gray-dark); display: flex; align-items: center; justify-content: center; margin-right: 8px; font-size: 14px;">${realm.icon_url || '🏰'}</div>
+                    <div>${escapeHtml(realm.name)}</div>
+                `;
+                
+                resultItem.addEventListener('click', () => {
+                    insertMention(`$${realm.name} `);
+                });
+                
+                resultsContainer.appendChild(resultItem);
+            });
+        }
+    } catch (error) {
+        console.log('Error performing mention search:', error);
+    }
+}
+
+function insertMention(text) {
+    try {
+        const messageInput = document.getElementById('messageInput');
+        const currentValue = messageInput.value;
+        const cursorPos = messageInput.selectionStart;
+        
+        // Find the mention trigger position
+        let mentionStart = cursorPos - 1;
+        while (mentionStart >= 0 && ![' ', '@', '#', '$'].includes(currentValue.charAt(mentionStart - 1))) {
+            mentionStart--;
+        }
+        
+        // Replace from mention trigger to cursor position
+        const newValue = currentValue.substring(0, mentionStart) + text + currentValue.substring(cursorPos);
+        messageInput.value = newValue;
+        
+        // Set cursor after inserted mention
+        const newCursorPos = mentionStart + text.length;
+        messageInput.setSelectionRange(newCursorPos, newCursorPos);
+        messageInput.focus();
+        
+        // Close mention modal
+        document.getElementById('mentionHelperModal').style.display = 'none';
+        state.mentionSearchType = null;
+    } catch (error) {
+        console.log('Error inserting mention:', error);
+    }
+}
+
+async function handleUserMentionClick(username) {
+    try {
+        const { data: user, error } = await state.supabase
+            .from('profiles')
+            .select('id')
+            .eq('username', username)
+            .single();
+            
+        if (error || !user) {
+            showToast('Error', 'User not found', 'error');
+            return;
+        }
+        
+        openQuickProfile(user.id);
+    } catch (error) {
+        console.log('Error handling user mention click:', error);
+        showToast('Error', 'Failed to load user', 'error');
+    }
+}
+
+async function handleChannelMentionClick(channelName) {
+    try {
+        if (!state.currentRealm) return;
+        
+        const { data: channel, error } = await state.supabase
+            .from('channels')
+            .select('id')
+            .eq('realm_id', state.currentRealm.id)
+            .eq('name', channelName)
+            .single();
+            
+        if (error || !channel) {
+            showToast('Error', 'Channel not found', 'error');
+            return;
+        }
+        
+        selectChannel(channel.id);
+    } catch (error) {
+        console.log('Error handling channel mention click:', error);
+        showToast('Error', 'Failed to load channel', 'error');
+    }
+}
+
+async function handleRealmMentionClick(realmName) {
+    try {
+        // Check if user is a member
+        const realm = [...state.joinedRealms, ...state.privateRealms].find(r => r.name === realmName);
+        
+        if (realm) {
+            // User is a member, switch to realm
+            await switchRealm(realm.id, realm.isPrivate);
+        } else {
+            // User is not a member, show preview modal
+            const { data: publicRealm, error: publicError } = await state.supabase
+                .from('realms')
+                .select('*')
+                .eq('name', realmName)
+                .single();
+                
+            const { data: privateRealm, error: privateError } = await state.supabase
+                .from('private_realms')
+                .select('*')
+                .eq('name', realmName)
+                .single();
+                
+            const realmData = publicRealm || privateRealm;
+            
+            if (!realmData) {
+                showToast('Error', 'Realm not found', 'error');
+                return;
+            }
+            
+            // Show public realm preview modal
+            document.getElementById('publicRealmPreviewName').textContent = realmData.name;
+            document.getElementById('publicRealmPreviewDescription').textContent = realmData.description || 'No description';
+            
+            const iconPreview = document.getElementById('publicRealmPreviewIcon');
+            if (realmData.icon_url) {
+                iconPreview.style.backgroundImage = `url(${realmData.icon_url})`;
+                iconPreview.textContent = '';
+                iconPreview.style.backgroundSize = 'cover';
+                iconPreview.style.backgroundPosition = 'center';
+            } else {
+                iconPreview.style.backgroundImage = 'none';
+                iconPreview.textContent = realmData.icon_url || '🏰';
+            }
+            
+            document.getElementById('publicRealmPreviewModal').style.display = 'flex';
+        }
+    } catch (error) {
+        console.log('Error handling realm mention click:', error);
+        showToast('Error', 'Failed to load realm', 'error');
     }
 }
 
@@ -3549,6 +3974,31 @@ async function showRealmSettingsModal() {
         } else {
             nonCreatorSettings.style.display = 'block';
             creatorSettings.style.display = 'none';
+            
+            // Load user's notification setting for this realm
+            let userRealmData;
+            if (state.currentRealm.isPrivate) {
+                const { data, error } = await state.supabase
+                    .from('private_user_realms')
+                    .select('notification_setting')
+                    .eq('user_id', state.currentUser.id)
+                    .eq('realm_id', state.currentRealm.id)
+                    .single();
+                userRealmData = data;
+            } else {
+                const { data, error } = await state.supabase
+                    .from('user_realms')
+                    .select('notification_setting')
+                    .eq('user_id', state.currentUser.id)
+                    .eq('realm_id', state.currentRealm.id)
+                    .single();
+                userRealmData = data;
+            }
+            
+            if (userRealmData) {
+                const setting = userRealmData.notification_setting || 'all';
+                document.querySelector(`input[name="realmNotificationSetting"][value="${setting}"]`).checked = true;
+            }
         }
         
         document.getElementById('realmSettingsModal').style.display = 'flex';
@@ -4656,8 +5106,82 @@ async function loadNotifications() {
         state.unreadNotifications = notifications.filter(n => !n.read).length;
         
         updateNotificationBell();
+        
+        // Update notifications dropdown
+        updateNotificationsDropdown();
     } catch (error) {
         console.log('Error loading notifications:', error);
+    }
+}
+
+function updateNotificationsDropdown() {
+    try {
+        const dropdown = document.getElementById('notificationsDropdown');
+        if (!dropdown) return;
+        
+        const unreadNotifications = state.notifications.filter(n => !n.read).slice(0, 5);
+        
+        if (unreadNotifications.length === 0) {
+            dropdown.innerHTML = `
+                <div class="notification-item">
+                    <div class="notification-content">No new notifications</div>
+                </div>
+            `;
+            return;
+        }
+        
+        dropdown.innerHTML = '';
+        
+        unreadNotifications.forEach(notification => {
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification-item unread';
+            notificationElement.innerHTML = `
+                <div class="notification-title"><strong>${escapeHtml(notification.type || 'Notification')}</strong></div>
+                <div class="notification-content">${escapeHtml(notification.content)}</div>
+                <div class="notification-time">${new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            `;
+            
+            notificationElement.addEventListener('click', async () => {
+                await markNotificationRead(notification.id);
+                showNotificationDetail(notification);
+            });
+            
+            dropdown.appendChild(notificationElement);
+        });
+        
+        // Add view all button
+        const viewAllBtn = document.createElement('div');
+        viewAllBtn.className = 'notification-view-all';
+        viewAllBtn.innerHTML = '<button id="dropdownViewAllBtn">View All Notifications</button>';
+        viewAllBtn.querySelector('button').addEventListener('click', () => {
+            document.getElementById('notificationsModal').style.display = 'flex';
+            loadAllNotifications();
+            dropdown.style.display = 'none';
+        });
+        dropdown.appendChild(viewAllBtn);
+    } catch (error) {
+        console.log('Error updating notifications dropdown:', error);
+    }
+}
+
+function showNotificationDetail(notification) {
+    try {
+        const dropdown = document.getElementById('notificationsDropdown');
+        dropdown.innerHTML = `
+            <div class="notification-detail">
+                <button class="notification-back-btn">← Back</button>
+                <div class="notification-title"><strong>${escapeHtml(notification.type || 'Notification')}</strong></div>
+                <div class="notification-content">${escapeHtml(notification.content)}</div>
+                <div class="notification-time">${new Date(notification.created_at).toLocaleString()}</div>
+                <div class="notification-type">Type: ${escapeHtml(notification.type || 'general')}</div>
+            </div>
+        `;
+        
+        dropdown.querySelector('.notification-back-btn').addEventListener('click', () => {
+            updateNotificationsDropdown();
+        });
+    } catch (error) {
+        console.log('Error showing notification detail:', error);
     }
 }
 
@@ -4709,6 +5233,7 @@ async function loadAllNotifications() {
                 const notificationElement = document.createElement('div');
                 notificationElement.className = `notification-item ${notification.read ? '' : 'unread'}`;
                 notificationElement.innerHTML = `
+                    <div class="notification-title"><strong>${escapeHtml(notification.type || 'Notification')}</strong></div>
                     <div class="notification-content">${escapeHtml(notification.content)}</div>
                     <div class="notification-time">${new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                 `;
@@ -4777,9 +5302,26 @@ function updateNotificationBell() {
         if (state.unreadNotifications > 0) {
             dot.style.display = 'block';
             dot.textContent = state.unreadNotifications > 9 ? '9+' : state.unreadNotifications.toString();
+            
+            // Show dropdown on click
+            bell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dropdown = document.getElementById('notificationsDropdown');
+                dropdown.style.display = 'block';
+                updateNotificationsDropdown();
+            });
         } else {
             dot.style.display = 'none';
+            bell.removeEventListener('click', () => {});
         }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('notificationsDropdown');
+            if (dropdown && !dropdown.contains(e.target) && e.target !== bell && !bell.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
     } catch (error) {
         console.log('Error updating notification bell:', error);
     }
@@ -5631,9 +6173,18 @@ function initializePWA() {
                 .then((registration) => {
                     console.log('Service Worker registered with scope:', registration.scope);
                     state.isServiceWorkerRegistered = true;
+                    
+                    // Add update detection
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
-                        console.log('Service Worker update found:', newWorker?.state);
+                        if (newWorker) {
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    state.updateSW = newWorker;
+                                    showUpdateToast();
+                                }
+                            });
+                        }
                     });
                 })
                 .catch((error) => {
@@ -5641,6 +6192,7 @@ function initializePWA() {
                 });
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 console.log('Service Worker controller changed');
+                window.location.reload();
             });
         }
         if (window.matchMedia('(display-mode: standalone)').matches || 
@@ -5649,6 +6201,21 @@ function initializePWA() {
         }        
     } catch (error) {
         console.log('Error initializing PWA (non-critical):', error);
+    }
+}
+
+function showUpdateToast() {
+    try {
+        const updateToast = showToast('New Version Update', 'A new version of Labyrinth Chat is available.', 'info', 0);
+        const buttonsHTML = `<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;"><button id="updateNowBtn" class="btn-primary">Update Now</button><button id="updateLaterBtn" class="btn-secondary">Later</button></div>`;
+        updateToast.querySelector('.toast-content').insertAdjacentHTML('beforeend', buttonsHTML);
+        document.getElementById('updateNowBtn').onclick = () => { 
+            if (state.updateSW) state.updateSW.postMessage({ type: 'SKIP_WAITING' }); 
+            window.location.reload(); 
+        };
+        document.getElementById('updateLaterBtn').onclick = () => hideToast(updateToast);
+    } catch (error) {
+        console.log('Update toast error:', error);
     }
 }
 
@@ -6378,10 +6945,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.6.1...');
-    document.title = 'Labyrinth Chat v0.6.1';
-    document.querySelector('.version').textContent = 'v0.6.1';
-    document.querySelector('.login-subtitle').textContent = 'v0.6.1 • Fully Functional';
+    console.log('Initializing Labyrinth Chat v0.6.62032 Beta...');
+    document.title = 'Labyrinth Chat v0.6.62032 Beta';
+    document.querySelector('.version').textContent = 'v0.6.62032 Beta';
+    document.querySelector('.login-subtitle').textContent = 'v0.6.62032 Beta • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);
@@ -6393,3 +6960,4 @@ window.openQuickProfile = openQuickProfile;
 window.showUserProfileFromMessage = openQuickProfile;
 window.acceptInvite = acceptInvite;
 window.declineInvite = declineInvite;
+```

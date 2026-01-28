@@ -1,4 +1,4 @@
-/* Labyrinth Chat v0.5.5607 ALPHA - Complete */
+/* Labyrinth Chat v0.5.5607 ALPHA - Complete with DM Features */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -160,7 +160,7 @@ html, body {
 h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title, 
 .section-title, .welcome-title, .toast-title, .message-username, 
 #quickProfileName, .search-result-name,
-.reply-author, .notification-item-title {
+.user-name, .reply-author, .notification-item-title {
     font-family: 'Cormorant Garamond', serif;
     font-weight: 400;
     letter-spacing: 0.02em;
@@ -1292,6 +1292,17 @@ audio {
     color: var(--color-gold);
     background: var(--color-gray-dark);
 }
+/* First-time welcome modal */
+#firstTimeWelcomeModal .modal-subtitle {
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 24px 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+#firstTimeWelcomeModal .action-row {
+  justify-content: center;
+}
 /* Realm Settings Modal - Specific Styles */
 #realmSettingsIconPreview {
     width: 80px;
@@ -1546,6 +1557,28 @@ audio {
 .realm-item.active {
     border-color: var(--color-gold);
     background: var(--color-gold-transparent);
+}
+/* Special home realm appearance */
+.realm-item--home .realm-name {
+  color: var(--color-gold);
+  font-weight: 500;
+}
+.realm-item--home .realm-icon-container {
+  border-color: var(--color-gold);
+  background: rgba(202, 168, 122, 0.1);
+}
+.realm-item--home {
+  position: relative;
+}
+.realm-item--home::before {
+  content: '⟟';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-gold);
+  font-size: 12px;
+  opacity: 0.6;
 }
 .realm-item-title {
     font-family: 'Cormorant Garamond', serif;
@@ -3256,6 +3289,34 @@ input:checked + .toggle-slider:before {
     font-size: 18px;
     color: var(--text-secondary);
     font-family: 'Cormorant Garamond', serif;
+}
+/* Channel header (main chat) */
+.channel-header {
+    display: flex;
+    align-items: center;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    min-height: var(--header-height);
+    backdrop-filter: blur(20px);
+}
+.channel-header-title {
+    font-size: 20px;
+    color: var(--text-primary);
+    font-family: 'Cormorant Garamond', serif;
+}
+/* Subtle version number */
+.version {
+  font-size: 10px;
+  opacity: 0.4;
+  color: var(--text-secondary);
+  pointer-events: none;
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+}
+@media (max-width: 768px) {
+  .version { display: none; }
 }
 /* Responsive */
 @media (max-width: 768px) {

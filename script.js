@@ -1,7 +1,7 @@
 const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
 const STORAGE_BUCKET = 'avatars';
-const PROTECTED_REALM_SLUGS = ['labyrinth', 'bengurwaves'];
+const PROTECTED_REALM_SLUGS = ['labyrinthchat'];
 const ADMIN_USERNAME = 'TheRealBenGurWaves';
 
 let state = {
@@ -417,18 +417,19 @@ async function ensureProtectedRealmsJoined() {
             if (!existingSlugs.includes(slug)) {
                 console.log(`Creating protected realm: ${slug}`);
                 let realmData;                
-                realmData = {
-                    name: slug === 'labyrinth' ? 'Labyrinth' : 'BenGurWaves',
-                    slug: slug,
-                    description: slug === 'labyrinth' ? 'The main realm of Labyrinth chat' : 'Protected waves realm',
-                    created_by: state.currentUser.id,
-                    position: 0,
-                    is_featured: true,
-                    show_creator: true,
-                    is_public: true,
-                    announcement_message: null
-                };
-                
+                if (slug === 'labyrinthchat') {
+                    realmData = {
+                        name: 'LabyrinthChat™',
+                        slug: slug,
+                        description: 'The main realm of Labyrinth chat',
+                        created_by: state.currentUser.id,
+                        position: 0,
+                        is_featured: true,
+                        show_creator: true,
+                        is_public: true,
+                        announcement_message: null
+                    };
+                }
                 const { data: newRealm, error: createError } = await state.supabase
                     .from('realms')
                     .insert([realmData])
@@ -608,6 +609,12 @@ function renderRealmDropdown() {
             if (state.currentRealm && realm.id === state.currentRealm.id) {
                 option.classList.add('active');
             }
+            
+            // Add home realm class
+            if (realm.slug === 'labyrinthchat' || realm.name === 'LabyrinthChat™') {
+                option.classList.add('realm-item--home');
+            }
+            
             // Add realm icon
             let iconHtml = '';
             if (realm.icon_url) {
@@ -622,8 +629,9 @@ function renderRealmDropdown() {
                 realmText += ` <span style="font-size: 11px; color: var(--color-gray); font-style: italic;">Created by ${creatorUsername}</span>`;
             }
             option.innerHTML = `${iconHtml}${realmText}`;
-            
+                       
             option.onclick = function(e) {
+                e.stopPropagation();
                 switchRealm(realm.id);
             };
             dropdown.appendChild(option);
@@ -1252,6 +1260,7 @@ function setupMessageContextMenu(msgElement, message) {
         
         contextMenu.querySelector('.report').addEventListener('click', (e) => {
             e.stopPropagation();
+            reportMessage(message);
             removeMenu();
         });
         
@@ -1770,7 +1779,6 @@ async function loadUserRealmsForProfile() {
             realmsList.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
             return;
         }
-        // Update to show realm icons
         realmsList.innerHTML = realms.map(realm => {
             let iconHtml = '';
             if (realm.icon_url) {
@@ -1862,7 +1870,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.5.56 Beta...');
+        console.log('Initializing Supabase v0.554.324...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -1981,7 +1989,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.5.56 Beta...');
+        console.log('Initializing app v0.554.324...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -1992,14 +2000,38 @@ async function initializeApp() {
         }
         await ensureProtectedRealmsJoined();
         state.joinedRealms = await loadJoinedRealmsFast();
+        
+        // Auto-join user to BenGurWaves realm if not already joined
+        const { data: bengurwavesRealm, error: bwError } = await state.supabase
+            .from('realms')
+            .select('id')
+            .eq('slug', 'bengurwaves')
+            .single();
+            
+        if (bengurwavesRealm && !state.joinedRealms.some(r => r.id === bengurwavesRealm.id)) {
+            const { error: joinError } = await state.supabase
+                .from('user_realms')
+                .insert({
+                    user_id: state.currentUser.id,
+                    realm_id: bengurwavesRealm.id,
+                    joined_at: new Date().toISOString()
+                });
+                
+            if (!joinError) {
+                console.log('Auto-joined BenGurWaves realm');
+                state.joinedRealms = await loadJoinedRealmsFast();
+            }
+        }
+        
         let realmToSelect = null;
         const lastRealmId = state.userSettings?.last_realm_id;        
         if (lastRealmId) {
             realmToSelect = state.joinedRealms.find(r => r.id === lastRealmId);
         }        
         if (!realmToSelect && state.joinedRealms.length > 0) {
-            realmToSelect = state.joinedRealms.find(r => r.slug === 'labyrinth') || state.joinedRealms[0];
+            realmToSelect = state.joinedRealms.find(r => r.slug === 'labyrinthchat' || r.name === 'LabyrinthChat™') || state.joinedRealms[0];
         }
+        
         if (realmToSelect) {
             state.currentRealm = realmToSelect;
             // Update realm icon in sidebar
@@ -2022,6 +2054,7 @@ async function initializeApp() {
             renderRealmDropdown();
             loadChannels();
         }
+        
         setupEventListeners();
         initializePWA();
         state.initComplete = true;
@@ -2031,9 +2064,23 @@ async function initializeApp() {
             state.loaderTimeout = null;
         }
         hideLoader();
+        
+        showSkeletonUI();
+        
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.5.56 Beta', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.554.324', 'success');
         }, 500);
+        
+        // Show first-time welcome modal
+        if (!localStorage.getItem('welcomeShown_v0.554.324')) {
+            setTimeout(() => {
+                document.getElementById('firstTimeWelcomeModal').style.display = 'flex';
+                document.getElementById('welcomeDoneBtn').onclick = function() {
+                    document.getElementById('firstTimeWelcomeModal').style.display = 'none';
+                    localStorage.setItem('welcomeShown_v0.554.324', 'true');
+                };
+            }, 1000);
+        }
         
         setTimeout(checkWelcomeMessages, 1000);
     } catch (error) {
@@ -2117,7 +2164,7 @@ async function loadInitialData() {
             realmToSelect = state.joinedRealms.find(r => r.id === lastRealmId);
         }      
         if (!realmToSelect && state.joinedRealms.length > 0) {
-            realmToSelect = state.joinedRealms.find(r => r.slug === 'labyrinth') || state.joinedRealms[0];
+            realmToSelect = state.joinedRealms.find(r => r.slug === 'labyrinthchat' || r.name === 'LabyrinthChat™') || state.joinedRealms[0];
         }
         if (realmToSelect) {
             state.currentRealm = realmToSelect;
@@ -2387,13 +2434,10 @@ function setupEventListeners() {
             document.getElementById('quickProfileModal').style.display = 'none';
             state.selectedUserForProfile = null;
         });       
-        document.getElementById('quickProfileContactBtn').addEventListener('click', async function() {
-            if (state.selectedUserForProfile) {
-                document.getElementById('quickProfileModal').style.display = 'none';
-            }
-        });       
+        document.getElementById('quickProfileContactBtn').remove();
         document.getElementById('quickProfileReportBtn').addEventListener('click', async function() {
             if (state.selectedUserForProfile) {
+                await reportUser(state.selectedUserForProfile);
                 document.getElementById('quickProfileModal').style.display = 'none';
             }
         });
@@ -2625,6 +2669,7 @@ function setupEventListeners() {
                 document.getElementById('notificationsModal').style.display = 'none';
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
+                document.getElementById('firstTimeWelcomeModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -2761,11 +2806,7 @@ function setupEventListeners() {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
         
-        document.getElementById('publicProfileContactBtn').addEventListener('click', function() {
-            if (state.selectedUserForProfile) {
-                document.getElementById('publicProfileModal').style.display = 'none';
-            }
-        });
+        document.getElementById('publicProfileContactBtn').remove();
         
         document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
             document.getElementById('publicProfileModal').style.display = 'none';
@@ -3439,6 +3480,8 @@ async function performGlobalSearch(query) {
             return;
         }
         
+        const includePrivate = document.getElementById('globalSearchPrivateToggle').checked;
+        
         // Search profiles
         const { data: profiles, error: profilesError } = await state.supabase
             .from('profiles')
@@ -3474,7 +3517,8 @@ async function performGlobalSearch(query) {
             console.log('Error searching channels:', channelsError);
         }
         
-        const channelsForMessageSearch = state.channels.map(c => c.id);
+        // Search messages
+        let channelsForMessageSearch = state.channels.map(c => c.id);
         
         const { data: messages, error: messagesError } = await state.supabase
             .from('messages')
@@ -3788,7 +3832,6 @@ async function showUserProfile(userId, profileData = null) {
             realmsContainer.innerHTML = '<div class="realms-hidden-message">Not a member of any realms</div>';
             document.getElementById('publicProfileRealmsSection').style.display = 'block';
         } else {
-            // Update to show realm icons
             realmsContainer.innerHTML = realmsData.realms.map(realm => {
                 let iconHtml = '';
                 if (realm.icon_url) {
@@ -3849,6 +3892,11 @@ function renderRealmsList(realms) {
             const realmItem = document.createElement('div');
             realmItem.className = 'realm-item';
             
+            // Add home realm class
+            if (realm.slug === 'labyrinthchat' || realm.name === 'LabyrinthChat™') {
+                realmItem.classList.add('realm-item--home');
+            }
+            
             // Add realm icon
             let iconHtml = '';
             if (realm.icon_url) {
@@ -3896,7 +3944,7 @@ function renderRealmsList(realms) {
                     await joinRealm(realm.id);
                 });
             }
-        });   
+        });       
     } catch (error) {
         console.log('Error rendering realms list:', error);
     }
@@ -4486,6 +4534,127 @@ async function displayUserProfile(profileOrUserId) {
     }
 }
 
+async function reportMessage(message) {
+    try {
+        if (!state.currentUser || !state.supabase || !message || !state.currentRealm || !state.currentChannel) return;
+        
+        // Fetch admin IDs
+        const { data: adminProfiles, error: adminError } = await state.supabase
+            .from('profiles')
+            .select('id')
+            .in('username', ['TheRealBenGurWaves', 'BenGurWavesBeta']);
+            
+        if (adminError) {
+            console.log('Error fetching admin profiles:', adminError);
+            showToast('Error', 'Failed to send report', 'error');
+            return;
+        }
+        
+        const reporterUsername = state.userSettings?.username || state.currentUser.email?.split('@')[0];
+        const authorUsername = message.profiles?.username || 'Unknown';
+        const channelName = state.currentChannel?.name || 'Unknown';
+        
+        // Create notifications for admins
+        const adminNotifications = adminProfiles.map(admin => ({
+            user_id: admin.id,
+            content: `@${reporterUsername} reported a message by @${authorUsername} in #${channelName}`,
+            type: 'report',
+            related_user_id: message.user_id,
+            related_message_id: message.id,
+            related_realm_id: state.currentRealm.id,
+            related_channel_id: state.currentChannel.id
+        }));
+        
+        // Create notification for reporter
+        const reporterNotification = {
+            user_id: state.currentUser.id,
+            content: `You reported a message by @${authorUsername}`,
+            type: 'report_confirmation',
+            related_user_id: message.user_id,
+            related_message_id: message.id,
+            related_realm_id: state.currentRealm.id,
+            related_channel_id: state.currentChannel.id
+        };
+        
+        // Insert all notifications
+        const { error: notificationError } = await state.supabase
+            .from('notifications')
+            .insert([...adminNotifications, reporterNotification]);
+            
+        if (notificationError) {
+            console.log('Error creating report notifications:', notificationError);
+            showToast('Error', 'Failed to send report', 'error');
+            return;
+        }
+        
+        showToast('Report Submitted', 'Report sent to administrators', 'success');        
+    } catch (error) {
+        console.log('Error reporting message:', error);
+        showToast('Error', 'Failed to send report', 'error');
+    }
+}
+
+async function reportUser(userId) {
+    try {
+        if (!state.currentUser || !state.supabase || !userId) return;
+        const { data: reportedProfile } = await state.supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', userId)
+            .single();           
+        if (!reportedProfile) {
+            showToast('Error', 'User not found', 'error');
+            return;
+        }
+        
+        // Fetch admin IDs
+        const { data: adminProfiles, error: adminError } = await state.supabase
+            .from('profiles')
+            .select('id')
+            .in('username', ['TheRealBenGurWaves', 'BenGurWavesBeta']);
+            
+        if (adminError) {
+            console.log('Error fetching admin profiles:', adminError);
+            showToast('Error', 'Failed to send report', 'error');
+            return;
+        }
+        
+        const reporterUsername = state.userSettings?.username || state.currentUser.email?.split('@')[0];
+        
+        // Create notifications for admins
+        const adminNotifications = adminProfiles.map(admin => ({
+            user_id: admin.id,
+            content: `@${reporterUsername} reported user @${reportedProfile.username}`,
+            type: 'report',
+            related_user_id: userId
+        }));
+        
+        // Create notification for reporter
+        const reporterNotification = {
+            user_id: state.currentUser.id,
+            content: `You reported user @${reportedProfile.username}`,
+            type: 'report_confirmation',
+            related_user_id: userId
+        };
+        
+        // Insert all notifications
+        const { error: notificationError } = await state.supabase
+            .from('notifications')
+            .insert([...adminNotifications, reporterNotification]);
+            
+        if (notificationError) {
+            console.log('Error creating user report notifications:', notificationError);
+            showToast('Error', 'Failed to send report', 'error');
+            return;
+        }
+        
+        showToast('Report Submitted', 'User report sent to administrators', 'success');        
+    } catch (error) {
+        console.log('Error reporting user:', error);
+        showToast('Error', 'Failed to send report', 'error');
+    }
+}
+
 function showEmojiPicker() {
     try {
         const emojiPicker = document.getElementById('emojiPicker');
@@ -4735,10 +4904,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.5.56 Beta...');
-    document.title = 'Labyrinth Chat v0.5.56 Beta';
-    document.querySelector('.version').textContent = 'v0.5.56 Beta';
-    document.querySelector('.login-subtitle').textContent = 'v0.5.56 Beta • Fully Functional';
+    console.log('Initializing Labyrinth Chat v0.554.324...');
+    document.title = 'Labyrinth Chat';
+    document.querySelector('.version').textContent = 'v0.554.324';
+    document.querySelector('.login-subtitle').textContent = 'v0.554.324 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

@@ -3897,7 +3897,7 @@ function renderRealmsList(realms) {
                     await joinRealm(realm.id);
                 });
             }
-        }       
+        });   
     } catch (error) {
         console.log('Error rendering realms list:', error);
     }

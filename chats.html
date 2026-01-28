@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Labyrinth Chat v0.5.560 Beta</title>
+<title>Labyrinth Chat</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -477,7 +477,7 @@
             </div>
             <div class="toggle-switch">
                 <span class="toggle-label">Open Links In App</span>
-                <label class="toggle">
+                    <label class="toggle">
                     <input type="checkbox" id="settingsOpenLinksInApp">
                     <span class="toggle-slider"></span>
                 </label>
@@ -566,6 +566,7 @@
             </div>
         </div>
         <div class="action-row" style="margin-top: 32px;">
+            <button id="publicProfileContactBtn" class="btn-primary">Contact</button>
             <button id="publicProfileCloseBtn" class="btn-secondary">Close</button>
         </div>
     </div>
@@ -676,114 +677,128 @@
         </div>
         <div class="toggle-switch">
             <span class="toggle-label">Writable Channel (allow messages)</span>
-                    <label class="toggle">
-                        <input type="checkbox" id="newChannelWritable" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
+            <label class="toggle">
+                <input type="checkbox" id="newChannelWritable" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="action-row">
+            <button id="cancelCreateChannelBtn" class="btn-secondary">Cancel</button>
+            <button id="confirmCreateChannelBtn" class="btn-primary">Create Channel</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="deleteChannelModal">
+    <div class="modal-content">
+        <h2 class="modal-title">Delete Channel</h2>
+        <div class="modal-subtitle">Permanently remove <span id="deleteChannelName"></span></div>
+        <div class="delete-steps" id="deleteSteps">
+            <div class="delete-step" id="deleteStep1">
+                <div class="delete-step-title">Step 1: Initial Confirmation</div>
+                <div class="delete-step-content">Are you sure you want to delete this channel?</div>
+                <div class="delete-step-actions">
+                    <button class="delete-step-btn delete-step-no" data-step="1" data-action="no">No, Keep Channel</button>
+                    <button class="delete-step-btn delete-step-yes" data-step="1" data-action="yes">Yes, Continue</button>
                 </div>
-                <div class="action-row">
-                    <button id="cancelCreateChannelBtn" class="btn-secondary">Cancel</button>
-                    <button id="confirmCreateChannelBtn" class="btn-primary">Create Channel</button>
+            </div>
+            <div class="delete-step" id="deleteStep2" style="display: none;">
+                <div class="delete-step-title">Step 2: Warning</div>
+                <div class="delete-step-content">This will delete all messages in this channel permanently. This action cannot be undone.</div>
+                <div class="delete-step-actions">
+                    <button class="delete-step-btn delete-step-no" data-step="2" data-action="no">No, Cancel</button>
+                    <button class="delete-step-btn delete-step-yes" data-step="2" data-action="yes">Yes, I Understand</button>
+                </div>
+            </div>
+            <div class="delete-step" id="deleteStep3" style="display: none;">
+                <div class="delete-step-title">Step 3: Final Confirmation</div>
+                <div class="delete-step-content">Final warning — this will permanently delete the channel and all its content.</div>
+                <div class="delete-step-actions">
+                    <button class="delete-step-btn delete-step-no" data-step="3" data-action="no">Cancel</button>
+                    <button class="delete-step-btn delete-step-yes" data-step="3" data-action="yes">Delete Channel</button>
                 </div>
             </div>
         </div>
-        <div class="modal-back" id="deleteChannelModal">
-            <div class="modal-content">
-                <h2 class="modal-title">Delete Channel</h2>
-                <div class="modal-subtitle">Permanently remove <span id="deleteChannelName"></span></div>
-                <div class="delete-steps" id="deleteSteps">
-                    <div class="delete-step" id="deleteStep1">
-                        <div class="delete-step-title">Step 1: Initial Confirmation</div>
-                        <div class="delete-step-content">Are you sure you want to delete this channel?</div>
-                        <div class="delete-step-actions">
-                            <button class="delete-step-btn delete-step-no" data-step="1" data-action="no">No, Keep Channel</button>
-                            <button class="delete-step-btn delete-step-yes" data-step="1" data-action="yes">Yes, Continue</button>
-                        </div>
-                    </div>
-                    <div class="delete-step" id="deleteStep2" style="display: none;">
-                        <div class="delete-step-title">Step 2: Warning</div>
-                        <div class="delete-step-content">This will delete all messages in this channel permanently. This action cannot be undone.</div>
-                        <div class="delete-step-actions">
-                            <button class="delete-step-btn delete-step-no" data-step="2" data-action="no">No, Cancel</button>
-                            <button class="delete-step-btn delete-step-yes" data-step="2" data-action="yes">Yes, I Understand</button>
-                        </div>
-                    </div>
-                    <div class="delete-step" id="deleteStep3" style="display: none;">
-                        <div class="delete-step-title">Step 3: Final Confirmation</div>
-                        <div class="delete-step-content">Final warning — this will permanently delete the channel and all its content.</div>
-                        <div class="delete-step-actions">
-                            <button class="delete-step-btn delete-step-no" data-step="3" data-action="no">Cancel</button>
-                            <button class="delete-step-btn delete-step-yes" data-step="3" data-action="yes">Delete Channel</button>
-                        </div>
-                    </div>
+        <div class="action-row" style="margin-top: 24px;">
+            <button id="cancelDeleteChannelBtn" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="emojiPickerModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h2 class="modal-title">React with Emoji</h2>
+        <div class="modal-subtitle">Select an emoji to react</div>
+        <div class="emoji-picker" id="emojiPicker" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 32px 32px 60px;"></div>
+        <div class="action-row" style="margin-top: 24px;">
+            <button id="closeEmojiPickerBtn" class="btn-secondary">Close</button>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="firstTimeWelcomeModal" style="display: none;">
+    <div class="modal-content welcome-modal-content">
+        <h2 class="welcome-modal-title">Welcome to Labyrinth Chat</h2>
+        <div class="welcome-modal-message">
+            <p>Thank you for joining Labyrinth Chat. You have been automatically added to two realms:</p>
+            <ul>
+                <li><strong>LabyrinthChat™</strong>: Your protected home realm.</li>
+                <li><strong>BenGurWaves</strong>: A public realm you can leave if you wish.</li>
+            </ul>
+            <p>Explore the realms and channels to start chatting!</p>
+        </div>
+        <button class="btn-primary" id="firstTimeWelcomeModalCloseBtn">Get Started</button>
+    </div>
+</div>
+<!-- Message Context Menu -->
+<div class="context-menu" id="messageContextMenu" style="display: none;">
+    <div class="context-menu-item" data-action="react">
+        <span>😀</span>
+        <span>React</span>
+    </div>
+    <div class="context-menu-item" data-action="viewProfile">
+        <span>👤</span>
+        <span>View Profile</span>
+    </div>
+    <div class="context-menu-item" data-action="edit" style="display: none;">
+        <span>✏️</span>
+        <span>Edit</span>
+    </div>
+    <div class="context-menu-item" data-action="delete" style="display: none;">
+        <span>🗑️</span>
+        <span>Delete</span>
+    </div>
+    <div class="context-menu-item" data-action="report">
+        <span>⚠️</span>
+        <span>Report</span>
+    </div>
+</div>
+<!-- Mention Helper Modal -->
+<div class="modal-back mention-helper-modal" id="mentionHelperModal" style="display: none;">
+    <div class="modal-content">
+        <h3 class="modal-title">Mention User</h3>
+        <div class="modal-subtitle">Select a user to mention</div>
+        <div class="mention-search-results" id="mentionSearchResults"></div>
+        <div class="action-row" style="margin-top: 16px;">
+            <button id="closeMentionHelperBtn" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- Attachment Preview Template (hidden) -->
+<template id="attachmentPreviewTemplate">
+    <div class="message-attachment">
+        <div class="attachment-preview">
+            <img class="attachment-image" src="" alt="Attachment" style="display: none;">
+            <video class="attachment-video" controls style="display: none;"></video>
+            <audio class="attachment-audio" controls style="display: none;"></audio>
+            <div class="attachment-generic" style="display: none;">
+                <div class="attachment-icon">📎</div>
+                <div class="attachment-info">
+                    <div class="attachment-name"></div>
+                    <div class="attachment-size"></div>
                 </div>
-                <div class="action-row" style="margin-top: 24px;">
-                    <button id="cancelDeleteChannelBtn" class="btn-secondary">Cancel</button>
-                </div>
+                <a class="attachment-download" href="" download>Download</a>
             </div>
         </div>
-        <div class="modal-back" id="emojiPickerModal">
-            <div class="modal-content" style="max-width: 500px;">
-                <h2 class="modal-title">React with Emoji</h2>
-                <div class="modal-subtitle">Select an emoji to react</div>
-                <div class="emoji-picker" id="emojiPicker" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 32px 32px 60px;"></div>
-                <div class="action-row" style="margin-top: 24px;">
-                    <button id="closeEmojiPickerBtn" class="btn-secondary">Close</button>
-                </div>
-            </div>
-        </div>
-        <!-- Message Context Menu -->
-        <div class="context-menu" id="messageContextMenu" style="display: none;">
-            <div class="context-menu-item" data-action="react">
-                <span>😀</span>
-                <span>React</span>
-            </div>
-            <div class="context-menu-item" data-action="viewProfile">
-                <span>👤</span>
-                <span>View Profile</span>
-            </div>
-            <div class="context-menu-item" data-action="edit" style="display: none;">
-                <span>✏️</span>
-                <span>Edit</span>
-            </div>
-            <div class="context-menu-item" data-action="delete" style="display: none;">
-                <span>🗑️</span>
-                <span>Delete</span>
-            </div>
-            <div class="context-menu-item" data-action="report">
-                <span>⚠️</span>
-                <span>Report</span>
-            </div>
-        </div>
-        <!-- Mention Helper Modal -->
-        <div class="modal-back mention-helper-modal" id="mentionHelperModal" style="display: none;">
-            <div class="modal-content">
-                <h3 class="modal-title">Mention User</h3>
-                <div class="modal-subtitle">Select a user to mention</div>
-                <div class="mention-search-results" id="mentionSearchResults"></div>
-                <div class="action-row" style="margin-top: 16px;">
-                    <button id="closeMentionHelperBtn" class="btn-secondary">Cancel</button>
-                </div>
-            </div>
-        </div>
-        <!-- Attachment Preview Template (hidden) -->
-        <template id="attachmentPreviewTemplate">
-            <div class="message-attachment">
-                <div class="attachment-preview">
-                    <img class="attachment-image" src="" alt="Attachment" style="display: none;">
-                    <video class="attachment-video" controls style="display: none;"></video>
-                    <audio class="attachment-audio" controls style="display: none;"></audio>
-                    <div class="attachment-generic" style="display: none;">
-                        <div class="attachment-icon">📎</div>
-                        <div class="attachment-info">
-                            <div class="attachment-name"></div>
-                            <div class="attachment-size"></div>
-                        </div>
-                        <a class="attachment-download" href="" download>Download</a>
-                    </div>
-                </div>
-            </div>
-        </template>
-        <script src="script.js" defer></script>
+    </div>
+</template>
+<script src="script.js" defer></script>
 </body>
 </html>

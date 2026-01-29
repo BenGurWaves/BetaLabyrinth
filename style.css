@@ -1,4 +1,4 @@
-/* Labyrinth Chat v0.5.5607 ALPHA - Complete with DM Features */
+/* Labyrinth Chat v0.554.236 ALPHA - Complete with DM Features */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -84,6 +84,9 @@ html, body {
     color: var(--text-secondary);
     pointer-events: none;
     font-family: 'Inter', sans-serif;
+}
+@media (max-width: 768px) {
+    .version { display: none; }
 }
 /* Realm Icon Container - FIXED: Circle container and larger emoji */
 .realm-icon-container {
@@ -1308,54 +1311,81 @@ audio {
 /* Tutorial Modal */
 #tutorialModal .modal-content {
     max-width: 90vw;
-    max-height: 90vh;
     width: 1000px;
     aspect-ratio: 16 / 9;
     padding: 40px;
     overflow: hidden;
-    position: relative;
 }
 @media (max-width: 768px) {
     #tutorialModal .modal-content {
         width: 100vw;
         height: 100vh;
         max-width: none;
-        max-height: none;
         aspect-ratio: unset;
         padding: 20px;
     }
 }
-.tutorial-content {
-    height: calc(100% - 80px);
-    overflow-y: auto;
+
+.tutorial-page-indicator {
     text-align: center;
+    margin-bottom: 20px;
+}
+.tutorial-page-indicator .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    margin: 0 4px;
+    opacity: 0.4;
+}
+.tutorial-page-indicator .dot.active {
+    background: var(--color-gold);
+    opacity: 1;
+}
+
+.tutorial-title {
+    text-align: center;
+    margin-bottom: 24px;
+}
+.tutorial-text {
+    text-align: center;
+    font-size: 16px;
+    line-height: 1.7;
+    margin-bottom: 32px;
+    color: var(--text-secondary);
+}
+.tutorial-images {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 32px;
+    gap: 24px;
+    margin-bottom: 40px;
 }
-.tutorial-content img {
+.tutorial-images img {
     max-width: 100%;
     max-height: 60vh;
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
 }
-.tutorial-content .dual-images {
+.dual-images {
     display: flex;
-    gap: 24px;
-    justify-content: center;
+    gap: 32px;
     flex-wrap: wrap;
+    justify-content: center;
 }
-.tutorial-content .dual-images img {
+.dual-images > div {
     flex: 1;
-    min-width: 300px;
+    min-width: 280px;
+    text-align: center;
 }
-.tutorial-content .image-caption {
-    margin-top: 8px;
+.image-caption {
+    margin-top: 12px;
     font-size: 14px;
     color: var(--text-secondary);
+    opacity: 0.8;
 }
+
 .tutorial-controls {
     position: absolute;
     bottom: 40px;
@@ -1365,14 +1395,14 @@ audio {
     justify-content: space-between;
     align-items: center;
 }
-.tutorial-skip {
-    font-size: 13px;
-    opacity: 0.7;
+@media (max-width: 768px) {
+    .tutorial-controls { bottom: 20px; left: 20px; right: 20px; }
 }
 .tutorial-nav-right {
     display: flex;
     gap: 16px;
 }
+
 /* Skip Tutorial Confirmation Modal */
 #tutorialSkipConfirmModal .modal-content {
     max-width: 400px;

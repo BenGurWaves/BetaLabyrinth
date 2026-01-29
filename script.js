@@ -1885,7 +1885,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.554.325...');
+        console.log('Initializing Supabase v0.554.236...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2004,7 +2004,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.554.325...');
+        console.log('Initializing app v0.554.236...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2083,11 +2083,11 @@ async function initializeApp() {
         showSkeletonUI();
         
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.554.325', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.554.236', 'success');
         }, 500);
         
         // Show tutorial modal if not shown before
-        if (localStorage.getItem('tutorialShown_v0.554.325') !== 'true') {
+        if (localStorage.getItem('tutorialShown_v0.554.236') !== 'true') {
             setTimeout(() => {
                 state.tutorialPage = 0;
                 renderTutorialPage();
@@ -2109,78 +2109,52 @@ function renderTutorialPage() {
         const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
         const pages = isMobile ? state.tutorialPagesMobile : state.tutorialPagesDesktop;
         const page = pages[state.tutorialPage];
-        const content = document.getElementById('tutorialContent');
         
-        if (!content || !page) return;
+        document.getElementById('tutorialTitle').textContent = page.title;
+        document.getElementById('tutorialText').innerHTML = page.text || '';
         
-        content.innerHTML = '';
+        const imgContainer = document.getElementById('tutorialImages');
+        imgContainer.innerHTML = '';
         
-        // Title
-        const title = document.createElement('h2');
-        title.className = 'tutorial-title';
-        title.textContent = page.title;
-        content.appendChild(title);
-        
-        // Text
-        if (page.text) {
-            const text = document.createElement('div');
-            text.className = 'tutorial-text';
-            text.innerHTML = page.text;
-            content.appendChild(text);
-        }
-        
-        // Image(s)
-        if (page.images && Array.isArray(page.images)) {
-            const imagesContainer = document.createElement('div');
-            imagesContainer.className = 'tutorial-images-container';
-            
-            page.images.forEach((imageSrc, index) => {
-                const imageWrapper = document.createElement('div');
-                imageWrapper.className = 'tutorial-image-wrapper';
-                
-                const img = document.createElement('img');
-                img.src = imageSrc;
-                img.alt = `Tutorial step ${state.tutorialPage + 1}`;
-                img.className = 'tutorial-image';
-                
-                if (page.captions && page.captions[index]) {
-                    const caption = document.createElement('div');
-                    caption.className = 'tutorial-caption';
-                    caption.textContent = page.captions[index];
-                    imageWrapper.appendChild(caption);
-                }
-                
-                imageWrapper.appendChild(img);
-                imagesContainer.appendChild(imageWrapper);
-            });
-            
-            content.appendChild(imagesContainer);
-        } else if (page.image) {
+        if (page.image) {
             const img = document.createElement('img');
             img.src = page.image;
-            img.alt = `Tutorial step ${state.tutorialPage + 1}`;
-            img.className = 'tutorial-image';
-            content.appendChild(img);
+            imgContainer.appendChild(img);
         }
         
-        // Update buttons
-        const skipBtn = document.getElementById('tutorialSkipBtn');
-        const nextBtn = document.getElementById('tutorialNextBtn');
-        const startBtn = document.getElementById('tutorialStartBtn');
-        
-        if (state.tutorialPage === 0) {
-            skipBtn.style.display = 'block';
-        } else {
-            skipBtn.style.display = 'none';
+        if (page.images && Array.isArray(page.images)) {
+            const dual = document.createElement('div');
+            dual.className = 'dual-images';
+            
+            page.images.forEach((src, index) => {
+                const wrapper = document.createElement('div');
+                const img = document.createElement('img');
+                img.src = src;
+                
+                if (page.captions && page.captions[index]) {
+                    const cap = document.createElement('div');
+                    cap.className = 'image-caption';
+                    cap.textContent = page.captions[index];
+                    wrapper.appendChild(cap);
+                }
+                
+                wrapper.appendChild(img);
+                dual.appendChild(wrapper);
+            });
+            
+            imgContainer.appendChild(dual);
         }
         
-        if (state.tutorialPage === pages.length - 1) {
-            nextBtn.style.display = 'none';
-            startBtn.style.display = 'block';
-        } else {
-            nextBtn.style.display = 'block';
-            startBtn.style.display = 'none';
-        }
+        // Page dots
+        document.getElementById('tutorialPageIndicator').innerHTML = pages.map((_, i) => 
+            `<span class="dot ${i === state.tutorialPage ? 'active' : ''}"></span>`
+        ).join('');
+        
+        // Button visibility
+        document.getElementById('tutorialSkipBtn').style.display = state.tutorialPage === 0 ? 'block' : 'none';
+        document.getElementById('tutorialNextBtn').style.display = state.tutorialPage < pages.length - 1 ? 'block' : 'none';
+        document.getElementById('tutorialStartBtn').style.display = state.tutorialPage === pages.length - 1 ? 'block' : 'none';
+        
     } catch (error) {
         console.log('Error rendering tutorial page:', error);
     }
@@ -2190,7 +2164,7 @@ function completeTutorial() {
     try {
         document.getElementById('tutorialModal').style.display = 'none';
         document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
-        localStorage.setItem('tutorialShown_v0.554.325', 'true');
+        localStorage.setItem('tutorialShown_v0.554.236', 'true');
         
         // Select LabyrinthChat™ realm and "Start Here" channel
         const labyrinthRealm = state.joinedRealms.find(r => r.slug === 'labyrinthchat' || r.name === 'LabyrinthChat™');
@@ -4055,7 +4029,7 @@ function renderRealmsList(realms) {
             let creatorText = '';
             if (realm.show_creator && realm.profiles) {
                 const creatorUsername = realm.created_by === state.currentUser?.id ? 'You' : '@' + (realm.profiles.username || '');
-                creatorText = `<div style="font-size: 11px; color: var(--color-gray); margin-top: 4px; font-style: italic;">Created by ${creatorUsername}</div>`;
+                creatorText = `<div style="font-size: 11px; color: var(--color-gray); margin-top: 4px; font-style: italic;">Created by ${creatorUsername}</div>';
             }
             
             realmItem.innerHTML = `
@@ -5051,10 +5025,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.554.325...');
+    console.log('Initializing Labyrinth Chat v0.554.236...');
     document.title = 'Labyrinth Chat';
-    document.querySelector('.version').textContent = 'v0.554.325';
-    document.querySelector('.login-subtitle').textContent = 'v0.554.325 • Fully Functional';
+    document.querySelector('.version').textContent = 'v0.554.236';
+    document.querySelector('.login-subtitle').textContent = 'v0.554.236 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

@@ -1,3 +1,4 @@
+```javascript
 const SUPABASE_URL = 'https://fjbrlejyneudwdiipmbt.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqYnJsZWp5bmV1ZHdkaWlwbWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0NzM4MDksImV4cCI6MjA4MjA0OTgwOX0.dYth1MXsn4-26Rb5XCca--noceIUX1Uf4VwfUWTeWyQ';
 const STORAGE_BUCKET = 'avatars';
@@ -40,7 +41,22 @@ let state = {
     welcomeModalShown: new Set(),
     announcementModalShown: new Set(),
     channelDeleteStep: 1,
-    systemThemeListener: null
+    systemThemeListener: null,
+    tutorialPage: 0,
+    tutorialPagesDesktop: [
+        { title: "Welcome to Labyrinth Chat™", text: "A cinematic, one-of-a-kind chat experience.<br><br>Dive into realms — communities with their own channels. Create your own, invite friends, connect across worlds, craft your profile, and shape conversations in a space designed for depth and elegance.<br><br>You've been automatically joined to:<br>• LabyrinthChat™ — your eternal home realm<br>• BenGurWaves — the realm where artist BenGurWaves resides. Feel free to leave if the vibes don't align… though why would you? 😉", image: null },
+        { title: "Your Realms", text: "This is your realm list — your personal gateway to every community you've joined.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Realms-List-Tutorial.jpg" },
+        { title: "Discover & Create Realms", text: "Explore public realms or create your own.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Explore-Realms-Btn-Tutorial.jpg" },
+        { title: "Join or Create", text: "", images: ["https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Join-Realm-Tutorial.jpg", "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Create-Realm-Tutorial.jpg"], captions: ["Press Join to enter a realm", "Create your own realm"] }
+    ],
+    tutorialPagesMobile: [
+        { title: "Welcome to Labyrinth Chat™", text: "A cinematic, one-of-a-kind chat experience.<br><br>Dive into realms — communities with their own channels. Create your own, invite friends, connect across worlds, craft your profile, and shape conversations in a space designed for depth and elegance.<br><br>You've been automatically joined to:<br>• LabyrinthChat™ — your eternal home realm<br>• BenGurWaves — the realm where artist BenGurWaves resides. Feel free to leave if the vibes don't align… though why would you? 😉", image: null },
+        { title: "Open Side Menu", text: "Swipe right or tap the menu icon to access your realms and settings.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MSide-Menu-Tutorial.jpg" },
+        { title: "Realm List", text: "Your personal gateway to every community.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MRealm-ListTutorial.jpg" },
+        { title: "Explore Realms", text: "Discover public realms.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/M-Explore-Realm-Tutorial.jpg" },
+        { title: "Join a Realm", text: "Tap Join to enter.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MJoin-Realm-Tutorial.jpg" },
+        { title: "Create a Realm", text: "Build your own community.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MCreate-Realm-Tutorial.jpg" }
+    ]
 };
 
 function hideLoader() {
@@ -466,7 +482,7 @@ async function ensureProtectedRealmsJoined() {
 async function loadJoinedRealmsFast() {
     try {
         if (!state.currentUser || !state.supabase) {
-            console.log('Cannot load realms: no user or supabase');
+            console.log('Cannot load realms: no user');
             return [];
         }        
         console.log('Loading joined realms (optimized)...');
@@ -1870,7 +1886,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.554.324...');
+        console.log('Initializing Supabase v0.554.325...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -1885,12 +1901,12 @@ function initializeSupabase() {
             .then(({ data: { session }, error }) => {
                 if (error) {
                     console.log('Auth check error:', error);
-                    showLoginScreen();
+                    window.location.href = 'signin.html';
                     return;
                 }                
                 if (!session) {
-                    console.log('No session found - showing login screen');
-                    showLoginScreen();
+                    console.log('No session found - redirecting to signin');
+                    window.location.href = 'signin.html';
                     return;
                 }                
                 state.currentUser = session.user;
@@ -1899,13 +1915,13 @@ function initializeSupabase() {
             })
             .catch(error => {
                 console.log('Auth error:', error);
-                showLoginScreen();
+                window.location.href = 'signin.html';
             });
             
         state.supabase.auth.onAuthStateChange((event, session) => {
             console.log('Auth state changed:', event);            
             if (event === 'SIGNED_OUT') {
-                showLoginScreen();
+                window.location.href = 'signin.html';
             } else if (event === 'SIGNED_IN' && session) {
                 state.currentUser = session.user;
                 if (!state.initComplete) {
@@ -1917,7 +1933,7 @@ function initializeSupabase() {
         console.log('Error initializing Supabase:', error);
         showToast('Error', 'Failed to initialize', 'error');
         hideLoader();
-        showLoginScreen();
+        window.location.href = 'signin.html';
     }
 }
 
@@ -1989,7 +2005,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.554.324...');
+        console.log('Initializing app v0.554.325...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2068,17 +2084,15 @@ async function initializeApp() {
         showSkeletonUI();
         
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.554.324', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.554.325', 'success');
         }, 500);
         
-        // Show first-time welcome modal
-        if (!localStorage.getItem('welcomeShown_v0.554.324')) {
+        // Show tutorial modal if not shown before
+        if (localStorage.getItem('tutorialShown_v0.554.325') !== 'true') {
             setTimeout(() => {
-                document.getElementById('firstTimeWelcomeModal').style.display = 'flex';
-                document.getElementById('welcomeDoneBtn').onclick = function() {
-                    document.getElementById('firstTimeWelcomeModal').style.display = 'none';
-                    localStorage.setItem('welcomeShown_v0.554.324', 'true');
-                };
+                state.tutorialPage = 0;
+                renderTutorialPage();
+                document.getElementById('tutorialModal').style.display = 'flex';
             }, 1000);
         }
         
@@ -2088,6 +2102,113 @@ async function initializeApp() {
         showToast('Error', 'App initialization failed', 'error');
         hideLoader();
         state.isLoading = false;
+    }
+}
+
+function renderTutorialPage() {
+    try {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+        const pages = isMobile ? state.tutorialPagesMobile : state.tutorialPagesDesktop;
+        const page = pages[state.tutorialPage];
+        const content = document.getElementById('tutorialContent');
+        
+        if (!content || !page) return;
+        
+        content.innerHTML = '';
+        
+        // Title
+        const title = document.createElement('h2');
+        title.className = 'tutorial-title';
+        title.textContent = page.title;
+        content.appendChild(title);
+        
+        // Text
+        if (page.text) {
+            const text = document.createElement('div');
+            text.className = 'tutorial-text';
+            text.innerHTML = page.text;
+            content.appendChild(text);
+        }
+        
+        // Image(s)
+        if (page.images && Array.isArray(page.images)) {
+            const imagesContainer = document.createElement('div');
+            imagesContainer.className = 'tutorial-images-container';
+            
+            page.images.forEach((imageSrc, index) => {
+                const imageWrapper = document.createElement('div');
+                imageWrapper.className = 'tutorial-image-wrapper';
+                
+                const img = document.createElement('img');
+                img.src = imageSrc;
+                img.alt = `Tutorial step ${state.tutorialPage + 1}`;
+                img.className = 'tutorial-image';
+                
+                if (page.captions && page.captions[index]) {
+                    const caption = document.createElement('div');
+                    caption.className = 'tutorial-caption';
+                    caption.textContent = page.captions[index];
+                    imageWrapper.appendChild(caption);
+                }
+                
+                imageWrapper.appendChild(img);
+                imagesContainer.appendChild(imageWrapper);
+            });
+            
+            content.appendChild(imagesContainer);
+        } else if (page.image) {
+            const img = document.createElement('img');
+            img.src = page.image;
+            img.alt = `Tutorial step ${state.tutorialPage + 1}`;
+            img.className = 'tutorial-image';
+            content.appendChild(img);
+        }
+        
+        // Update buttons
+        const skipBtn = document.getElementById('tutorialSkipBtn');
+        const nextBtn = document.getElementById('tutorialNextBtn');
+        const startBtn = document.getElementById('tutorialStartBtn');
+        
+        if (state.tutorialPage === 0) {
+            skipBtn.style.display = 'block';
+        } else {
+            skipBtn.style.display = 'none';
+        }
+        
+        if (state.tutorialPage === pages.length - 1) {
+            nextBtn.style.display = 'none';
+            startBtn.style.display = 'block';
+        } else {
+            nextBtn.style.display = 'block';
+            startBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.log('Error rendering tutorial page:', error);
+    }
+}
+
+function completeTutorial() {
+    try {
+        document.getElementById('tutorialModal').style.display = 'none';
+        document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
+        localStorage.setItem('tutorialShown_v0.554.325', 'true');
+        
+        // Select LabyrinthChat™ realm and "Start Here" channel
+        const labyrinthRealm = state.joinedRealms.find(r => r.slug === 'labyrinthchat' || r.name === 'LabyrinthChat™');
+        if (labyrinthRealm) {
+            switchRealm(labyrinthRealm.id);
+            setTimeout(() => {
+                const startHereChannel = state.channels.find(c => 
+                    c.name.toLowerCase().includes('start here') || 
+                    c.name.toLowerCase().includes('welcome')
+                );
+                if (startHereChannel) {
+                    selectChannel(startHereChannel.id);
+                }
+            }, 500);
+        }
+    } catch (error) {
+        console.log('Error completing tutorial:', error);
     }
 }
 
@@ -2669,7 +2790,8 @@ function setupEventListeners() {
                 document.getElementById('notificationsModal').style.display = 'none';
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
-                document.getElementById('firstTimeWelcomeModal').style.display = 'none';
+                document.getElementById('tutorialModal').style.display = 'none';
+                document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -2810,6 +2932,32 @@ function setupEventListeners() {
         
         document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
             document.getElementById('publicProfileModal').style.display = 'none';
+        });
+        
+        // Tutorial event listeners
+        document.getElementById('tutorialNextBtn').addEventListener('click', function() {
+            const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+            const pages = isMobile ? state.tutorialPagesMobile : state.tutorialPagesDesktop;
+            if (state.tutorialPage < pages.length - 1) {
+                state.tutorialPage++;
+                renderTutorialPage();
+            }
+        });
+        
+        document.getElementById('tutorialStartBtn').addEventListener('click', completeTutorial);
+        
+        document.getElementById('tutorialSkipBtn').addEventListener('click', function() {
+            document.getElementById('tutorialSkipConfirmModal').style.display = 'flex';
+        });
+        
+        document.getElementById('tutorialSkipConfirmYes').addEventListener('click', completeTutorial);
+        
+        document.getElementById('tutorialSkipConfirmNo').addEventListener('click', function() {
+            document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
+        });
+        
+        document.getElementById('tutorialSkipConfirmCloseBtn').addEventListener('click', function() {
+            document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
         });
         
     } catch (error) {
@@ -4904,10 +5052,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.554.324...');
+    console.log('Initializing Labyrinth Chat v0.554.325...');
     document.title = 'Labyrinth Chat';
-    document.querySelector('.version').textContent = 'v0.554.324';
-    document.querySelector('.login-subtitle').textContent = 'v0.554.324 • Fully Functional';
+    document.querySelector('.version').textContent = 'v0.554.325';
+    document.querySelector('.login-subtitle').textContent = 'v0.554.325 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

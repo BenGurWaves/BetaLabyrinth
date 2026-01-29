@@ -222,7 +222,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-            <span class="version">v0.5.560 Beta</span>
+            <span class="version">v0.554.325</span>
         </div>
         <div class="top-bar-right">
             <button class="search-btn" id="globalSearchBtn" title="Search">
@@ -656,7 +656,7 @@
                 <input type="checkbox" id="newRealmShowCreator" checked>
                 <span class="toggle-slider"></span>
             </label>
-        </div>
+            </div>
         <div class="action-row">
             <button id="cancelCreateRealmBtn" class="btn-secondary">Cancel</button>
             <button id="confirmCreateRealmBtn" class="btn-primary">Create Realm</button>
@@ -733,18 +733,56 @@
         </div>
     </div>
 </div>
-<div class="modal-back" id="firstTimeWelcomeModal" style="display: none;">
-    <div class="modal-content welcome-modal-content">
-        <h2 class="welcome-modal-title">Welcome to Labyrinth Chat</h2>
-        <div class="welcome-modal-message">
-            <p>Thank you for joining Labyrinth Chat. You have been automatically added to two realms:</p>
-            <ul>
-                <li><strong>LabyrinthChat™</strong>: Your protected home realm.</li>
-                <li><strong>BenGurWaves</strong>: A public realm you can leave if you wish.</li>
-            </ul>
-            <p>Explore the realms and channels to start chatting!</p>
+<div class="modal-back" id="tutorialModal" style="display: none;">
+    <div class="modal-content tutorial-modal-content">
+        <div class="tutorial-progress" id="tutorialProgress"></div>
+        <h2 class="tutorial-title" id="tutorialTitle">Welcome to Labyrinth Chat</h2>
+        <div class="tutorial-body" id="tutorialBody">
+            <div class="tutorial-step" id="tutorialStep1">
+                <h3>Realms & Channels</h3>
+                <p>All conversation happens in <strong>realms</strong> (groups) and <strong>channels</strong> (topics).</p>
+                <p>Your home realm <strong>LabyrinthChat™</strong> is protected and cannot be left.</p>
+            </div>
+            <div class="tutorial-step" id="tutorialStep2" style="display: none;">
+                <h3>Navigation</h3>
+                <p>Use the sidebar to switch between realms and channels.</p>
+                <p>Click the realm name to see all available realms.</p>
+            </div>
+            <div class="tutorial-step" id="tutorialStep3" style="display: none;">
+                <h3>Messaging</h3>
+                <p>Select a channel to start messaging. Use @mentions to notify users.</p>
+                <p>Attach files, react with emojis, and pin important messages.</p>
+            </div>
+            <div class="tutorial-step" id="tutorialStep4" style="display: none;">
+                <h3>Settings & Profile</h3>
+                <p>Click your avatar in the top-right to access settings.</p>
+                <p>Customize your profile, notification preferences, and theme.</p>
+            </div>
+            <div class="tutorial-step" id="tutorialStep5" style="display: none;">
+                <h3>Ready to Explore</h3>
+                <p>You're now ready to navigate the Labyrinth!</p>
+                <p>Remember: This is a premium group chat experience focused on meaningful conversation.</p>
+            </div>
         </div>
-        <button class="btn-primary" id="firstTimeWelcomeModalCloseBtn">Get Started</button>
+        <div class="tutorial-footer">
+            <button id="tutorialSkipBtn" class="btn-secondary tutorial-skip">Skip</button>
+            <div class="tutorial-nav">
+                <button id="tutorialNextBtn" class="btn-primary">Next</button>
+                <button id="tutorialStartBtn" class="btn-primary" style="display: none;">Start Chatting</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-back" id="tutorialSkipConfirmModal" style="display: none;">
+    <div class="modal-content">
+        <h2 class="modal-title">Skip Tutorial?</h2>
+        <div class="confirmation-message">
+            You can always find the full tutorial later in Settings.
+        </div>
+        <div class="confirmation-actions">
+            <button id="tutorialSkipConfirmNo" class="btn-secondary">Cancel</button>
+            <button id="tutorialSkipConfirmYes" class="btn-primary">Skip</button>
+        </div>
     </div>
 </div>
 <!-- Message Context Menu -->

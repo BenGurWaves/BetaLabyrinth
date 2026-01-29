@@ -1,4 +1,5 @@
-/* Labyrinth Chat v0.554.236 ALPHA - Complete with DM Features */
+```css
+/* Labyrinth Chat v0.554.237 ALPHA - Complete with DM Features */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -204,7 +205,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 4px;
-    height: 4px;
+    height:  ​4px;
 }
 ::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.02);
@@ -1307,106 +1308,6 @@ audio {
 .modal-close-btn:hover {
     color: var(--color-gold);
     background: var(--color-gray-dark);
-}
-/* Tutorial Modal */
-#tutorialModal .modal-content {
-    max-width: 90vw;
-    width: 1000px;
-    aspect-ratio: 16 / 9;
-    padding: 40px;
-    overflow: hidden;
-}
-@media (max-width: 768px) {
-    #tutorialModal .modal-content {
-        width: 100vw;
-        height: 100vh;
-        max-width: none;
-        aspect-ratio: unset;
-        padding: 20px;
-    }
-}
-
-.tutorial-page-indicator {
-    text-align: center;
-    margin-bottom: 20px;
-}
-.tutorial-page-indicator .dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-secondary);
-    margin: 0 4px;
-    opacity: 0.4;
-}
-.tutorial-page-indicator .dot.active {
-    background: var(--color-gold);
-    opacity: 1;
-}
-
-.tutorial-title {
-    text-align: center;
-    margin-bottom: 24px;
-}
-.tutorial-text {
-    text-align: center;
-    font-size: 16px;
-    line-height: 1.7;
-    margin-bottom: 32px;
-    color: var(--text-secondary);
-}
-.tutorial-images {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 40px;
-}
-.tutorial-images img {
-    max-width: 100%;
-    max-height: 60vh;
-    border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-}
-.dual-images {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-.dual-images > div {
-    flex: 1;
-    min-width: 280px;
-    text-align: center;
-}
-.image-caption {
-    margin-top: 12px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    opacity: 0.8;
-}
-
-.tutorial-controls {
-    position: absolute;
-    bottom: 40px;
-    left: 40px;
-    right: 40px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-@media (max-width: 768px) {
-    .tutorial-controls { bottom: 20px; left: 20px; right: 20px; }
-}
-.tutorial-nav-right {
-    display: flex;
-    gap: 16px;
-}
-
-/* Skip Tutorial Confirmation Modal */
-#tutorialSkipConfirmModal .modal-content {
-    max-width: 400px;
-    padding: 32px;
 }
 /* First-time welcome modal */
 #firstTimeWelcomeModal .modal-subtitle {
@@ -3696,3 +3597,4 @@ input:checked + .toggle-slider:before {
         margin: 0 auto;
     }
 }
+```

@@ -73,6 +73,18 @@ html, body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+/* Version Number */
+.version {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.3;
+    color: var(--text-secondary);
+    pointer-events: none;
+    font-family: 'Inter', sans-serif;
+}
 /* Realm Icon Container - FIXED: Circle container and larger emoji */
 .realm-icon-container {
     display: flex;
@@ -80,7 +92,7 @@ html, body {
     justify-content: center;
     width: 48px;
     height: 48px;
-    border-radius: 50%; /* Changed from 12px to 50% for circle */
+    border-radius: 50%;
     overflow: hidden;
     background: var(--color-gray-dark);
     border: 1px solid var(--border-color);
@@ -90,10 +102,10 @@ html, body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%; /* Changed from 12px to 50% for circle */
+    border-radius: 50%;
 }
 .realm-icon-container .emoji-icon {
-    font-size: 32px; /* Increased from 28px */
+    font-size: 32px;
     line-height: 1;
 }
 /* Main Chat with Realm Background */
@@ -225,6 +237,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     backdrop-filter: blur(20px);
     flex-shrink: 0;
     z-index: 1000;
+    position: relative;
 }
 .top-bar-left {
     display: flex;
@@ -404,7 +417,7 @@ h1, h2, h3, h4, .logo, .modal-title, .login-title, .channel-title,
     font-weight: 500;
     color: var(--color-gold);
     background: var(--color-gold-transparent);
-    overflow: hidden; /* Ensure circle mask */
+    overflow: hidden;
 }
 .header-user-avatar img {
     width: 100%;
@@ -1292,6 +1305,79 @@ audio {
     color: var(--color-gold);
     background: var(--color-gray-dark);
 }
+/* Tutorial Modal */
+#tutorialModal .modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1000px;
+    aspect-ratio: 16 / 9;
+    padding: 40px;
+    overflow: hidden;
+    position: relative;
+}
+@media (max-width: 768px) {
+    #tutorialModal .modal-content {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        max-height: none;
+        aspect-ratio: unset;
+        padding: 20px;
+    }
+}
+.tutorial-content {
+    height: calc(100% - 80px);
+    overflow-y: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+}
+.tutorial-content img {
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.tutorial-content .dual-images {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.tutorial-content .dual-images img {
+    flex: 1;
+    min-width: 300px;
+}
+.tutorial-content .image-caption {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.tutorial-controls {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    right: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.tutorial-skip {
+    font-size: 13px;
+    opacity: 0.7;
+}
+.tutorial-nav-right {
+    display: flex;
+    gap: 16px;
+}
+/* Skip Tutorial Confirmation Modal */
+#tutorialSkipConfirmModal .modal-content {
+    max-width: 400px;
+    padding: 32px;
+}
 /* First-time welcome modal */
 #firstTimeWelcomeModal .modal-subtitle {
   font-size: 15px;
@@ -1506,7 +1592,7 @@ audio {
 .realm-grid-icon {
     width: 48px;
     height: 48px;
-    border-radius: 50%; /* Changed from 12px to 50% */
+    border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--border-color);
     display: flex;
@@ -1773,14 +1859,14 @@ audio {
     background: var(--input-bg);
 }
 .search-result {
-    padding: 20px 16px; /* Increased vertical padding */
+    padding: 20px 16px;
     display: flex;
     align-items: center;
-    gap: 20px; /* Increased gap */
+    gap: 20px;
     cursor: pointer;
     transition: background var(--transition-fast);
     border-bottom: 1px solid var(--border-color);
-    min-height: 60px; /* Increased min-height for better touch */
+    min-height: 60px;
 }
 .search-result:last-child {
     border-bottom: none;
@@ -3305,19 +3391,6 @@ input:checked + .toggle-slider:before {
     color: var(--text-primary);
     font-family: 'Cormorant Garamond', serif;
 }
-/* Subtle version number */
-.version {
-  font-size: 10px;
-  opacity: 0.4;
-  color: var(--text-secondary);
-  pointer-events: none;
-  position: absolute;
-  bottom: 4px;
-  right: 8px;
-}
-@media (max-width: 768px) {
-  .version { display: none; }
-}
 /* Responsive */
 @media (max-width: 768px) {
     :root {
@@ -3325,7 +3398,10 @@ input:checked + .toggle-slider:before {
         --header-height: 64px;
         --input-height: 80px;
         --top-bar-height: 64px;
-    }    
+    }
+    .version {
+        display: none;
+    }
     .mobile-menu-btn {
         display: flex;
     }
@@ -3492,7 +3568,7 @@ input:checked + .toggle-slider:before {
         --header-height: 56px;
         --input-height: 72px;
         --top-bar-height: 56px;
-    }  
+    }
     .top-bar {
         padding: 0 12px;
     }

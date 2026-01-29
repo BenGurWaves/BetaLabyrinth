@@ -4029,7 +4029,7 @@ function renderRealmsList(realms) {
             let creatorText = '';
             if (realm.show_creator && realm.profiles) {
                 const creatorUsername = realm.created_by === state.currentUser?.id ? 'You' : '@' + (realm.profiles.username || '');
-                creatorText = `<div style="font-size: 11px; color: var(--color-gray); margin-top: 4px; font-style: italic;">Created by ${creatorUsername}</div>';
+                creatorText = `<div style="font-size: 11px; color: var(--color-gray); margin-top: 4px; font-style: italic;">Created by ${creatorUsername}</div>`;
             }
             
             realmItem.innerHTML = `

@@ -40,22 +40,7 @@ let state = {
     welcomeModalShown: new Set(),
     announcementModalShown: new Set(),
     channelDeleteStep: 1,
-    systemThemeListener: null,
-    tutorialPage: 0,
-    tutorialPagesDesktop: [
-        { title: "Welcome to Labyrinth Chat™", text: "A cinematic, one-of-a-kind chat experience.<br><br>Dive into realms — communities with their own channels. Create your own, invite friends, connect across worlds, craft your profile, and shape conversations in a space designed for depth and elegance.<br><br>You've been automatically joined to:<br>• LabyrinthChat™ — your eternal home realm<br>• BenGurWaves — the realm where artist BenGurWaves resides. Feel free to leave if the vibes don't align… though why would you? 😉", image: null },
-        { title: "Your Realms", text: "This is your realm list — your personal gateway to every community you've joined.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Realms-List-Tutorial.jpg" },
-        { title: "Discover & Create Realms", text: "Explore public realms or create your own.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Explore-Realms-Btn-Tutorial.jpg" },
-        { title: "Join or Create", text: "", images: ["https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Join-Realm-Tutorial.jpg", "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/Create-Realm-Tutorial.jpg"], captions: ["Press Join to enter a realm", "Create your own realm"] }
-    ],
-    tutorialPagesMobile: [
-        { title: "Welcome to Labyrinth Chat™", text: "A cinematic, one-of-a-kind chat experience.<br><br>Dive into realms — communities with their own channels. Create your own, invite friends, connect across worlds, craft your profile, and shape conversations in a space designed for depth and elegance.<br><br>You've been automatically joined to:<br>• LabyrinthChat™ — your eternal home realm<br>• BenGurWaves — the realm where artist BenGurWaves resides. Feel free to leave if the vibes don't align… though why would you? 😉", image: null },
-        { title: "Open Side Menu", text: "Swipe right or tap the menu icon to access your realms and settings.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MSide-Menu-Tutorial.jpg" },
-        { title: "Realm List", text: "Your personal gateway to every community.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MRealm-ListTutorial.jpg" },
-        { title: "Explore Realms", text: "Discover public realms.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/M-Explore-Realm-Tutorial.jpg" },
-        { title: "Join a Realm", text: "Tap Join to enter.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MJoin-Realm-Tutorial.jpg" },
-        { title: "Create a Realm", text: "Build your own community.", image: "https://pub-892ca1bdec9a46f09ac853fb39d5e0c3.r2.dev/MCreate-Realm-Tutorial.jpg" }
-    ]
+    systemThemeListener: null
 };
 
 function hideLoader() {
@@ -1885,7 +1870,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.554.236...');
+        console.log('Initializing Supabase v0.554.237...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -2004,7 +1989,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.554.236...');
+        console.log('Initializing app v0.554.237...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2083,17 +2068,8 @@ async function initializeApp() {
         showSkeletonUI();
         
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.554.236', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.554.237', 'success');
         }, 500);
-        
-        // Show tutorial modal if not shown before
-        if (localStorage.getItem('tutorialShown_v0.554.236') !== 'true') {
-            setTimeout(() => {
-                state.tutorialPage = 0;
-                renderTutorialPage();
-                document.getElementById('tutorialModal').style.display = 'flex';
-            }, 1000);
-        }
         
         setTimeout(checkWelcomeMessages, 1000);
     } catch (error) {
@@ -2101,87 +2077,6 @@ async function initializeApp() {
         showToast('Error', 'App initialization failed', 'error');
         hideLoader();
         state.isLoading = false;
-    }
-}
-
-function renderTutorialPage() {
-    try {
-        const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
-        const pages = isMobile ? state.tutorialPagesMobile : state.tutorialPagesDesktop;
-        const page = pages[state.tutorialPage];
-        
-        document.getElementById('tutorialTitle').textContent = page.title;
-        document.getElementById('tutorialText').innerHTML = page.text || '';
-        
-        const imgContainer = document.getElementById('tutorialImages');
-        imgContainer.innerHTML = '';
-        
-        if (page.image) {
-            const img = document.createElement('img');
-            img.src = page.image;
-            imgContainer.appendChild(img);
-        }
-        
-        if (page.images && Array.isArray(page.images)) {
-            const dual = document.createElement('div');
-            dual.className = 'dual-images';
-            
-            page.images.forEach((src, index) => {
-                const wrapper = document.createElement('div');
-                const img = document.createElement('img');
-                img.src = src;
-                
-                if (page.captions && page.captions[index]) {
-                    const cap = document.createElement('div');
-                    cap.className = 'image-caption';
-                    cap.textContent = page.captions[index];
-                    wrapper.appendChild(cap);
-                }
-                
-                wrapper.appendChild(img);
-                dual.appendChild(wrapper);
-            });
-            
-            imgContainer.appendChild(dual);
-        }
-        
-        // Page dots
-        document.getElementById('tutorialPageIndicator').innerHTML = pages.map((_, i) => 
-            `<span class="dot ${i === state.tutorialPage ? 'active' : ''}"></span>`
-        ).join('');
-        
-        // Button visibility
-        document.getElementById('tutorialSkipBtn').style.display = state.tutorialPage === 0 ? 'block' : 'none';
-        document.getElementById('tutorialNextBtn').style.display = state.tutorialPage < pages.length - 1 ? 'block' : 'none';
-        document.getElementById('tutorialStartBtn').style.display = state.tutorialPage === pages.length - 1 ? 'block' : 'none';
-        
-    } catch (error) {
-        console.log('Error rendering tutorial page:', error);
-    }
-}
-
-function completeTutorial() {
-    try {
-        document.getElementById('tutorialModal').style.display = 'none';
-        document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
-        localStorage.setItem('tutorialShown_v0.554.236', 'true');
-        
-        // Select LabyrinthChat™ realm and "Start Here" channel
-        const labyrinthRealm = state.joinedRealms.find(r => r.slug === 'labyrinthchat' || r.name === 'LabyrinthChat™');
-        if (labyrinthRealm) {
-            switchRealm(labyrinthRealm.id);
-            setTimeout(() => {
-                const startHereChannel = state.channels.find(c => 
-                    c.name.toLowerCase().includes('start here') || 
-                    c.name.toLowerCase().includes('welcome')
-                );
-                if (startHereChannel) {
-                    selectChannel(startHereChannel.id);
-                }
-            }, 500);
-        }
-    } catch (error) {
-        console.log('Error completing tutorial:', error);
     }
 }
 
@@ -2763,8 +2658,6 @@ function setupEventListeners() {
                 document.getElementById('notificationsModal').style.display = 'none';
                 document.getElementById('publicProfileModal').style.display = 'none';
                 document.getElementById('notificationsDropdown').style.display = 'none';
-                document.getElementById('tutorialModal').style.display = 'none';
-                document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
                 if (window.innerWidth <= 768) {
                     document.getElementById('sidebar').classList.remove('active');
                 }              
@@ -2905,32 +2798,6 @@ function setupEventListeners() {
         
         document.getElementById('publicProfileCloseBtn').addEventListener('click', function() {
             document.getElementById('publicProfileModal').style.display = 'none';
-        });
-        
-        // Tutorial event listeners
-        document.getElementById('tutorialNextBtn').addEventListener('click', function() {
-            const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
-            const pages = isMobile ? state.tutorialPagesMobile : state.tutorialPagesDesktop;
-            if (state.tutorialPage < pages.length - 1) {
-                state.tutorialPage++;
-                renderTutorialPage();
-            }
-        });
-        
-        document.getElementById('tutorialStartBtn').addEventListener('click', completeTutorial);
-        
-        document.getElementById('tutorialSkipBtn').addEventListener('click', function() {
-            document.getElementById('tutorialSkipConfirmModal').style.display = 'flex';
-        });
-        
-        document.getElementById('tutorialSkipConfirmYes').addEventListener('click', completeTutorial);
-        
-        document.getElementById('tutorialSkipConfirmNo').addEventListener('click', function() {
-            document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
-        });
-        
-        document.getElementById('tutorialSkipConfirmCloseBtn').addEventListener('click', function() {
-            document.getElementById('tutorialSkipConfirmModal').style.display = 'none';
         });
         
     } catch (error) {
@@ -5025,10 +4892,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.554.236...');
+    console.log('Initializing Labyrinth Chat v0.554.237...');
     document.title = 'Labyrinth Chat';
-    document.querySelector('.version').textContent = 'v0.554.236';
-    document.querySelector('.login-subtitle').textContent = 'v0.554.236 • Fully Functional';
+    document.querySelector('.version').textContent = 'v0.554.237';
+    document.querySelector('.login-subtitle').textContent = 'v0.554.237 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

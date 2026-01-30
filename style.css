@@ -1,4 +1,4 @@
-/* Labyrinth Chat v0.554.237 ALPHA - Complete with DM Features */
+/* Labyrinth Chat v0.554.238 ALPHA - Complete with DM Features */
 :root {
     --color-black: #050505;
     --color-dark: #0a0a0a;
@@ -1257,6 +1257,7 @@ audio {
     padding: 20px;
     backdrop-filter: blur(20px);
     overflow-y: auto;
+    pointer-events: auto;
 }
 [data-theme="light"] .modal-back {
     background: rgba(248, 245, 242, 0.85);
@@ -2236,6 +2237,7 @@ input:checked + .toggle-slider:before {
     z-index: 4000;
     padding: 20px;
     backdrop-filter: blur(20px);
+    pointer-events: auto;
 }
 .quick-profile-content {
     background: var(--bg-secondary);
@@ -2794,6 +2796,7 @@ input:checked + .toggle-slider:before {
     justify-content: center;
     z-index: 5000;
     backdrop-filter: blur(40px);
+    pointer-events: auto;
 }
 .media-fullscreen-content {
     position: relative;
@@ -2954,6 +2957,7 @@ input:checked + .toggle-slider:before {
 .enhanced-media-modal {
     background: rgba(5, 5, 5, 0.98);
     backdrop-filter: blur(20px);
+    pointer-events: auto;
 }
 .enhanced-media-content {
     width: 90%;
@@ -3046,6 +3050,7 @@ input:checked + .toggle-slider:before {
     justify-content: center;
     z-index: 6000;
     backdrop-filter: blur(20px);
+    pointer-events: auto;
 }
 .avatar-fullscreen-content {
     position: relative;
@@ -3596,4 +3601,3 @@ input:checked + .toggle-slider:before {
         margin: 0 auto;
     }
 }
-```

@@ -533,6 +533,13 @@ async function switchRealm(realmId) {
         }
         
         setTimeout(() => checkRealmAnnouncement(realm), 500);
+        
+        // Update URL hash for deep linking
+        if (state.currentChannel) {
+            window.location.hash = `realm=${state.currentRealm.id}&channel=${state.currentChannel.id}`;
+        } else {
+            window.location.hash = `realm=${state.currentRealm.id}`;
+        }
     } catch (error) {
         console.log('Error in switchRealm:', error);
         showToast('Error', 'Failed to switch realm', 'error');
@@ -777,6 +784,11 @@ async function selectChannel(channelId) {
         }
         updateMessageInputForChannel();
         loadMessages();      
+        
+        // Update URL hash for deep linking
+        if (state.currentRealm) {
+            window.location.hash = `realm=${state.currentRealm.id}&channel=${state.currentChannel.id}`;
+        }
     } catch (error) {
         console.log('Error in selectChannel:', error);
         showToast('Error', 'Failed to select channel', 'error');
@@ -1254,7 +1266,7 @@ function setupMessageContextMenu(msgElement, message) {
         
         contextMenu.querySelector('.view-profile').addEventListener('click', (e) => {
             e.stopPropagation();
-            showUserProfile(message.user_id, message.profiles);
+            openUserProfile(message.user_id, message.profiles);
             removeMenu();
         });
         
@@ -1448,7 +1460,7 @@ function appendMessage(message) {
             <img class="message-avatar" src="${avatarUrl ? avatarUrl + '?t=' + Date.now() : ''}" alt="${username}" onerror="this.style.display='none';" onclick="openUserProfile('${message.user_id}')">
             <div class="msg-body">
                 <div class="message-header">
-                    <div class="message-username">${escapeHtml(username)}</div>
+                    <div class="message-username" onclick="openUserProfile('${message.user_id}')" style="cursor: pointer;">${escapeHtml(username)}</div>
                     <div class="message-time">${timeStr} ${editedTag}</div>
                 </div>
                 <div class="message-text">${formattedContent}</div>
@@ -1870,7 +1882,7 @@ function updateSendButtonState() {
 
 function initializeSupabase() {
     try {
-        console.log('Initializing Supabase v0.554.237...');
+        console.log('Initializing Supabase v0.554.238...');
         state.loaderTimeout = setTimeout(hideLoader, 3000);
         state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: {
@@ -1989,7 +2001,7 @@ async function initializeApp() {
     try {
         if (state.isLoading) return;
         state.isLoading = true;       
-        console.log('Initializing app v0.554.237...');
+        console.log('Initializing app v0.554.238...');
         document.getElementById('app').style.display = 'flex';
         document.getElementById('loginOverlay').style.display = 'none';
         state.userSettings = await loadUserProfile();
@@ -2023,9 +2035,22 @@ async function initializeApp() {
             }
         }
         
+        // Parse URL hash for deep linking
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const realmId = params.get('realm');
+        const channelId = params.get('channel');
+        
         let realmToSelect = null;
         const lastRealmId = state.userSettings?.last_realm_id;        
-        if (lastRealmId) {
+        
+        // Check URL hash first
+        if (realmId) {
+            realmToSelect = state.joinedRealms.find(r => r.id === realmId);
+        }
+        
+        // If not in URL, check last realm
+        if (!realmToSelect && lastRealmId) {
             realmToSelect = state.joinedRealms.find(r => r.id === lastRealmId);
         }        
         if (!realmToSelect && state.joinedRealms.length > 0) {
@@ -2053,6 +2078,13 @@ async function initializeApp() {
             
             renderRealmDropdown();
             loadChannels();
+            
+            // If channel ID is in URL, select it after channels load
+            if (channelId) {
+                setTimeout(() => {
+                    selectChannel(channelId);
+                }, 500);
+            }
         }
         
         setupEventListeners();
@@ -2068,7 +2100,7 @@ async function initializeApp() {
         showSkeletonUI();
         
         setTimeout(() => {
-            showToast('Welcome', 'Connected to Labyrinth v0.554.237', 'success');
+            showToast('Welcome', 'Connected to Labyrinth v0.554.238', 'success');
         }, 500);
         
         setTimeout(checkWelcomeMessages, 1000);
@@ -2147,9 +2179,23 @@ async function loadInitialData() {
             console.log('No realms after protected realms join');
             return;
         }
+        
+        // Parse URL hash for deep linking
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const realmId = params.get('realm');
+        const channelId = params.get('channel');
+        
         let realmToSelect = null;
         const lastRealmId = state.userSettings?.last_realm_id;       
-        if (lastRealmId) {
+        
+        // Check URL hash first
+        if (realmId) {
+            realmToSelect = state.joinedRealms.find(r => r.id === realmId);
+        }
+        
+        // If not in URL, check last realm
+        if (!realmToSelect && lastRealmId) {
             realmToSelect = state.joinedRealms.find(r => r.id === lastRealmId);
         }      
         if (!realmToSelect && state.joinedRealms.length > 0) {
@@ -2175,6 +2221,13 @@ async function loadInitialData() {
             
             renderRealmDropdown();
             loadChannels();
+            
+            // If channel ID is in URL, select it after channels load
+            if (channelId) {
+                setTimeout(() => {
+                    selectChannel(channelId);
+                }, 500);
+            }
         }
     } catch (error) {
         console.log('Error in loadInitialData:', error);
@@ -3567,7 +3620,7 @@ async function performGlobalSearch(query) {
                 `;
                 
                 resultItem.addEventListener('click', async () => {
-                    showUserProfile(profile.id);
+                    openUserProfile(profile.id);
                     document.getElementById('globalSearchModal').style.display = 'none';
                 });
                 
@@ -3932,7 +3985,7 @@ function renderRealmsList(realms) {
                     await joinRealm(realm.id);
                 });
             }
-        });       
+        }       
     } catch (error) {
         console.log('Error rendering realms list:', error);
     }
@@ -4892,10 +4945,10 @@ function setupCustomCursor() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing Labyrinth Chat v0.554.237...');
+    console.log('Initializing Labyrinth Chat v0.554.238...');
     document.title = 'Labyrinth Chat';
-    document.querySelector('.version').textContent = 'v0.554.237';
-    document.querySelector('.login-subtitle').textContent = 'v0.554.237 • Fully Functional';
+    document.querySelector('.version').textContent = 'v0.554.238';
+    document.querySelector('.login-subtitle').textContent = 'v0.554.238 • Fully Functional';
     state.loaderTimeout = setTimeout(hideLoader, 3000);
     initializeSupabase();
     setTimeout(setupCustomCursor, 100);

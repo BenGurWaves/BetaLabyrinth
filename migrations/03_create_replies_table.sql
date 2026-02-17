@@ -1,0 +1,1 @@
+CREATE TABLE replies (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES auth.users(id), channel_id UUID REFERENCES channels(id), parent_message_id UUID REFERENCES messages(id), content TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT now());

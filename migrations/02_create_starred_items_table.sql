@@ -1,0 +1,1 @@
+CREATE TABLE starred_items (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES auth.users(id), item_id UUID NOT NULL, item_type TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT now(), UNIQUE (user_id, item_id, item_type));

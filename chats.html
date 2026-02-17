@@ -360,6 +360,7 @@
                 </div>
                 <div class="input-area">
                     <div class="read-only-notice" id="readOnlyNotice">This channel is read-only</div>
+                    <div id="replyPreview" class="reply-preview" style="display: none;"></div>
                     <div class="input-buttons">
                         <button class="input-btn" id="attachmentBtn" title="Attach file">
                             <i class="fas fa-paperclip"></i>
@@ -367,7 +368,11 @@
                         <button class="input-btn" id="emojiBtn" title="Insert emoji">
                             <i class="fas fa-smile"></i>
                         </button>
+                        <button class="input-btn" id="voiceRecordBtn" title="Record voice message">
+                            🎤 Record Voice
+                        </button>
                     </div>
+                    <div id="emojiPickerContainer" class="emoji-picker-container" style="display: none;"></div>
                     <textarea class="message-input" id="messageInput"
                         placeholder="Select a channel to start messaging..." rows="1" disabled></textarea>
                     <button class="send-btn" id="sendBtn" disabled>↑</button>
@@ -895,3 +900,40 @@
 </body>
 
 </html>
+    </template>
+    <!-- Saved Messages Modal -->
+    <div class="modal-back" id="savedMessagesModal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="document.getElementById('savedMessagesModal').style.display = 'none'">×</button>
+            <h2 class="modal-title">Saved Messages</h2>
+            <div class="modal-subtitle">Your bookmarked messages</div>
+            <div class="saved-messages-list" id="savedMessagesList" style="max-height: 60vh; overflow-y: auto; margin: 20px 0;">
+                <div class="loading-placeholder">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+            <div class="action-row">
+                <button class="btn-secondary" onclick="document.getElementById('savedMessagesModal').style.display = 'none'">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Gamification Profile Modal -->
+    <div class="modal-back" id="gamificationModal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="document.getElementById('gamificationModal').style.display = 'none'">×</button>
+            <h2 class="modal-title">Labyrinth Rank</h2>
+            <div class="gamification-profile" style="text-align: center; padding: 20px;">
+                <div id="rankEmoji" style="font-size: 64px; margin-bottom: 16px;">🔰</div>
+                <div id="rankName" style="font-size: 24px; font-weight: 500; margin-bottom: 8px;">Rookie</div>
+                <div id="rankXP" style="color: var(--text-secondary); margin-bottom: 20px;">0 XP</div>
+                <div id="rankProgress" style="width: 100%; height: 8px; background: var(--color-gray); border-radius: 4px; overflow: hidden; margin-bottom: 20px;">
+                    <div style="width: 0%; height: 100%; background: var(--color-gold); transition: width 0.3s;"></div>
+                </div>
+                <div id="badgesList" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px;"></div>
+                <div id="streakInfo" style="color: var(--text-secondary);">Daily Streak: <span id="streakCount">0</span> days</div>
+            </div>
+            <div class="action-row">
+                <button class="btn-secondary" onclick="document.getElementById('gamificationModal').style.display = 'none'">Close</button>
+            </div>
+        </div>
+    </div>

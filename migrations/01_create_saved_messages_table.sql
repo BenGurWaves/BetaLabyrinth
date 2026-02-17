@@ -1,0 +1,1 @@
+CREATE TABLE saved_messages (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES auth.users(id), message_id UUID REFERENCES messages(id), created_at TIMESTAMP WITH TIME ZONE DEFAULT now());

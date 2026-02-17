@@ -1,0 +1,1 @@
+CREATE TABLE gamification_profiles (user_id UUID PRIMARY KEY REFERENCES auth.users(id), xp INTEGER DEFAULT 0, rank TEXT DEFAULT 'Rookie', badges JSONB DEFAULT '[]', daily_streak INTEGER DEFAULT 0, last_activity_at TIMESTAMP WITH TIME ZONE);

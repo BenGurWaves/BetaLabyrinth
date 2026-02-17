@@ -5428,3 +5428,443 @@ input:checked+.toggle-slider:before {
     object-fit: cover;
     margin-right: 12px;
 }
+
+/* ============================================
+   NEW FEATURES STYLING
+   ============================================ */
+
+/* Message Actions (Save & Reply Buttons) */
+.message-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.msg:hover .message-actions {
+    opacity: 1;
+}
+
+.message-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.message-action-btn:hover {
+    background: var(--color-gray);
+    color: var(--color-gold);
+}
+
+.message-action-btn.save-btn.saved {
+    color: var(--color-gold);
+    opacity: 1;
+}
+
+/* Reply Preview */
+.reply-preview {
+    background: var(--color-gray-light);
+    border-left: 3px solid var(--color-gold);
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.reply-preview-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+/* Emoji Picker Container */
+.emoji-picker-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Voice Record Button */
+#voiceRecordBtn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+#voiceRecordBtn:hover {
+    background: var(--color-gray);
+}
+
+#voiceRecordBtn.recording {
+    background: var(--danger);
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Version Upgrade Button */
+.version-upgrade-btn {
+    background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+    border: none;
+    color: var(--bg-primary);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 12px;
+    transition: all 0.3s;
+    margin-left: 12px;
+    animation: shimmer 2s infinite;
+}
+
+.version-upgrade-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px var(--color-gold);
+}
+
+@keyframes shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+/* Gamification Profile Modal */
+.gamification-profile {
+    text-align: center;
+    padding: 20px;
+}
+
+#rankEmoji {
+    font-size: 64px;
+    margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+#rankName {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--color-gold);
+}
+
+#rankXP {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+#rankProgress {
+    width: 100%;
+    height: 8px;
+    background: var(--color-gray);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+#rankProgress > div {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-gold-light), var(--color-gold));
+    transition: width 0.3s ease;
+}
+
+#badgesList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+#streakInfo {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Saved Messages Modal */
+.saved-messages-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    margin: 20px 0;
+}
+
+.saved-message-item {
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: var(--msg-bg);
+    transition: all 0.2s;
+}
+
+.saved-message-item:hover {
+    background: var(--color-gray-light);
+    border-color: var(--color-gold-light);
+}
+
+.saved-message-item img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Star Button in Channels/Realms */
+.star-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    transition: all 0.2s;
+}
+
+.star-btn:hover {
+    color: var(--color-gold);
+}
+
+.star-btn.starred {
+    color: var(--color-gold);
+    opacity: 1;
+}
+
+/* Search Filter Dropdown */
+.search-filter-dropdown {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.search-filter-btn {
+    background: var(--color-gray-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.search-filter-btn:hover,
+.search-filter-btn.active {
+    background: var(--color-gold-transparent);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+}
+
+/* Gamification Rank Styling in Messages */
+.rank-rookie { color: #888888; }
+.rank-wanderer { color: #4a90e2; }
+.rank-explorer { color: #7ed321; }
+.rank-pathfinder { color: #f5a623; }
+.rank-navigator { color: #bd10e0; }
+.rank-architect { color: #50e3c2; }
+.rank-labyrinth-master { color: #d4af37; font-weight: 600; }
+
+/* Rank Border Frames for Avatars */
+.rank-frame-rookie {
+    border: 2px solid #888888;
+}
+
+.rank-frame-wanderer {
+    border: 2px solid #4a90e2;
+}
+
+.rank-frame-explorer {
+    border: 2px solid #7ed321;
+}
+
+.rank-frame-pathfinder {
+    border: 2px solid #f5a623;
+}
+
+.rank-frame-navigator {
+    border: 2px solid #bd10e0;
+}
+
+.rank-frame-architect {
+    border: 2px solid #50e3c2;
+}
+
+.rank-frame-labyrinth-master {
+    border: 3px solid #d4af37;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+}
+
+/* Voice Message Player */
+.voice-message-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--color-gray-light);
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+.voice-message-player audio {
+    flex: 1;
+    height: 32px;
+}
+
+/* File Attachment Display */
+.file-attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--color-gray-light);
+    border-radius: 6px;
+    margin: 8px 0;
+    border: 1px solid var(--border-color);
+}
+
+.file-attachment-icon {
+    font-size: 24px;
+}
+
+.file-attachment-info {
+    flex: 1;
+}
+
+.file-attachment-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.file-attachment-size {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.file-attachment-download {
+    background: var(--color-gold-transparent);
+    color: var(--color-gold);
+    border: 1px solid var(--color-gold);
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-attachment-download:hover {
+    background: var(--color-gold);
+    color: var(--bg-primary);
+}
+
+/* Input Button Styling */
+.input-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-size: 16px;
+}
+
+.input-btn:hover {
+    background: var(--color-gray);
+    color: var(--color-gold);
+}
+
+/* Header Button Styling */
+.header-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.header-btn:hover {
+    color: var(--color-gold);
+    transform: scale(1.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .message-actions {
+        opacity: 1;
+    }
+    
+    .emoji-picker-container {
+        max-height: 150px;
+    }
+    
+    .gamification-profile {
+        padding: 16px;
+    }
+    
+    #rankEmoji {
+        font-size: 48px;
+    }
+    
+    #rankName {
+        font-size: 20px;
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-content {
+    animation: slideIn 0.3s ease;
+}
+
+/* Accessibility */
+.message-action-btn:focus,
+.star-btn:focus,
+.search-filter-btn:focus {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+}

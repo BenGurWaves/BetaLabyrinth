@@ -46,7 +46,16 @@ let state = {
     typingTimeout: null,
     isTyping: false,
     channelSubscription: null,
-    typingUsers: new Set()
+    typingUsers: new Set(),
+    savedMessages: [],
+    starredItems: [],
+    selectedMessageForReply: null,
+    gamificationProfile: null,
+    isRecordingVoice: false,
+    voiceRecorder: null,
+    voiceChunks: [],
+    showEmojiPicker: false,
+    newVersionAvailable: false
 };
 
 // URL Hash Helper Functions
@@ -1578,6 +1587,7 @@ function appendMessage(message) {
         const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const editedTag = message.edited_at ? '<span class="message-edited">(edited)</span>' : '';
         const formattedContent = formatMessageContent(message.content);
+        const isSaved = state.savedMessages.includes(message.id);
         msgElement.innerHTML = `
             <img class="message-avatar" src="${avatarUrl ? avatarUrl + '?t=' + Date.now() : ''}" alt="${username}" onerror="this.style.display='none';" onclick="openUserProfile('${message.user_id}')">
             <div class="msg-body">
@@ -1591,6 +1601,10 @@ function appendMessage(message) {
                         ${renderReactions(message.reactions)}
                     </div>
                 ` : ''}
+                <div class="message-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="message-action-btn save-btn" onclick="toggleSaveMessage('${message.id}')" title="Save message" style="opacity: ${isSaved ? 1 : 0.5};">💾</button>
+                    <button class="message-action-btn reply-btn" onclick="setReplyTarget(state.messages.find(m => m.id === '${message.id}'))" title="Reply to message">↩️</button>
+                </div>
             </div>
         `;
         messagesContainer.appendChild(msgElement);
@@ -1781,6 +1795,8 @@ function sendMessage() {
                 if (error) {
                     console.log('Error sending message:', error);
                     showToast('Error', 'Failed to send message', 'error');
+                } else {
+                    addXP(10);
                 }
             });
     } catch (error) {
@@ -2111,6 +2127,11 @@ async function initializeApp() {
         }
         setupEventListeners();
         initializePWA();
+        await loadSavedMessages();
+        await loadStarredItems();
+        await loadGamificationProfile();
+        checkForNewVersion();
+        initializeEmojiPicker();
         state.initComplete = true;
         state.isLoading = false;
         if (state.loaderTimeout) {
@@ -2928,6 +2949,8 @@ function setupEventListeners() {
         document.getElementById('publicProfileCloseBtn').addEventListener('click', function () {
             document.getElementById('publicProfileModal').style.display = 'none';
         });
+        
+        setupNewFeatureListeners();
 
     } catch (error) {
         console.log('Error setting up event listeners:', error);
@@ -5374,3 +5397,785 @@ function updateTypingIndicator(username, isTyping) {
         bubble.classList.remove('active');
     }
 }
+
+
+// ============================================
+// FEATURE 1: SAVED MESSAGES
+// ============================================
+
+async function toggleSaveMessage(messageId) {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const isSaved = state.savedMessages.includes(messageId);
+        
+        if (isSaved) {
+            // Remove from saved
+            const { error } = await state.supabase
+                .from('saved_messages')
+                .delete()
+                .eq('user_id', state.currentUser.id)
+                .eq('message_id', messageId);
+            
+            if (error) {
+                console.log('Error removing saved message:', error);
+                return;
+            }
+            
+            state.savedMessages = state.savedMessages.filter(id => id !== messageId);
+            showToast('Success', 'Message removed from saved', 'success');
+        } else {
+            // Add to saved
+            const { error } = await state.supabase
+                .from('saved_messages')
+                .insert({
+                    user_id: state.currentUser.id,
+                    message_id: messageId
+                });
+            
+            if (error) {
+                console.log('Error saving message:', error);
+                return;
+            }
+            
+            state.savedMessages.push(messageId);
+            showToast('Success', 'Message saved', 'success');
+        }
+        
+        // Update UI
+        updateSaveButtonUI(messageId);
+    } catch (error) {
+        console.log('Error toggling save message:', error);
+    }
+}
+
+function updateSaveButtonUI(messageId) {
+    const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (!msgElement) return;
+    
+    const saveBtn = msgElement.querySelector('.save-message-btn');
+    if (!saveBtn) return;
+    
+    const isSaved = state.savedMessages.includes(messageId);
+    if (isSaved) {
+        saveBtn.classList.add('saved');
+        saveBtn.innerHTML = '💾';
+    } else {
+        saveBtn.classList.remove('saved');
+        saveBtn.innerHTML = '💾';
+    }
+}
+
+async function loadSavedMessages() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const { data: saved, error } = await state.supabase
+            .from('saved_messages')
+            .select('message_id')
+            .eq('user_id', state.currentUser.id);
+        
+        if (error) {
+            console.log('Error loading saved messages:', error);
+            return;
+        }
+        
+        state.savedMessages = saved.map(s => s.message_id);
+    } catch (error) {
+        console.log('Error in loadSavedMessages:', error);
+    }
+}
+
+async function showSavedMessagesModal() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const { data: saved, error } = await state.supabase
+            .from('saved_messages')
+            .select(`
+                message_id,
+                messages (
+                    *,
+                    profiles (
+                        username,
+                        avatar_url
+                    )
+                )
+            `)
+            .eq('user_id', state.currentUser.id)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.log('Error loading saved messages:', error);
+            return;
+        }
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-back';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <button class="modal-close-btn" onclick="this.closest('.modal-back').remove()">×</button>
+                <h2 class="modal-title">Saved Messages</h2>
+                <div class="modal-subtitle">Your bookmarked messages</div>
+                <div class="saved-messages-list" style="max-height: 60vh; overflow-y: auto; margin: 20px 0;">
+                    ${saved && saved.length > 0 ? saved.map(item => {
+                        const msg = item.messages;
+                        if (!msg) return '';
+                        const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        return `
+                            <div class="saved-message-item" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 12px; background: var(--msg-bg);">
+                                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                    <img src="${msg.profiles?.avatar_url || ''}" alt="${msg.profiles?.username}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                                    <div>
+                                        <div style="font-weight: 500;">${escapeHtml(msg.profiles?.username || 'User')}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">${time}</div>
+                                    </div>
+                                </div>
+                                <div style="color: var(--text-primary); margin-bottom: 8px;">${formatMessageContent(msg.content)}</div>
+                                <button class="btn-secondary" style="width: 100%; padding: 6px; font-size: 12px;" onclick="toggleSaveMessage('${msg.id}')">Remove from Saved</button>
+                            </div>
+                        `;
+                    }).join('') : '<div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">No saved messages yet</div>'}
+                </div>
+                <div class="action-row">
+                    <button class="btn-secondary" onclick="this.closest('.modal-back').remove()">Close</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    } catch (error) {
+        console.log('Error showing saved messages modal:', error);
+    }
+}
+
+// ============================================
+// FEATURE 2: STARRED CHANNELS AND REALMS
+// ============================================
+
+async function toggleStarItem(itemId, itemType) {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const isStarred = state.starredItems.some(item => item.item_id === itemId && item.item_type === itemType);
+        
+        if (isStarred) {
+            // Remove from starred
+            const { error } = await state.supabase
+                .from('starred_items')
+                .delete()
+                .eq('user_id', state.currentUser.id)
+                .eq('item_id', itemId)
+                .eq('item_type', itemType);
+            
+            if (error) {
+                console.log('Error removing starred item:', error);
+                return;
+            }
+            
+            state.starredItems = state.starredItems.filter(item => !(item.item_id === itemId && item.item_type === itemType));
+        } else {
+            // Add to starred
+            const { error } = await state.supabase
+                .from('starred_items')
+                .insert({
+                    user_id: state.currentUser.id,
+                    item_id: itemId,
+                    item_type: itemType
+                });
+            
+            if (error) {
+                console.log('Error starring item:', error);
+                return;
+            }
+            
+            state.starredItems.push({ item_id: itemId, item_type: itemType });
+        }
+        
+        // Update UI
+        updateStarButtonUI(itemId, itemType);
+    } catch (error) {
+        console.log('Error toggling star item:', error);
+    }
+}
+
+function updateStarButtonUI(itemId, itemType) {
+    const isStarred = state.starredItems.some(item => item.item_id === itemId && item.item_type === itemType);
+    const selector = itemType === 'channel' ? `[data-channel-id="${itemId}"]` : `[data-realm-id="${itemId}"]`;
+    const element = document.querySelector(selector);
+    
+    if (!element) return;
+    
+    const starBtn = element.querySelector('.star-btn');
+    if (!starBtn) return;
+    
+    if (isStarred) {
+        starBtn.classList.add('starred');
+        starBtn.innerHTML = '⭐';
+    } else {
+        starBtn.classList.remove('starred');
+        starBtn.innerHTML = '☆';
+    }
+}
+
+async function loadStarredItems() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const { data: starred, error } = await state.supabase
+            .from('starred_items')
+            .select('item_id, item_type')
+            .eq('user_id', state.currentUser.id);
+        
+        if (error) {
+            console.log('Error loading starred items:', error);
+            return;
+        }
+        
+        state.starredItems = starred || [];
+    } catch (error) {
+        console.log('Error in loadStarredItems:', error);
+    }
+}
+
+// ============================================
+// FEATURE 3: MESSAGE REPLIES
+// ============================================
+
+function setReplyTarget(message) {
+    try {
+        state.selectedMessageForReply = message;
+        
+        // Show reply preview
+        const replyPreview = document.getElementById('replyPreview');
+        if (replyPreview) {
+            replyPreview.innerHTML = `
+                <div class="reply-preview-content">
+                    <div style="flex: 1;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Replying to ${escapeHtml(message.profiles?.username || 'User')}</div>
+                        <div style="color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${formatMessageContent(message.content).substring(0, 100)}</div>
+                    </div>
+                    <button class="btn-text" onclick="clearReplyTarget()" style="padding: 4px 8px; font-size: 12px;">✕</button>
+                </div>
+            `;
+            replyPreview.style.display = 'block';
+        }
+    } catch (error) {
+        console.log('Error setting reply target:', error);
+    }
+}
+
+function clearReplyTarget() {
+    try {
+        state.selectedMessageForReply = null;
+        const replyPreview = document.getElementById('replyPreview');
+        if (replyPreview) {
+            replyPreview.style.display = 'none';
+        }
+    } catch (error) {
+        console.log('Error clearing reply target:', error);
+    }
+}
+
+async function sendReply(content) {
+    try {
+        if (!state.selectedMessageForReply || !state.currentUser || !state.supabase || !state.currentChannel) return;
+        
+        const { error } = await state.supabase
+            .from('replies')
+            .insert({
+                user_id: state.currentUser.id,
+                channel_id: state.currentChannel.id,
+                parent_message_id: state.selectedMessageForReply.id,
+                content: content
+            });
+        
+        if (error) {
+            console.log('Error sending reply:', error);
+            showToast('Error', 'Failed to send reply', 'error');
+            return;
+        }
+        
+        showToast('Success', 'Reply sent', 'success');
+        clearReplyTarget();
+    } catch (error) {
+        console.log('Error in sendReply:', error);
+    }
+}
+
+// ============================================
+// FEATURE 4: VOICE MESSAGES
+// ============================================
+
+async function startVoiceRecording() {
+    try {
+        if (state.isRecordingVoice) return;
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.voiceRecorder = new MediaRecorder(stream);
+        state.voiceChunks = [];
+        state.isRecordingVoice = true;
+        
+        state.voiceRecorder.ondataavailable = (event) => {
+            state.voiceChunks.push(event.data);
+        };
+        
+        state.voiceRecorder.onstop = async () => {
+            const audioBlob = new Blob(state.voiceChunks, { type: 'audio/webm' });
+            await sendVoiceMessage(audioBlob);
+            state.isRecordingVoice = false;
+        };
+        
+        state.voiceRecorder.start();
+        
+        // Update UI
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.classList.add('recording');
+            voiceBtn.innerHTML = '⏹️ Stop Recording';
+        }
+        
+        showToast('Info', 'Recording started...', 'info');
+    } catch (error) {
+        console.log('Error starting voice recording:', error);
+        showToast('Error', 'Failed to start recording', 'error');
+    }
+}
+
+function stopVoiceRecording() {
+    try {
+        if (!state.isRecordingVoice || !state.voiceRecorder) return;
+        
+        state.voiceRecorder.stop();
+        
+        // Update UI
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.classList.remove('recording');
+            voiceBtn.innerHTML = '🎤 Record Voice';
+        }
+    } catch (error) {
+        console.log('Error stopping voice recording:', error);
+    }
+}
+
+async function sendVoiceMessage(audioBlob) {
+    try {
+        if (!state.currentUser || !state.supabase || !state.currentChannel) return;
+        
+        const fileName = `${state.currentUser.id}_${Date.now()}.webm`;
+        const filePath = `${state.currentChannel.id}/${fileName}`;
+        
+        const { error: uploadError } = await state.supabase.storage
+            .from('voice_messages')
+            .upload(filePath, audioBlob, {
+                contentType: 'audio/webm'
+            });
+        
+        if (uploadError) {
+            console.log('Error uploading voice message:', uploadError);
+            showToast('Error', 'Failed to upload voice message', 'error');
+            return;
+        }
+        
+        const { data: { publicUrl } } = state.supabase.storage
+            .from('voice_messages')
+            .getPublicUrl(filePath);
+        
+        // Send message with voice URL
+        const { error: msgError } = await state.supabase
+            .from('messages')
+            .insert({
+                content: `[VOICE MESSAGE] ${publicUrl}`,
+                channel_id: state.currentChannel.id,
+                user_id: state.currentUser.id
+            });
+        
+        if (msgError) {
+            console.log('Error sending voice message:', msgError);
+            showToast('Error', 'Failed to send voice message', 'error');
+            return;
+        }
+        
+        showToast('Success', 'Voice message sent', 'success');
+    } catch (error) {
+        console.log('Error in sendVoiceMessage:', error);
+    }
+}
+
+// ============================================
+// FEATURE 5: FILE ATTACHMENTS
+// ============================================
+
+async function handleFileAttachment(file) {
+    try {
+        if (!state.currentUser || !state.supabase || !state.currentChannel) return;
+        
+        const fileName = `${state.currentUser.id}_${Date.now()}_${file.name}`;
+        const filePath = `${state.currentChannel.id}/${fileName}`;
+        
+        const { error: uploadError } = await state.supabase.storage
+            .from('file_attachments')
+            .upload(filePath, file, {
+                contentType: file.type
+            });
+        
+        if (uploadError) {
+            console.log('Error uploading file:', uploadError);
+            showToast('Error', 'Failed to upload file', 'error');
+            return;
+        }
+        
+        const { data: { publicUrl } } = state.supabase.storage
+            .from('file_attachments')
+            .getPublicUrl(filePath);
+        
+        // Send message with file attachment
+        const { error: msgError } = await state.supabase
+            .from('messages')
+            .insert({
+                content: `[FILE ATTACHMENT] ${file.name} ${publicUrl}`,
+                channel_id: state.currentChannel.id,
+                user_id: state.currentUser.id
+            });
+        
+        if (msgError) {
+            console.log('Error sending file message:', msgError);
+            showToast('Error', 'Failed to send file', 'error');
+            return;
+        }
+        
+        showToast('Success', 'File sent', 'success');
+    } catch (error) {
+        console.log('Error in handleFileAttachment:', error);
+    }
+}
+
+// ============================================
+// FEATURE 6: EMOJI PICKER
+// ============================================
+
+function showEmojiPickerForInput() {
+    try {
+        const pickerContainer = document.getElementById('emojiPickerContainer');
+        if (!pickerContainer) return;
+        
+        pickerContainer.style.display = pickerContainer.style.display === 'none' ? 'grid' : 'none';
+        state.showEmojiPicker = pickerContainer.style.display !== 'none';
+    } catch (error) {
+        console.log('Error showing emoji picker:', error);
+    }
+}
+
+function insertEmoji(emoji) {
+    try {
+        const input = document.getElementById('messageInput');
+        if (!input) return;
+        
+        input.value += emoji;
+        input.focus();
+        
+        // Close picker
+        const pickerContainer = document.getElementById('emojiPickerContainer');
+        if (pickerContainer) {
+            pickerContainer.style.display = 'none';
+            state.showEmojiPicker = false;
+        }
+    } catch (error) {
+        console.log('Error inserting emoji:', error);
+    }
+}
+
+// ============================================
+// FEATURE 7: GAMIFICATION SYSTEM
+// ============================================
+
+const LABYRINTH_RANKS = [
+    { name: 'Rookie', xpMin: 0, xpMax: 100, emoji: '🔰', color: '#888888' },
+    { name: 'Wanderer', xpMin: 100, xpMax: 300, emoji: '🚶', color: '#4a90e2' },
+    { name: 'Explorer', xpMin: 300, xpMax: 600, emoji: '🔍', color: '#7ed321' },
+    { name: 'Pathfinder', xpMin: 600, xpMax: 1000, emoji: '🗺️', color: '#f5a623' },
+    { name: 'Navigator', xpMin: 1000, xpMax: 1500, emoji: '🧭', color: '#bd10e0' },
+    { name: 'Architect', xpMin: 1500, xpMax: 2200, emoji: '🏗️', color: '#50e3c2' },
+    { name: 'Labyrinth Master', xpMin: 2200, xpMax: Infinity, emoji: '👑', color: '#d4af37' }
+];
+
+function getRankFromXP(xp) {
+    return LABYRINTH_RANKS.find(rank => xp >= rank.xpMin && xp < rank.xpMax) || LABYRINTH_RANKS[LABYRINTH_RANKS.length - 1];
+}
+
+async function loadGamificationProfile() {
+    try {
+        if (!state.currentUser || !state.supabase) return;
+        
+        const { data: profile, error } = await state.supabase
+            .from('gamification_profiles')
+            .select('*')
+            .eq('user_id', state.currentUser.id)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.log('Error loading gamification profile:', error);
+            return;
+        }
+        
+        if (!profile) {
+            // Create new profile
+            const { error: createError } = await state.supabase
+                .from('gamification_profiles')
+                .insert({
+                    user_id: state.currentUser.id,
+                    xp: 0,
+                    rank: 'Rookie',
+                    badges: [],
+                    daily_streak: 0
+                });
+            
+            if (createError) {
+                console.log('Error creating gamification profile:', createError);
+                return;
+            }
+            
+            state.gamificationProfile = {
+                user_id: state.currentUser.id,
+                xp: 0,
+                rank: 'Rookie',
+                badges: [],
+                daily_streak: 0
+            };
+        } else {
+            state.gamificationProfile = profile;
+        }
+    } catch (error) {
+        console.log('Error in loadGamificationProfile:', error);
+    }
+}
+
+async function addXP(amount) {
+    try {
+        if (!state.currentUser || !state.supabase || !state.gamificationProfile) return;
+        
+        const newXP = state.gamificationProfile.xp + amount;
+        const newRank = getRankFromXP(newXP).name;
+        
+        const { error } = await state.supabase
+            .from('gamification_profiles')
+            .update({
+                xp: newXP,
+                rank: newRank,
+                last_activity_at: new Date().toISOString()
+            })
+            .eq('user_id', state.currentUser.id);
+        
+        if (error) {
+            console.log('Error updating XP:', error);
+            return;
+        }
+        
+        state.gamificationProfile.xp = newXP;
+        state.gamificationProfile.rank = newRank;
+    } catch (error) {
+        console.log('Error in addXP:', error);
+    }
+}
+
+// ============================================
+// FEATURE 8: VERSION UPGRADE BUTTON
+// ============================================
+
+function checkForNewVersion() {
+    try {
+        if (!navigator.serviceWorker) return;
+        
+        navigator.serviceWorker.ready.then(registration => {
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        state.newVersionAvailable = true;
+                        showVersionUpgradeButton();
+                    }
+                });
+            });
+        });
+    } catch (error) {
+        console.log('Error checking for new version:', error);
+    }
+}
+
+function showVersionUpgradeButton() {
+    try {
+        const versionBtn = document.getElementById('versionUpgradeBtn');
+        if (!versionBtn) {
+            const topBar = document.querySelector('.top-bar');
+            if (!topBar) return;
+            
+            const btn = document.createElement('button');
+            btn.id = 'versionUpgradeBtn';
+            btn.className = 'version-upgrade-btn';
+            btn.innerHTML = '✨ New Version Available';
+            btn.onclick = () => {
+                window.location.reload();
+            };
+            
+            topBar.appendChild(btn);
+        } else {
+            versionBtn.style.display = 'block';
+        }
+    } catch (error) {
+        console.log('Error showing version upgrade button:', error);
+    }
+}
+
+
+// ============================================
+// EMOJI PICKER INITIALIZATION
+// ============================================
+
+function initializeEmojiPicker() {
+    try {
+        const container = document.getElementById('emojiPickerContainer');
+        if (!container) return;
+        
+        const emojiGrid = document.createElement('div');
+        emojiGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(32px, 1fr)); gap: 4px; padding: 8px;';
+        
+        const commonEmojis = ['😀', '😂', '❤️', '👍', '🎉', '🔥', '😍', '🤔', '👏', '✨', '💯', '🙏', '😢', '😡', '🤯', '😎', '🥳', '👀', '💪', '🚀'];
+        
+        commonEmojis.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.textContent = emoji;
+            btn.style.cssText = 'background: none; border: none; font-size: 24px; cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;';
+            btn.onmouseover = () => btn.style.background = 'var(--color-gray)';
+            btn.onmouseout = () => btn.style.background = 'none';
+            btn.onclick = () => insertEmoji(emoji);
+            emojiGrid.appendChild(btn);
+        });
+        
+        container.appendChild(emojiGrid);
+    } catch (error) {
+        console.log('Error initializing emoji picker:', error);
+    }
+}
+
+// ============================================
+// EVENT LISTENER SETUP FOR NEW FEATURES
+// ============================================
+
+function setupNewFeatureListeners() {
+    try {
+        // Emoji button
+        const emojiBtn = document.getElementById('emojiBtn');
+        if (emojiBtn) {
+            emojiBtn.addEventListener('click', showEmojiPickerForInput);
+        }
+        
+        // Voice record button
+        const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+        if (voiceRecordBtn) {
+            voiceRecordBtn.addEventListener('click', () => {
+                if (state.isRecordingVoice) {
+                    stopVoiceRecording();
+                } else {
+                    startVoiceRecording();
+                }
+            });
+        }
+        
+        // File attachment button
+        const attachmentBtn = document.getElementById('attachmentBtn');
+        if (attachmentBtn) {
+            attachmentBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        handleFileAttachment(file);
+                    }
+                };
+                input.click();
+            });
+        }
+        
+        // Saved messages button (add to header)
+        const headerUserBtn = document.getElementById('headerUserBtn');
+        if (headerUserBtn) {
+            const savedBtn = document.createElement('button');
+            savedBtn.className = 'header-btn';
+            savedBtn.innerHTML = '💾';
+            savedBtn.title = 'Saved Messages';
+            savedBtn.style.cssText = 'background: none; border: none; font-size: 20px; cursor: pointer; padding: 8px; color: var(--text-primary); transition: all 0.2s;';
+            savedBtn.onclick = showSavedMessagesModal;
+            headerUserBtn.parentElement.insertBefore(savedBtn, headerUserBtn);
+        }
+        
+        // Gamification profile button (add to header)
+        const notificationBell = document.getElementById('notificationBell');
+        if (notificationBell) {
+            const gamificationBtn = document.createElement('button');
+            gamificationBtn.className = 'header-btn';
+            gamificationBtn.innerHTML = '👑';
+            gamificationBtn.title = 'Labyrinth Rank';
+            gamificationBtn.style.cssText = 'background: none; border: none; font-size: 20px; cursor: pointer; padding: 8px; color: var(--text-primary); transition: all 0.2s;';
+            gamificationBtn.onclick = () => {
+                const modal = document.getElementById('gamificationModal');
+                if (modal) {
+                    updateGamificationModal();
+                    modal.style.display = 'flex';
+                }
+            };
+            notificationBell.parentElement.insertBefore(gamificationBtn, notificationBell);
+        }
+        
+        // Close emoji picker when clicking outside
+        document.addEventListener('click', (e) => {
+            const picker = document.getElementById('emojiPickerContainer');
+            const emojiBtn = document.getElementById('emojiBtn');
+            if (picker && emojiBtn && !picker.contains(e.target) && !emojiBtn.contains(e.target)) {
+                picker.style.display = 'none';
+                state.showEmojiPicker = false;
+            }
+        });
+    } catch (error) {
+        console.log('Error setting up new feature listeners:', error);
+    }
+}
+
+function updateGamificationModal() {
+    try {
+        if (!state.gamificationProfile) return;
+        
+        const rank = getRankFromXP(state.gamificationProfile.xp);
+        const nextRank = LABYRINTH_RANKS[LABYRINTH_RANKS.indexOf(rank) + 1] || rank;
+        const xpInRank = state.gamificationProfile.xp - rank.xpMin;
+        const xpNeeded = nextRank.xpMin - rank.xpMin;
+        const progress = Math.min(100, (xpInRank / xpNeeded) * 100);
+        
+        const rankEmoji = document.getElementById('rankEmoji');
+        const rankName = document.getElementById('rankName');
+        const rankXP = document.getElementById('rankXP');
+        const rankProgress = document.querySelector('#rankProgress > div');
+        const badgesList = document.getElementById('badgesList');
+        const streakCount = document.getElementById('streakCount');
+        
+        if (rankEmoji) rankEmoji.textContent = rank.emoji;
+        if (rankName) rankName.textContent = rank.name;
+        if (rankXP) rankXP.textContent = `${state.gamificationProfile.xp} XP`;
+        if (rankProgress) rankProgress.style.width = `${progress}%`;
+        if (streakCount) streakCount.textContent = state.gamificationProfile.daily_streak || 0;
+        
+        if (badgesList) {
+            badgesList.innerHTML = state.gamificationProfile.badges && state.gamificationProfile.badges.length > 0
+                ? state.gamificationProfile.badges.map(badge => `<div title="${badge}" style="font-size: 24px;">🏅</div>`).join('')
+                : '<div style="color: var(--text-secondary); font-size: 12px;">No badges yet</div>';
+        }
+    } catch (error) {
+        console.log('Error updating gamification modal:', error);
+    }
+}
+
+// Call this after setupEventListeners in initializeApp
+// We'll modify setupEventListeners to call this

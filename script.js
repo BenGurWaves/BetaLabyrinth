@@ -4170,7 +4170,6 @@ async function createRealmModal() {
         if (!name) {
             showToast('Error', 'Please enter a realm name', 'error');
             nameInput.focus();
-            nameInput.focus();
             return;
         }
 
